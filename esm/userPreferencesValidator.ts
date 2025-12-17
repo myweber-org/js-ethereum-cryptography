@@ -86,3 +86,71 @@ export class PreferencesValidator {
 export function isPreferencesValid(prefs: unknown): prefs is UserPreferences {
   return UserPreferencesSchema.safeParse(prefs).success;
 }
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
+
+export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: string[] = [];
+
+  if (!prefs.theme) {
+    errors.push('Theme selection is required');
+  } else if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be light, dark, or auto');
+  }
+
+  if (prefs.notifications === undefined) {
+    errors.push('Notification preference is required');
+  }
+
+  if (prefs.language) {
+    if (typeof prefs.language !== 'string' || prefs.language.length < 2) {
+      errors.push('Language code must be at least 2 characters');
+    }
+  }
+
+  if (prefs.fontSize !== undefined) {
+    if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+      errors.push('Font size must be between 8 and 72');
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new PreferenceError(`Validation failed: ${errors.join('; ')}`, 'preferences');
+  }
+
+  return {
+    theme: prefs.theme || 'auto',
+    notifications: prefs.notifications ?? true,
+    language: prefs.language || 'en',
+    fontSize: prefs.fontSize || 16,
+  };
+}
+
+export function safeValidatePreferences(prefs: Partial<UserPreferences>) {
+  try {
+    return {
+      success: true,
+      data: validateUserPreferences(prefs),
+    };
+  } catch (error) {
+    if (error instanceof PreferenceError) {
+      return {
+        success: false,
+        error: error.message,
+        field: error.field,
+      };
+    }
+    throw error;
+  }
+}
