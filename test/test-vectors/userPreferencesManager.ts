@@ -252,4 +252,89 @@ class UserPreferencesManager {
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notificationsEnabled: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  fontSize: z.number().min(8).max(32).default(14),
+  autoSave: z.boolean().default(true),
+  lastUpdated: z.date().optional()
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+const STORAGE_KEY = 'user_preferences';
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return UserPreferencesSchema.parse({});
+
+      const parsed = JSON.parse(stored);
+      const result = UserPreferencesSchema.safeParse({
+        ...parsed,
+        lastUpdated: parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined
+      });
+
+      return result.success ? result.data : UserPreferencesSchema.parse({});
+    } catch {
+      return UserPreferencesSchema.parse({});
+    }
+  }
+
+  private savePreferences(): void {
+    const data = {
+      ...this.preferences,
+      lastUpdated: new Date()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const validated = UserPreferencesSchema.partial().parse(updates);
+    this.preferences = { ...this.preferences, ...validated };
+    this.savePreferences();
+    return this.preferences;
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = UserPreferencesSchema.parse({});
+    this.savePreferences();
+    return this.preferences;
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(json: string): boolean {
+    try {
+      const parsed = JSON.parse(json);
+      const result = UserPreferencesSchema.safeParse(parsed);
+      
+      if (result.success) {
+        this.preferences = result.data;
+        this.savePreferences();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+}
+
+export const userPreferences = new UserPreferencesManager();
