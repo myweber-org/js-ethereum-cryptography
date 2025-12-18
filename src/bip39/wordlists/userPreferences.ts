@@ -13,8 +13,7 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
-const MAX_RESULTS_PER_PAGE = 100;
+const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
   const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
@@ -31,31 +30,28 @@ function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
     validated.language = prefs.language;
   }
 
-  if (typeof prefs.resultsPerPage === 'number') {
-    validated.resultsPerPage = Math.max(
-      MIN_RESULTS_PER_PAGE,
-      Math.min(MAX_RESULTS_PER_PAGE, prefs.resultsPerPage)
-    );
+  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
+    validated.resultsPerPage = prefs.resultsPerPage;
   }
 
   return validated;
 }
 
 function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validated = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validated));
+  const validatedPrefs = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validatedPrefs));
 }
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (!stored) return DEFAULT_PREFERENCES;
-
-  try {
-    const parsed = JSON.parse(stored);
-    return validatePreferences(parsed);
-  } catch {
-    return DEFAULT_PREFERENCES;
+  if (stored) {
+    try {
+      return validatePreferences(JSON.parse(stored));
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
   }
+  return DEFAULT_PREFERENCES;
 }
 
 export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
