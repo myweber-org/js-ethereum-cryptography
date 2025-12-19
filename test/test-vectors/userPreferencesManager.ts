@@ -293,4 +293,49 @@ const defaultUserPreferences: UserPreferences = {
 };
 
 export { UserPreferencesManager, defaultUserPreferences };
-export type { UserPreferences };
+export type { UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  fontSize: 16,
+  notificationsEnabled: true,
+  language: 'en-US'
+};
+
+class UserPreferencesManager {
+  private readonly storageKey = 'app_user_preferences';
+
+  savePreferences(prefs: Partial<UserPreferences>): void {
+    const current = this.loadPreferences();
+    const updated = { ...current, ...prefs };
+    localStorage.setItem(this.storageKey, JSON.stringify(updated));
+  }
+
+  loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.storageKey);
+    if (!stored) return { ...DEFAULT_PREFERENCES };
+
+    try {
+      const parsed = JSON.parse(stored);
+      return { ...DEFAULT_PREFERENCES, ...parsed };
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  resetToDefaults(): void {
+    localStorage.removeItem(this.storageKey);
+  }
+
+  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+    const prefs = this.loadPreferences();
+    return prefs[key];
+  }
+}
+
+export const userPrefs = new UserPreferencesManager();
