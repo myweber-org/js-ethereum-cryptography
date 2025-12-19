@@ -840,4 +840,80 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'light',
+  language: 'en',
+  notificationsEnabled: true,
+  itemsPerPage: 10
+};
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+
+  static loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.STORAGE_KEY);
+    if (!stored) return { ...DEFAULT_PREFERENCES };
+
+    try {
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  static savePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+    const current = this.loadPreferences();
+    const updated = { ...current, ...prefs };
+    const validated = this.validatePreferences(updated);
+    
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(validated));
+    return validated;
+  }
+
+  static resetToDefaults(): UserPreferences {
+    localStorage.removeItem(this.STORAGE_KEY);
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private static validatePreferences(data: unknown): UserPreferences {
+    if (!data || typeof data !== 'object') {
+      return { ...DEFAULT_PREFERENCES };
+    }
+
+    const prefs = data as Record<string, unknown>;
+    
+    return {
+      theme: this.validateTheme(prefs.theme),
+      language: this.validateLanguage(prefs.language),
+      notificationsEnabled: this.validateBoolean(prefs.notificationsEnabled),
+      itemsPerPage: this.validateNumber(prefs.itemsPerPage)
+    };
+  }
+
+  private static validateTheme(theme: unknown): 'light' | 'dark' {
+    return theme === 'dark' ? 'dark' : 'light';
+  }
+
+  private static validateLanguage(lang: unknown): string {
+    return typeof lang === 'string' && lang.length === 2 ? lang : 'en';
+  }
+
+  private static validateBoolean(value: unknown): boolean {
+    return typeof value === 'boolean' ? value : true;
+  }
+
+  private static validateNumber(value: unknown): number {
+    const num = Number(value);
+    return Number.isInteger(num) && num > 0 && num <= 100 ? num : 10;
+  }
+}
+
 export { UserPreferencesManager, type UserPreferences };
