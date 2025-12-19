@@ -41,3 +41,56 @@ class PreferenceValidator {
 }
 
 export { UserPreferences, PreferenceValidator };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
+
+export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: string[] = [];
+
+  if (!prefs.theme) {
+    errors.push('Theme is required');
+  } else if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be light, dark, or auto');
+  }
+
+  if (prefs.notifications === undefined) {
+    errors.push('Notifications preference is required');
+  }
+
+  if (!prefs.language) {
+    errors.push('Language is required');
+  } else if (typeof prefs.language !== 'string' || prefs.language.length < 2) {
+    errors.push('Language must be a valid language code');
+  }
+
+  if (prefs.fontSize === undefined) {
+    errors.push('Font size is required');
+  } else if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+    errors.push('Font size must be between 8 and 72');
+  }
+
+  if (errors.length > 0) {
+    throw new PreferenceError(`Validation failed: ${errors.join('; ')}`, 'preferences');
+  }
+
+  return prefs as UserPreferences;
+}
+
+export function normalizePreferences(prefs: UserPreferences): UserPreferences {
+  return {
+    ...prefs,
+    language: prefs.language.toLowerCase(),
+    fontSize: Math.min(Math.max(prefs.fontSize, 8), 72)
+  };
+}
