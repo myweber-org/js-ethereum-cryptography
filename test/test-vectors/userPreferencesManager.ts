@@ -7,7 +7,7 @@ interface UserPreferences {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
-  language: 'en-US',
+  language: 'en',
   notificationsEnabled: true,
   fontSize: 14
 };
@@ -35,31 +35,29 @@ class UserPreferencesManager {
   }
 
   private validatePreferences(data: unknown): UserPreferences {
-    if (!data || typeof data !== 'object') {
-      return { ...DEFAULT_PREFERENCES };
-    }
+    const result = { ...DEFAULT_PREFERENCES };
 
-    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+    if (data && typeof data === 'object') {
+      const obj = data as Record<string, unknown>;
 
-    if ('theme' in data && typeof data.theme === 'string') {
-      if (data.theme === 'light' || data.theme === 'dark' || data.theme === 'auto') {
-        validated.theme = data.theme;
+      if (obj.theme === 'light' || obj.theme === 'dark' || obj.theme === 'auto') {
+        result.theme = obj.theme;
+      }
+
+      if (typeof obj.language === 'string' && obj.language.length === 2) {
+        result.language = obj.language;
+      }
+
+      if (typeof obj.notificationsEnabled === 'boolean') {
+        result.notificationsEnabled = obj.notificationsEnabled;
+      }
+
+      if (typeof obj.fontSize === 'number' && obj.fontSize >= 8 && obj.fontSize <= 24) {
+        result.fontSize = obj.fontSize;
       }
     }
 
-    if ('language' in data && typeof data.language === 'string') {
-      validated.language = data.language;
-    }
-
-    if ('notificationsEnabled' in data && typeof data.notificationsEnabled === 'boolean') {
-      validated.notificationsEnabled = data.notificationsEnabled;
-    }
-
-    if ('fontSize' in data && typeof data.fontSize === 'number') {
-      validated.fontSize = Math.max(8, Math.min(24, data.fontSize));
-    }
-
-    return validated;
+    return result;
   }
 
   getPreferences(): UserPreferences {
@@ -67,10 +65,13 @@ class UserPreferencesManager {
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = {
-      ...this.preferences,
-      ...updates
-    };
+    const newPreferences = { ...this.preferences, ...updates };
+    this.preferences = this.validatePreferences(newPreferences);
+    this.savePreferences();
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
     this.savePreferences();
   }
 
@@ -80,11 +81,6 @@ class UserPreferencesManager {
     } catch (error) {
       console.error('Failed to save preferences:', error);
     }
-  }
-
-  resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
   }
 
   isDarkTheme(): boolean {
