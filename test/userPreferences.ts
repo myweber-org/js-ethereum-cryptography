@@ -54,4 +54,68 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
+  }
+  
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
+  }
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
+  }
+  
+  if (typeof validated.resultsPerPage !== 'number' || 
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
+  }
+  
+  return validated;
+}
+
+function savePreferences(prefs: UserPreferences): void {
+  try {
+    localStorage.setItem('userPreferences', JSON.stringify(prefs));
+  } catch (error) {
+    console.error('Failed to save preferences:', error);
+  }
+}
+
+function loadPreferences(): UserPreferences {
+  try {
+    const stored = localStorage.getItem('userPreferences');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return validatePreferences(parsed);
+    }
+  } catch (error) {
+    console.error('Failed to load preferences:', error);
+  }
+  return DEFAULT_PREFERENCES;
+}
+
+export { validatePreferences, savePreferences, loadPreferences, DEFAULT_PREFERENCES };
+export type { UserPreferences };
