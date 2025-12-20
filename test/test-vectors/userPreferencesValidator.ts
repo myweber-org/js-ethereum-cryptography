@@ -349,4 +349,61 @@ export function mergePreferences(
 ): UserPreferences {
   const merged = { ...existing, ...updates };
   return UserPreferencesSchema.parse(merged);
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaults: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    resultsPerPage: 10
+  };
+
+  const validated: UserPreferences = { ...defaults, ...prefs };
+
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    throw new PreferenceValidationError(`Invalid theme: ${validated.theme}`);
+  }
+
+  if (typeof validated.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be boolean');
+  }
+
+  if (typeof validated.language !== 'string' || validated.language.length !== 2) {
+    throw new PreferenceValidationError('Language must be a 2-character code');
+  }
+
+  if (!Number.isInteger(validated.resultsPerPage) || validated.resultsPerPage < 5 || validated.resultsPerPage > 100) {
+    throw new PreferenceValidationError('Results per page must be integer between 5 and 100');
+  }
+
+  return validated;
+}
+
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  try {
+    const validated = validateUserPreferences(prefs);
+    console.log('Preferences saved:', validated);
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.error('Validation failed:', error.message);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+  }
+}
+
+export { validateUserPreferences, savePreferences, PreferenceValidationError };
+export type { UserPreferences };
