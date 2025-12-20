@@ -312,4 +312,41 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  itemsPerPage: z.number().min(5).max(100).default(25),
+  autoSave: z.boolean().default(false),
+  twoFactorEnabled: z.boolean().default(false),
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(
+  input: unknown
+): { success: true; data: UserPreferences } | { success: false; error: string } {
+  try {
+    const result = UserPreferencesSchema.parse(input);
+    return { success: true, data: result };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.errors[0].message };
+    }
+    return { success: false, error: 'Invalid input format' };
+  }
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return UserPreferencesSchema.parse({});
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return UserPreferencesSchema.parse(merged);
+}
