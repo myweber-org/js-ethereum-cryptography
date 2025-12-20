@@ -917,3 +917,101 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager, type UserPreferences };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notificationsEnabled: boolean;
+  language: string;
+  fontSize: number;
+  lastUpdated: Date;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private defaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notificationsEnabled: true,
+      language: 'en-US',
+      fontSize: 14,
+      lastUpdated: new Date()
+    };
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (!stored) return this.defaultPreferences();
+
+      const parsed = JSON.parse(stored);
+      return {
+        ...this.defaultPreferences(),
+        ...parsed,
+        lastUpdated: new Date(parsed.lastUpdated)
+      };
+    } catch {
+      return this.defaultPreferences();
+    }
+  }
+
+  private savePreferences(): void {
+    const data = {
+      ...this.preferences,
+      lastUpdated: new Date()
+    };
+    localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(data));
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const validation = this.validateUpdates(updates);
+    if (!validation.valid) {
+      console.warn('Invalid preferences update:', validation.errors);
+      return false;
+    }
+
+    this.preferences = { ...this.preferences, ...updates };
+    this.savePreferences();
+    return true;
+  }
+
+  private validateUpdates(updates: Partial<UserPreferences>): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (updates.theme !== undefined && !['light', 'dark', 'auto'].includes(updates.theme)) {
+      errors.push('Invalid theme value');
+    }
+
+    if (updates.fontSize !== undefined && (updates.fontSize < 8 || updates.fontSize > 32)) {
+      errors.push('Font size must be between 8 and 32');
+    }
+
+    if (updates.language !== undefined && !/^[a-z]{2}-[A-Z]{2}$/.test(updates.language)) {
+      errors.push('Language must be in format xx-XX');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.defaultPreferences();
+    this.savePreferences();
+  }
+
+  getLastUpdateTime(): Date {
+    return new Date(this.preferences.lastUpdated);
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
