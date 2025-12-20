@@ -177,4 +177,58 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
+
+export const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  timezone: z.string().regex(/^[A-Za-z_]+\/[A-Za-z_]+$/),
+});
+
+export class UserPreferencesValidator {
+  static validate(preferences: unknown): UserPreferences {
+    try {
+      return userPreferencesSchema.parse(preferences) as UserPreferences;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => {
+          switch (err.path[0]) {
+            case 'theme':
+              return `Theme must be either 'light', 'dark', or 'auto'`;
+            case 'language':
+              return `Language code must be between 2 and 5 characters`;
+            case 'timezone':
+              return `Timezone must be in format 'Area/Location'`;
+            default:
+              return `Invalid value for ${err.path[0]}`;
+          }
+        });
+        throw new Error(`Validation failed: ${errorMessages.join('; ')}`);
+      }
+      throw error;
+    }
+  }
+
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    const partialSchema = userPreferencesSchema.partial();
+    try {
+      return partialSchema.parse(updates) as Partial<UserPreferences>;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `Invalid update for ${err.path[0]}: ${err.message}`
+        );
+        throw new Error(`Partial validation failed: ${errorMessages.join('; ')}`);
+      }
+      throw error;
+    }
+  }
+}
