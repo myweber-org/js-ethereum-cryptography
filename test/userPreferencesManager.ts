@@ -469,4 +469,91 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager, DEFAULT_PREFERENCES };
-export type { UserPreferences };
+export type { UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (!stored) return null;
+
+    try {
+      const parsed = JSON.parse(stored);
+      if (this.validatePreferences(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Failed to parse stored preferences:', error);
+    }
+    return null;
+  }
+
+  private validatePreferences(data: unknown): data is UserPreferences {
+    if (!data || typeof data !== 'object') return false;
+
+    const pref = data as Record<string, unknown>;
+    
+    const validThemes = ['light', 'dark', 'auto'];
+    if (!pref.theme || !validThemes.includes(pref.theme as string)) return false;
+    
+    if (!pref.language || typeof pref.language !== 'string') return false;
+    
+    if (typeof pref.notificationsEnabled !== 'boolean') return false;
+    
+    if (typeof pref.fontSize !== 'number' || pref.fontSize < 8 || pref.fontSize > 72) return false;
+
+    return true;
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    if (!this.validatePreferences(newPreferences)) {
+      return false;
+    }
+
+    this.preferences = newPreferences;
+    this.savePreferences();
+    return true;
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = defaults;
+    this.savePreferences();
+  }
+}
+
+const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 16
+};
+
+export const userPrefsManager = new UserPreferencesManager(defaultPreferences);
