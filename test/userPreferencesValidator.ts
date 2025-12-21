@@ -45,4 +45,57 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  itemsPerPage: z.number().int().min(5).max(100).default(20),
+});
+
+export const createDefaultPreferences = (): UserPreferences => ({
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  itemsPerPage: 20,
+});
+
+export const validatePreferences = (
+  input: unknown
+): { success: boolean; data?: UserPreferences; error?: string } => {
+  const result = UserPreferencesSchema.safeParse(input);
+  
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error.errors.map(e => `${e.path}: ${e.message}`).join(', '),
+    };
+  }
+  
+  return {
+    success: true,
+    data: result.data,
+  };
+};
+
+export const mergePreferences = (
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences => {
+  const merged = { ...existing, ...updates };
+  const validation = validatePreferences(merged);
+  
+  if (!validation.success) {
+    throw new Error(`Invalid preferences merge: ${validation.error}`);
+  }
+  
+  return validation.data!;
+};
