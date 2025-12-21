@@ -42,4 +42,33 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationLevelSchema = z.enum(['none', 'essential', 'all']);
+
+export const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    level: NotificationLevelSchema.default('essential'),
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true),
+  }),
+  updatedAt: z.date().optional(),
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
+}
+
+export function sanitizePreferencesUpdate(update: Partial<UserPreferences>): Partial<UserPreferences> {
+  const { userId, updatedAt, ...sanitized } = update;
+  return sanitized;
+}
