@@ -93,4 +93,72 @@ export function normalizePreferences(prefs: UserPreferences): UserPreferences {
     language: prefs.language.toLowerCase(),
     fontSize: Math.min(Math.max(prefs.fontSize, 8), 72)
   };
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
 }
+
+class PreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MIN_FONT_SIZE = 8;
+  private static readonly MAX_FONT_SIZE = 72;
+
+  static validate(preferences: Partial<UserPreferences>): string[] {
+    const errors: string[] = [];
+
+    if (preferences.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        errors.push(`Invalid theme: ${preferences.theme}`);
+      }
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications !== 'boolean') {
+        errors.push('Notifications must be a boolean value');
+      }
+    }
+
+    if (preferences.language !== undefined) {
+      if (typeof preferences.language !== 'string') {
+        errors.push('Language must be a string');
+      } else if (!this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        errors.push(`Unsupported language: ${preferences.language}`);
+      }
+    }
+
+    if (preferences.fontSize !== undefined) {
+      if (typeof preferences.fontSize !== 'number') {
+        errors.push('Font size must be a number');
+      } else if (preferences.fontSize < this.MIN_FONT_SIZE || preferences.fontSize > this.MAX_FONT_SIZE) {
+        errors.push(`Font size must be between ${this.MIN_FONT_SIZE} and ${this.MAX_FONT_SIZE}`);
+      }
+    }
+
+    return errors;
+  }
+
+  static sanitize(preferences: Partial<UserPreferences>): UserPreferences {
+    return {
+      theme: this.isValidTheme(preferences.theme) ? preferences.theme! : 'auto',
+      notifications: typeof preferences.notifications === 'boolean' ? preferences.notifications : true,
+      language: this.isValidLanguage(preferences.language) ? preferences.language! : 'en',
+      fontSize: this.isValidFontSize(preferences.fontSize) ? preferences.fontSize! : 16
+    };
+  }
+
+  private static isValidTheme(theme: any): theme is UserPreferences['theme'] {
+    return ['light', 'dark', 'auto'].includes(theme);
+  }
+
+  private static isValidLanguage(language: any): boolean {
+    return typeof language === 'string' && this.SUPPORTED_LANGUAGES.includes(language);
+  }
+
+  private static isValidFontSize(size: any): boolean {
+    return typeof size === 'number' && size >= this.MIN_FONT_SIZE && size <= this.MAX_FONT_SIZE;
+  }
+}
+
+export { UserPreferences, PreferencesValidator };
