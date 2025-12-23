@@ -153,4 +153,59 @@ try {
   } else {
     console.error('Unexpected error:', error);
   }
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: Partial<UserPreferences>): UserPreferences => {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    resultsPerPage: 20
+  };
+
+  const validated: UserPreferences = { ...defaultPreferences };
+
+  if (prefs.theme !== undefined) {
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      throw new PreferenceValidationError(`Invalid theme: ${prefs.theme}`);
+    }
+    validated.theme = prefs.theme;
+  }
+
+  if (prefs.notifications !== undefined) {
+    if (typeof prefs.notifications !== 'boolean') {
+      throw new PreferenceValidationError('Notifications must be boolean');
+    }
+    validated.notifications = prefs.notifications;
+  }
+
+  if (prefs.language !== undefined) {
+    if (typeof prefs.language !== 'string' || prefs.language.length !== 2) {
+      throw new PreferenceValidationError('Language must be 2-letter code');
+    }
+    validated.language = prefs.language.toLowerCase();
+  }
+
+  if (prefs.resultsPerPage !== undefined) {
+    if (!Number.isInteger(prefs.resultsPerPage) || prefs.resultsPerPage < 5 || prefs.resultsPerPage > 100) {
+      throw new PreferenceValidationError('Results per page must be integer between 5 and 100');
+    }
+    validated.resultsPerPage = prefs.resultsPerPage;
+  }
+
+  return validated;
+};
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences };
