@@ -1545,4 +1545,91 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const userPreferences = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return this.validateAndMerge(parsed);
+      } catch {
+        return { ...this.defaultPreferences };
+      }
+    }
+    return { ...this.defaultPreferences };
+  }
+
+  savePreferences(preferences: Partial<UserPreferences>): boolean {
+    const current = this.getPreferences();
+    const merged = { ...current, ...preferences };
+    
+    if (!this.validatePreferences(merged)) {
+      return false;
+    }
+
+    try {
+      localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(merged));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  resetToDefaults(): void {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+  }
+
+  private validatePreferences(prefs: UserPreferences): boolean {
+    const validThemes = ['light', 'dark', 'auto'];
+    const minFontSize = 8;
+    const maxFontSize = 32;
+
+    return (
+      validThemes.includes(prefs.theme) &&
+      typeof prefs.language === 'string' &&
+      prefs.language.length >= 2 &&
+      typeof prefs.notificationsEnabled === 'boolean' &&
+      prefs.fontSize >= minFontSize &&
+      prefs.fontSize <= maxFontSize
+    );
+  }
+
+  private validateAndMerge(partial: any): UserPreferences {
+    const result = { ...this.defaultPreferences };
+    
+    if (typeof partial.theme === 'string' && ['light', 'dark', 'auto'].includes(partial.theme)) {
+      result.theme = partial.theme;
+    }
+    
+    if (typeof partial.language === 'string' && partial.language.length >= 2) {
+      result.language = partial.language;
+    }
+    
+    if (typeof partial.notificationsEnabled === 'boolean') {
+      result.notificationsEnabled = partial.notificationsEnabled;
+    }
+    
+    if (typeof partial.fontSize === 'number' && partial.fontSize >= 8 && partial.fontSize <= 32) {
+      result.fontSize = partial.fontSize;
+    }
+    
+    return result;
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
