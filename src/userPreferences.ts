@@ -183,4 +183,63 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  timezone: 'UTC'
+};
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = 'auto';
+  }
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = true;
+  }
+  
+  if (!validated.language || typeof validated.language !== 'string') {
+    validated.language = 'en-US';
+  }
+  
+  if (!validated.timezone || typeof validated.timezone !== 'string') {
+    validated.timezone = 'UTC';
+  }
+  
+  return validated;
+}
+
+function saveUserPreferences(userId: string, preferences: Partial<UserPreferences>): boolean {
+  try {
+    const validatedPrefs = validatePreferences(preferences);
+    localStorage.setItem(`user_prefs_${userId}`, JSON.stringify(validatedPrefs));
+    return true;
+  } catch (error) {
+    console.error('Failed to save user preferences:', error);
+    return false;
+  }
+}
+
+function loadUserPreferences(userId: string): UserPreferences {
+  try {
+    const stored = localStorage.getItem(`user_prefs_${userId}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return validatePreferences(parsed);
+    }
+  } catch (error) {
+    console.error('Failed to load user preferences:', error);
+  }
+  
+  return { ...DEFAULT_PREFERENCES };
+}
