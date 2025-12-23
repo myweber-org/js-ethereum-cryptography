@@ -982,4 +982,88 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences();
+    if (defaultPreferences) {
+      this.preferences = { ...this.preferences, ...defaultPreferences };
+    }
+  }
+
+  private loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return this.getDefaultPreferences();
+      }
+    }
+    return this.getDefaultPreferences();
+  }
+
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      fontSize: 14,
+      notificationsEnabled: true,
+      language: 'en'
+    };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const validated = this.validatePreferences(updates);
+    this.preferences = { ...this.preferences, ...validated };
+    this.savePreferences();
+  }
+
+  private validatePreferences(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const validated: Partial<UserPreferences> = {};
+
+    if (updates.theme && ['light', 'dark', 'auto'].includes(updates.theme)) {
+      validated.theme = updates.theme;
+    }
+
+    if (updates.fontSize && updates.fontSize >= 8 && updates.fontSize <= 32) {
+      validated.fontSize = updates.fontSize;
+    }
+
+    if (typeof updates.notificationsEnabled === 'boolean') {
+      validated.notificationsEnabled = updates.notificationsEnabled;
+    }
+
+    if (updates.language && /^[a-z]{2}(-[A-Z]{2})?$/.test(updates.language)) {
+      validated.language = updates.language;
+    }
+
+    return validated;
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
+  }
+}
+
 export { UserPreferencesManager, type UserPreferences };
