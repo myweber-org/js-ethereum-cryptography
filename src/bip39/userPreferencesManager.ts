@@ -1545,4 +1545,88 @@ const defaultPrefs: UserPreferences = {
   fontSize: 14
 };
 
-export const userPrefsManager = new UserPreferencesManager(defaultPrefs);
+export const userPrefsManager = new UserPreferencesManager(defaultPrefs);interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  fontSize: 16,
+  notificationsEnabled: true,
+  language: 'en-US'
+};
+
+class UserPreferencesManager {
+  private readonly storageKey = 'user_preferences_v1';
+
+  loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validateAndMerge(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  savePreferences(prefs: Partial<UserPreferences>): void {
+    try {
+      const current = this.loadPreferences();
+      const merged = { ...current, ...prefs };
+      const validated = this.validateAndMerge(merged);
+      localStorage.setItem(this.storageKey, JSON.stringify(validated));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  resetToDefaults(): void {
+    try {
+      localStorage.removeItem(this.storageKey);
+    } catch (error) {
+      console.error('Failed to reset preferences:', error);
+    }
+  }
+
+  private validateAndMerge(partial: Partial<UserPreferences>): UserPreferences {
+    return {
+      theme: this.validateTheme(partial.theme),
+      fontSize: this.validateFontSize(partial.fontSize),
+      notificationsEnabled: this.validateBoolean(partial.notificationsEnabled),
+      language: this.validateLanguage(partial.language)
+    };
+  }
+
+  private validateTheme(theme?: string): UserPreferences['theme'] {
+    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
+      return theme;
+    }
+    return DEFAULT_PREFERENCES.theme;
+  }
+
+  private validateFontSize(size?: number): number {
+    if (typeof size === 'number' && size >= 12 && size <= 24) {
+      return Math.round(size);
+    }
+    return DEFAULT_PREFERENCES.fontSize;
+  }
+
+  private validateBoolean(value?: boolean): boolean {
+    return typeof value === 'boolean' ? value : DEFAULT_PREFERENCES.notificationsEnabled;
+  }
+
+  private validateLanguage(lang?: string): string {
+    if (typeof lang === 'string' && lang.length >= 2) {
+      return lang;
+    }
+    return DEFAULT_PREFERENCES.language;
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
