@@ -143,4 +143,49 @@ export function mergeUserPreferences(
 ): UserPreferences {
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
+}import { z } from 'zod';
+
+export const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    dataSharing: z.boolean().default(false)
+  }).strict(),
+  language: z.string().min(2).max(5).default('en')
+}).strict();
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return userPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const formattedErrors = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Invalid preferences: ${formattedErrors.join('; ')}`);
+      }
+      throw new Error('Unexpected validation error');
+    }
+  }
+
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    const partialSchema = userPreferencesSchema.partial();
+    return partialSchema.parse(updates);
+  }
+}
+
+export function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = PreferencesValidator.validatePartial(updates);
+  return { ...existing, ...validatedUpdates };
 }
