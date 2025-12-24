@@ -2164,4 +2164,77 @@ class PreferencesManager {
   }
 }
 
-export { PreferencesManager, type UserPreferences };
+export { PreferencesManager, type UserPreferences };import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  fontSize: z.number().min(8).max(32).default(14),
+  autoSave: z.boolean().default(true),
+  lastUpdated: z.date().optional()
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
+        return PreferenceSchema.parse(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences, using defaults:', error);
+    }
+    return PreferenceSchema.parse({});
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const newPreferences = { ...this.preferences, ...updates, lastUpdated: new Date() };
+    const validated = PreferenceSchema.parse(newPreferences);
+    this.preferences = validated;
+    this.savePreferences();
+    return validated;
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = PreferenceSchema.parse({});
+    this.savePreferences();
+    return this.preferences;
+  }
+
+  validateExternalData(data: unknown): UserPreferences | null {
+    try {
+      return PreferenceSchema.parse(data);
+    } catch {
+      return null;
+    }
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
