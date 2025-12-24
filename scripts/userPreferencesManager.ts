@@ -880,4 +880,102 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const userPreferences = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  fontSize: 14
+};
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const validatedUpdates = this.validateUpdates(updates);
+    if (!validatedUpdates) return false;
+
+    this.preferences = { ...this.preferences, ...validatedUpdates };
+    this.savePreferences();
+    return true;
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+  }
+
+  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> | null {
+    const result: Partial<UserPreferences> = {};
+
+    if (updates.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(updates.theme)) {
+        console.error('Invalid theme value');
+        return null;
+      }
+      result.theme = updates.theme;
+    }
+
+    if (updates.notifications !== undefined) {
+      if (typeof updates.notifications !== 'boolean') {
+        console.error('Invalid notifications value');
+        return null;
+      }
+      result.notifications = updates.notifications;
+    }
+
+    if (updates.language !== undefined) {
+      if (typeof updates.language !== 'string' || updates.language.length < 2) {
+        console.error('Invalid language value');
+        return null;
+      }
+      result.language = updates.language;
+    }
+
+    if (updates.fontSize !== undefined) {
+      if (typeof updates.fontSize !== 'number' || updates.fontSize < 8 || updates.fontSize > 72) {
+        console.error('Invalid fontSize value');
+        return null;
+      }
+      result.fontSize = updates.fontSize;
+    }
+
+    return result;
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem('userPreferences');
+      if (!stored) return { ...DEFAULT_PREFERENCES };
+
+      const parsed = JSON.parse(stored);
+      return { ...DEFAULT_PREFERENCES, ...parsed };
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
