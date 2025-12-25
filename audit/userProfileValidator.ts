@@ -1,53 +1,28 @@
+import { z } from 'zod';
 
-interface UserProfile {
-  email: string;
-  username: string;
-  age: number;
-}
+const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+    notifications: z.boolean().default(true),
+  }).default({}),
+  createdAt: z.date().default(() => new Date()),
+});
 
-class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
+type UserProfile = z.infer<typeof UserProfileSchema>;
 
-export function validateUserProfile(profile: UserProfile): void {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
-  if (!profile.email || !emailRegex.test(profile.email)) {
-    throw new ValidationError('Invalid email address format');
-  }
-  
-  if (!profile.username || profile.username.length < 3) {
-    throw new ValidationError('Username must be at least 3 characters long');
-  }
-  
-  if (profile.username.length > 20) {
-    throw new ValidationError('Username cannot exceed 20 characters');
-  }
-  
-  if (profile.age < 18) {
-    throw new ValidationError('User must be at least 18 years old');
-  }
-  
-  if (profile.age > 120) {
-    throw new ValidationError('Age must be a reasonable value');
+function validateUserProfile(input: unknown): UserProfile {
+  try {
+    return UserProfileSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Validation failed:', error.errors);
+    }
+    throw new Error('Invalid user profile data');
   }
 }
 
-export function sanitizeUsername(username: string): string {
-  return username.trim().replace(/\s+/g, '_').toLowerCase();
-}
-
-export function createUserProfile(
-  email: string,
-  username: string,
-  age: number
-): UserProfile {
-  const sanitizedUsername = sanitizeUsername(username);
-  const profile: UserProfile = { email, username: sanitizedUsername, age };
-  
-  validateUserProfile(profile);
-  return profile;
-}
+export { UserProfileSchema, validateUserProfile, type UserProfile };
