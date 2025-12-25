@@ -375,4 +375,99 @@ function mergePreferences(existing: UserPreferences, updates: Partial<UserPrefer
   return validatePreferences({ ...existing, ...updates });
 }
 
-export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14
+};
+
+class PreferencesManager {
+  private storageKey = 'user_preferences';
+  private currentPreferences: UserPreferences;
+
+  constructor() {
+    this.currentPreferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private validatePreferences(data: unknown): UserPreferences {
+    if (!data || typeof data !== 'object') {
+      return { ...DEFAULT_PREFERENCES };
+    }
+
+    const preferences = data as Partial<UserPreferences>;
+    
+    return {
+      theme: this.isValidTheme(preferences.theme) ? preferences.theme : DEFAULT_PREFERENCES.theme,
+      language: typeof preferences.language === 'string' ? preferences.language : DEFAULT_PREFERENCES.language,
+      notificationsEnabled: typeof preferences.notificationsEnabled === 'boolean' 
+        ? preferences.notificationsEnabled 
+        : DEFAULT_PREFERENCES.notificationsEnabled,
+      fontSize: typeof preferences.fontSize === 'number' 
+        ? Math.max(8, Math.min(32, preferences.fontSize))
+        : DEFAULT_PREFERENCES.fontSize
+    };
+  }
+
+  private isValidTheme(theme: unknown): theme is UserPreferences['theme'] {
+    return theme === 'light' || theme === 'dark' || theme === 'auto';
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.currentPreferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const validatedUpdates = this.validatePreferences({
+      ...this.currentPreferences,
+      ...updates
+    });
+
+    this.currentPreferences = validatedUpdates;
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.currentPreferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.currentPreferences));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  isDarkMode(): boolean {
+    if (this.currentPreferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.currentPreferences.theme === 'dark';
+  }
+}
+
+export const preferencesManager = new PreferencesManager();
