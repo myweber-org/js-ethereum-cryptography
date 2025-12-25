@@ -5,10 +5,10 @@ interface UserRegistrationData {
 }
 
 class RegistrationValidator {
-  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  private static readonly MIN_PASSWORD_LENGTH = 8;
+  private readonly emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private readonly minPasswordLength: number = 8;
 
-  static validate(data: UserRegistrationData): { isValid: boolean; errors: string[] } {
+  validate(data: UserRegistrationData): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     if (!this.isValidEmail(data.email)) {
@@ -16,7 +16,7 @@ class RegistrationValidator {
     }
 
     if (!this.isStrongPassword(data.password)) {
-      errors.push(`Password must be at least ${this.MIN_PASSWORD_LENGTH} characters long and contain uppercase, lowercase, and numbers`);
+      errors.push(`Password must be at least ${this.minPasswordLength} characters long and contain uppercase, lowercase, and numbers`);
     }
 
     if (data.password !== data.confirmPassword) {
@@ -25,16 +25,16 @@ class RegistrationValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors: errors
     };
   }
 
-  private static isValidEmail(email: string): boolean {
-    return this.EMAIL_REGEX.test(email);
+  private isValidEmail(email: string): boolean {
+    return this.emailRegex.test(email);
   }
 
-  private static isStrongPassword(password: string): boolean {
-    if (password.length < this.MIN_PASSWORD_LENGTH) return false;
+  private isStrongPassword(password: string): boolean {
+    if (password.length < this.minPasswordLength) return false;
     
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
@@ -44,4 +44,4 @@ class RegistrationValidator {
   }
 }
 
-export { UserRegistrationData, RegistrationValidator };
+export { RegistrationValidator, UserRegistrationData };
