@@ -42,20 +42,23 @@ class UserPreferencesManager {
 
     const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
 
-    if ('theme' in data && ['light', 'dark', 'auto'].includes(data.theme as string)) {
-      validated.theme = data.theme as UserPreferences['theme'];
+    if ('theme' in data && typeof data.theme === 'string') {
+      if (['light', 'dark', 'auto'].includes(data.theme)) {
+        validated.theme = data.theme as UserPreferences['theme'];
+      }
     }
 
     if ('notifications' in data && typeof data.notifications === 'boolean') {
       validated.notifications = data.notifications;
     }
 
-    if ('language' in data && typeof data.language === 'string' && data.language.length >= 2) {
+    if ('language' in data && typeof data.language === 'string') {
       validated.language = data.language;
     }
 
-    if ('fontSize' in data && typeof data.fontSize === 'number' && data.fontSize >= 8 && data.fontSize <= 32) {
-      validated.fontSize = data.fontSize;
+    if ('fontSize' in data && typeof data.fontSize === 'number') {
+      const size = Math.max(8, Math.min(24, data.fontSize));
+      validated.fontSize = size;
     }
 
     return validated;
@@ -71,11 +74,6 @@ class UserPreferencesManager {
     this.savePreferences();
   }
 
-  resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
-  }
-
   private savePreferences(): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
@@ -84,85 +82,22 @@ class UserPreferencesManager {
     }
   }
 
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+  }
+
   getTheme(): UserPreferences['theme'] {
     return this.preferences.theme;
+  }
+
+  setTheme(theme: UserPreferences['theme']): void {
+    this.updatePreferences({ theme });
   }
 
   toggleNotifications(): void {
     this.updatePreferences({ notifications: !this.preferences.notifications });
   }
-
-  isDarkMode(): boolean {
-    if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return this.preferences.theme === 'dark';
-  }
 }
 
-export const userPreferences = new UserPreferencesManager();interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
-
-class UserPreferencesManager {
-  private static readonly STORAGE_KEY = 'user_preferences';
-  private preferences: UserPreferences;
-
-  constructor(defaultPreferences: UserPreferences) {
-    this.preferences = this.loadPreferences() || defaultPreferences;
-  }
-
-  private loadPreferences(): UserPreferences | null {
-    try {
-      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = { ...this.preferences, ...updates };
-    this.validatePreferences();
-    this.savePreferences();
-  }
-
-  private validatePreferences(): void {
-    if (this.preferences.fontSize < 12 || this.preferences.fontSize > 24) {
-      throw new Error('Font size must be between 12 and 24');
-    }
-
-    const validLanguages = ['en', 'es', 'fr', 'de'];
-    if (!validLanguages.includes(this.preferences.language)) {
-      throw new Error(`Invalid language. Must be one of: ${validLanguages.join(', ')}`);
-    }
-  }
-
-  private savePreferences(): void {
-    localStorage.setItem(
-      UserPreferencesManager.STORAGE_KEY,
-      JSON.stringify(this.preferences)
-    );
-  }
-
-  getPreferences(): Readonly<UserPreferences> {
-    return { ...this.preferences };
-  }
-
-  resetToDefaults(defaults: UserPreferences): void {
-    this.preferences = defaults;
-    this.savePreferences();
-  }
-}
-
-const defaultPrefs: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en',
-  fontSize: 16
-};
-
-export const userPrefsManager = new UserPreferencesManager(defaultPrefs);
+export const userPreferences = new UserPreferencesManager();
