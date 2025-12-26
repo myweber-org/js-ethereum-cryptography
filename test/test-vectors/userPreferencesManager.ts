@@ -63,4 +63,88 @@ const defaultPreferences: UserPreferences = {
   fontSize: 16
 };
 
-export const preferencesManager = new UserPreferencesManager(defaultPreferences);
+export const preferencesManager = new UserPreferencesManager(defaultPreferences);interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_RESULTS_PER_PAGE = 5;
+const MAX_RESULTS_PER_PAGE = 100;
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor(initialPreferences?: Partial<UserPreferences>) {
+    this.preferences = { ...DEFAULT_PREFERENCES, ...initialPreferences };
+    this.validateAndNormalize();
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    if (!this.validatePreferences(newPreferences)) {
+      return false;
+    }
+
+    this.preferences = newPreferences;
+    this.normalizePreferences();
+    return true;
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+  }
+
+  private validatePreferences(prefs: UserPreferences): boolean {
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      return false;
+    }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      return false;
+    }
+
+    if (!VALID_LANGUAGES.includes(prefs.language)) {
+      return false;
+    }
+
+    if (!Number.isInteger(prefs.resultsPerPage) || 
+        prefs.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+        prefs.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private normalizePreferences(): void {
+    this.preferences.resultsPerPage = Math.min(
+      Math.max(this.preferences.resultsPerPage, MIN_RESULTS_PER_PAGE),
+      MAX_RESULTS_PER_PAGE
+    );
+  }
+
+  private validateAndNormalize(): void {
+    if (!this.validatePreferences(this.preferences)) {
+      this.preferences = { ...DEFAULT_PREFERENCES };
+    }
+    this.normalizePreferences();
+  }
+}
+
+export { UserPreferencesManager, DEFAULT_PREFERENCES };
+export type { UserPreferences };
