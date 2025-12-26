@@ -29,7 +29,7 @@ class UserPreferencesManager {
     return {
       theme: 'auto',
       notifications: true,
-      language: 'en-US',
+      language: 'en',
       fontSize: 16
     };
   }
@@ -38,19 +38,17 @@ class UserPreferencesManager {
     const validThemes = ['light', 'dark', 'auto'];
     const theme = validThemes.includes(data.theme) ? data.theme : 'auto';
     const notifications = typeof data.notifications === 'boolean' ? data.notifications : true;
-    const language = typeof data.language === 'string' ? data.language : 'en-US';
-    const fontSize = typeof data.fontSize === 'number' && data.fontSize >= 12 && data.fontSize <= 24 
-      ? data.fontSize 
-      : 16;
+    const language = typeof data.language === 'string' && data.language.length === 2 ? data.language : 'en';
+    const fontSize = typeof data.fontSize === 'number' && data.fontSize >= 12 && data.fontSize <= 24 ? data.fontSize : 16;
 
     return { theme, notifications, language, fontSize };
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = {
+    this.preferences = this.validatePreferences({
       ...this.preferences,
-      ...this.validatePreferences(updates)
-    };
+      ...updates
+    });
     this.savePreferences();
   }
 
@@ -61,7 +59,7 @@ class UserPreferencesManager {
     );
   }
 
-  getPreferences(): Readonly<UserPreferences> {
+  getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
@@ -70,10 +68,12 @@ class UserPreferencesManager {
     this.savePreferences();
   }
 
-  applyPreferences(): void {
-    document.documentElement.setAttribute('data-theme', this.preferences.theme);
-    document.documentElement.style.fontSize = `${this.preferences.fontSize}px`;
+  isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
