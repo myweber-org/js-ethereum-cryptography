@@ -1,68 +1,60 @@
 
 interface UserProfile {
-  id: string;
+  id: number;
   username: string;
   email: string;
   age?: number;
   isActive: boolean;
-  lastLogin: Date;
 }
 
 class UserProfileManager {
-  private profiles: Map<string, UserProfile> = new Map();
+  private profiles: Map<number, UserProfile>;
 
-  addProfile(profile: UserProfile): boolean {
+  constructor() {
+    this.profiles = new Map();
+  }
+
+  addProfile(profile: UserProfile): void {
     if (this.profiles.has(profile.id)) {
-      return false;
+      throw new Error(`Profile with ID ${profile.id} already exists`);
     }
-
+    
     if (!this.validateEmail(profile.email)) {
-      throw new Error('Invalid email format');
+      throw new Error(`Invalid email format: ${profile.email}`);
     }
 
-    if (profile.age && profile.age < 0) {
-      throw new Error('Age cannot be negative');
+    if (profile.age !== undefined && profile.age < 0) {
+      throw new Error(`Age cannot be negative: ${profile.age}`);
     }
 
     this.profiles.set(profile.id, profile);
-    return true;
   }
 
-  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
-    const existingProfile = this.profiles.get(id);
-    if (!existingProfile) {
-      return false;
+  updateProfile(id: number, updates: Partial<UserProfile>): void {
+    const profile = this.profiles.get(id);
+    
+    if (!profile) {
+      throw new Error(`Profile with ID ${id} not found`);
     }
 
     if (updates.email && !this.validateEmail(updates.email)) {
-      throw new Error('Invalid email format');
+      throw new Error(`Invalid email format: ${updates.email}`);
     }
 
-    if (updates.age && updates.age < 0) {
-      throw new Error('Age cannot be negative');
+    if (updates.age !== undefined && updates.age < 0) {
+      throw new Error(`Age cannot be negative: ${updates.age}`);
     }
 
-    this.profiles.set(id, { ...existingProfile, ...updates });
-    return true;
+    this.profiles.set(id, { ...profile, ...updates });
   }
 
-  getProfile(id: string): UserProfile | undefined {
+  getProfile(id: number): UserProfile | undefined {
     return this.profiles.get(id);
   }
 
-  deactivateProfile(id: string): boolean {
-    const profile = this.profiles.get(id);
-    if (!profile) {
-      return false;
-    }
-
-    profile.isActive = false;
-    profile.lastLogin = new Date();
-    return true;
-  }
-
   getActiveProfiles(): UserProfile[] {
-    return Array.from(this.profiles.values()).filter(profile => profile.isActive);
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive);
   }
 
   private validateEmail(email: string): boolean {
@@ -71,17 +63,4 @@ class UserProfileManager {
   }
 }
 
-const profileManager = new UserProfileManager();
-
-const newUser: UserProfile = {
-  id: 'user-001',
-  username: 'john_doe',
-  email: 'john@example.com',
-  age: 30,
-  isActive: true,
-  lastLogin: new Date()
-};
-
-profileManager.addProfile(newUser);
-profileManager.updateProfile('user-001', { age: 31 });
-const activeUsers = profileManager.getActiveProfiles();
+export { UserProfileManager, UserProfile };
