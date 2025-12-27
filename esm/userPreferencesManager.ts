@@ -1,21 +1,25 @@
 
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
   language: string;
+  notificationsEnabled: boolean;
   fontSize: number;
+  autoSaveInterval: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
-  notifications: true,
   language: 'en-US',
-  fontSize: 14
+  notificationsEnabled: true,
+  fontSize: 14,
+  autoSaveInterval: 30000
 };
 
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP'];
 const MIN_FONT_SIZE = 8;
 const MAX_FONT_SIZE = 32;
+const MIN_AUTO_SAVE_INTERVAL = 1000;
+const MAX_AUTO_SAVE_INTERVAL = 300000;
 
 class UserPreferencesManager {
   private preferences: UserPreferences;
@@ -46,19 +50,16 @@ class UserPreferencesManager {
   }
 
   private validatePreferences(prefs: UserPreferences): boolean {
-    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-      return false;
-    }
-
-    if (typeof prefs.notifications !== 'boolean') {
-      return false;
-    }
-
     if (!VALID_LANGUAGES.includes(prefs.language)) {
       return false;
     }
 
     if (prefs.fontSize < MIN_FONT_SIZE || prefs.fontSize > MAX_FONT_SIZE) {
+      return false;
+    }
+
+    if (prefs.autoSaveInterval < MIN_AUTO_SAVE_INTERVAL || 
+        prefs.autoSaveInterval > MAX_AUTO_SAVE_INTERVAL) {
       return false;
     }
 
@@ -70,11 +71,16 @@ class UserPreferencesManager {
       const stored = localStorage.getItem('userPreferences');
       if (stored) {
         const parsed = JSON.parse(stored);
-        return this.validatePreferences(parsed) ? parsed : { ...DEFAULT_PREFERENCES };
+        const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+        
+        if (this.validatePreferences(merged)) {
+          return merged;
+        }
       }
     } catch (error) {
-      console.warn('Failed to load preferences from storage:', error);
+      console.warn('Failed to load user preferences:', error);
     }
+    
     return { ...DEFAULT_PREFERENCES };
   }
 
@@ -82,9 +88,9 @@ class UserPreferencesManager {
     try {
       localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
     } catch (error) {
-      console.error('Failed to save preferences:', error);
+      console.error('Failed to save user preferences:', error);
     }
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
