@@ -1,58 +1,52 @@
-import { z } from 'zod';
+interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  age?: number;
+  isActive: boolean;
+}
 
-const UserProfileSchema = z.object({
-  id: z.string().uuid(),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  age: z.number().int().min(18).max(120).optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).default('system'),
-    notifications: z.boolean().default(true)
-  }).default({}),
-  createdAt: z.date().default(() => new Date())
-});
-
-type UserProfile = z.infer<typeof UserProfileSchema>;
-
-export function validateUserProfile(input: unknown): UserProfile {
-  try {
-    return UserProfileSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Validation failed: ${errorMessages.join('; ')}`);
-    }
-    throw error;
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
   }
 }
 
-export function isPartialUserProfile(input: unknown): boolean {
-  return UserProfileSchema.partial().safeParse(input).success;
-}import { z } from 'zod';
+function validateUserProfile(profile: UserProfile): void {
+  const errors: string[] = [];
 
-const userProfileSchema = z.object({
-  id: z.string().uuid(),
-  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  age: z.number().int().min(18).max(120).optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']),
-    notifications: z.boolean().default(true),
-  }).default({}),
-  createdAt: z.date().default(() => new Date()),
-});
+  if (!profile.username || profile.username.trim().length < 3) {
+    errors.push('Username must be at least 3 characters long');
+  }
 
-type UserProfile = z.infer<typeof userProfileSchema>;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!profile.email || !emailRegex.test(profile.email)) {
+    errors.push('Invalid email format');
+  }
 
-function validateUserProfile(input: unknown): UserProfile {
-  try {
-    return userProfileSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throw new Error(`Validation failed: ${error.errors.map(e => `${e.path}: ${e.message}`).join(', ')}`);
-    }
-    throw error;
+  if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+    errors.push('Age must be between 0 and 150');
+  }
+
+  if (typeof profile.isActive !== 'boolean') {
+    errors.push('isActive must be a boolean value');
+  }
+
+  if (errors.length > 0) {
+    throw new ValidationError(`Validation failed: ${errors.join('; ')}`);
   }
 }
 
-export { userProfileSchema, validateUserProfile, type UserProfile };
+function createUserProfile(data: Partial<UserProfile>): UserProfile {
+  const defaultProfile: UserProfile = {
+    id: Date.now(),
+    username: '',
+    email: '',
+    isActive: true
+  };
+
+  const profile = { ...defaultProfile, ...data };
+  validateUserProfile(profile);
+  return profile;
+}
