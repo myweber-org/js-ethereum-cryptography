@@ -166,4 +166,80 @@ class UserPreferencesManager {
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();import { EventEmitter } from 'events';
+
+interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'light',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14
+};
+
+class UserPreferencesManager extends EventEmitter {
+  private preferences: UserPreferences;
+  private readonly STORAGE_KEY = 'user_preferences';
+
+  constructor() {
+    super();
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from localStorage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.preferences));
+      this.emit('preferencesChanged', this.preferences);
+    } catch (error) {
+      console.warn('Failed to save preferences to localStorage:', error);
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const oldPreferences = { ...this.preferences };
+    this.preferences = { ...this.preferences, ...updates };
+    
+    if (JSON.stringify(oldPreferences) !== JSON.stringify(this.preferences)) {
+      this.savePreferences();
+    }
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+  }
+
+  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+    return this.preferences[key];
+  }
+
+  setPreference<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): void {
+    if (this.preferences[key] !== value) {
+      this.preferences[key] = value;
+      this.savePreferences();
+    }
+  }
+}
+
+export const userPreferences = new UserPreferencesManager();
