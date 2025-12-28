@@ -22,28 +22,32 @@ class UserPreferencesManager {
     }
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    
-    if (!this.validatePreferences(newPreferences)) {
-      return false;
-    }
-
-    this.preferences = newPreferences;
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const validatedUpdates = this.validateUpdates(updates);
+    this.preferences = { ...this.preferences, ...validatedUpdates };
     this.savePreferences();
-    return true;
   }
 
-  private validatePreferences(prefs: UserPreferences): boolean {
-    const validThemes = ['light', 'dark', 'auto'];
-    return (
-      validThemes.includes(prefs.theme) &&
-      typeof prefs.notifications === 'boolean' &&
-      typeof prefs.language === 'string' &&
-      prefs.language.length >= 2 &&
-      prefs.fontSize >= 8 &&
-      prefs.fontSize <= 32
-    );
+  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const validated: Partial<UserPreferences> = {};
+
+    if (updates.theme && ['light', 'dark', 'auto'].includes(updates.theme)) {
+      validated.theme = updates.theme;
+    }
+
+    if (typeof updates.notifications === 'boolean') {
+      validated.notifications = updates.notifications;
+    }
+
+    if (updates.language && typeof updates.language === 'string') {
+      validated.language = updates.language;
+    }
+
+    if (updates.fontSize && updates.fontSize >= 12 && updates.fontSize <= 24) {
+      validated.fontSize = updates.fontSize;
+    }
+
+    return validated;
   }
 
   private savePreferences(): void {
@@ -53,7 +57,7 @@ class UserPreferencesManager {
     );
   }
 
-  getPreferences(): Readonly<UserPreferences> {
+  getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
@@ -66,7 +70,7 @@ class UserPreferencesManager {
 const defaultPreferences: UserPreferences = {
   theme: 'auto',
   notifications: true,
-  language: 'en',
+  language: 'en-US',
   fontSize: 16
 };
 
