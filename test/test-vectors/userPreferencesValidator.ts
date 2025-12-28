@@ -570,4 +570,52 @@ function testValidation() {
 }
 
 export { UserPreferences, PreferenceValidator, testValidation };
-```
+```import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']),
+    searchIndexing: z.boolean().default(true)
+  }).refine(data => {
+    return !(data.profileVisibility === 'private' && data.searchIndexing);
+  }, {
+    message: 'Private profiles cannot be indexed by search engines'
+  })
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    return PreferenceSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const fieldErrors = error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+      throw new PreferenceValidationError('Invalid preferences configuration', fieldErrors);
+    }
+    throw error;
+  }
+}
+
+export class PreferenceValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: Array<{ field: string; message: string }>
+  ) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+export function formatValidationErrors(errors: Array<{ field: string; message: string }>): string {
+  return errors.map(e => `${e.field}: ${e.message}`).join('\n');
+}
