@@ -24,9 +24,10 @@ const userProfileSchema = z.object({
     language: z.string().default('en')
   }).optional(),
   
-  createdAt: z
-    .date()
-    .max(new Date(), 'Creation date cannot be in the future')
+  tags: z
+    .array(z.string())
+    .max(5, 'Cannot have more than 5 tags')
+    .optional()
 });
 
 type UserProfile = z.infer<typeof userProfileSchema>;
@@ -51,6 +52,7 @@ export function createDefaultProfile(): Partial<UserProfile> {
       newsletter: false,
       theme: 'auto',
       language: 'en'
-    }
+    },
+    tags: []
   };
 }
