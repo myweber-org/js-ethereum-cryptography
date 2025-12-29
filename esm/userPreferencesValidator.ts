@@ -1,54 +1,44 @@
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  timezone: string;
-}
+import { z } from 'zod';
 
-class PreferenceValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PreferenceValidationError';
-  }
-}
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).strict();
 
-function validateUserPreferences(prefs: UserPreferences): void {
-  const validThemes = ['light', 'dark', 'auto'];
-  const validLanguages = ['en', 'es', 'fr', 'de', 'ja'];
-  const timezoneRegex = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+type UserPreferences = z.infer<typeof PreferenceSchema>;
 
-  if (!validThemes.includes(prefs.theme)) {
-    throw new PreferenceValidationError(
-      `Invalid theme '${prefs.theme}'. Must be one of: ${validThemes.join(', ')}`
-    );
-  }
-
-  if (typeof prefs.notifications !== 'boolean') {
-    throw new PreferenceValidationError('Notifications must be a boolean value');
-  }
-
-  if (!validLanguages.includes(prefs.language)) {
-    throw new PreferenceValidationError(
-      `Unsupported language '${prefs.language}'. Supported languages: ${validLanguages.join(', ')}`
-    );
-  }
-
-  if (!timezoneRegex.test(prefs.timezone)) {
-    throw new PreferenceValidationError(
-      `Invalid timezone format '${prefs.timezone}'. Expected format: Area/Location`
-    );
-  }
-}
-
-function updateUserPreferences(newPrefs: UserPreferences): void {
+export function validatePreferences(input: unknown): UserPreferences {
   try {
-    validateUserPreferences(newPrefs);
-    console.log('Preferences updated successfully');
+    return PreferenceSchema.parse(input);
   } catch (error) {
-    if (error instanceof PreferenceValidationError) {
-      console.error('Validation failed:', error.message);
-    } else {
-      console.error('Unexpected error:', error);
+    if (error instanceof z.ZodError) {
+      const issues = error.issues.map(issue => ({
+        path: issue.path.join('.'),
+        message: issue.message
+      }));
+      throw new Error(`Invalid preferences: ${JSON.stringify(issues)}`);
     }
+    throw new Error('Unexpected validation error');
   }
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return PreferenceSchema.parse({});
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validatePreferences(merged);
 }
