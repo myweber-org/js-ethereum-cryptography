@@ -1,17 +1,20 @@
-import { z } from 'zod';
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  fontSize: z.number().min(12).max(24).default(16),
-  notifications: z.boolean().default(true),
-  language: z.string().length(2).default('en'),
-  lastUpdated: z.date().optional()
-});
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
 
-type UserPreferences = z.infer<typeof PreferenceSchema>;
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
 
-class PreferencesManager {
-  private static STORAGE_KEY = 'user_preferences_v1';
   private preferences: UserPreferences;
 
   constructor() {
@@ -20,40 +23,59 @@ class PreferencesManager {
 
   private loadPreferences(): UserPreferences {
     try {
-      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
-      if (!stored) return PreferenceSchema.parse({});
-      
-      const parsed = JSON.parse(stored);
-      parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
-      return PreferenceSchema.parse(parsed);
-    } catch {
-      return PreferenceSchema.parse({});
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        return { ...this.defaultPreferences, ...JSON.parse(stored) };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from localStorage:', error);
     }
+    return { ...this.defaultPreferences };
   }
 
   private savePreferences(): void {
-    const data = { ...this.preferences, lastUpdated: new Date() };
-    localStorage.setItem(PreferencesManager.STORAGE_KEY, JSON.stringify(data));
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.warn('Failed to save preferences to localStorage:', error);
+    }
   }
 
-  getPreferences(): UserPreferences {
+  getPreferences(): Readonly<UserPreferences> {
     return { ...this.preferences };
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    const validated = PreferenceSchema.partial().parse(updates);
-    this.preferences = { ...this.preferences, ...validated };
+    this.preferences = { ...this.preferences, ...updates };
     this.savePreferences();
   }
 
   resetToDefaults(): void {
-    this.preferences = PreferenceSchema.parse({});
-    localStorage.removeItem(PreferencesManager.STORAGE_KEY);
+    this.preferences = { ...this.defaultPreferences };
+    this.savePreferences();
   }
 
-  validateExternalData(data: unknown): UserPreferences {
-    return PreferenceSchema.parse(data);
+  getTheme(): UserPreferences['theme'] {
+    return this.preferences.theme;
+  }
+
+  setTheme(theme: UserPreferences['theme']): void {
+    this.updatePreferences({ theme });
+  }
+
+  isNotificationsEnabled(): boolean {
+    return this.preferences.notificationsEnabled;
+  }
+
+  toggleNotifications(): void {
+    this.updatePreferences({
+      notificationsEnabled: !this.preferences.notificationsEnabled
+    });
   }
 }
 
-export { PreferencesManager, type UserPreferences };
+export { UserPreferencesManager };
+export type { UserPreferences };
