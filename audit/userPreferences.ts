@@ -13,25 +13,28 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
 
-  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-    validated.theme = prefs.theme;
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
   }
 
-  if (typeof prefs.notifications === 'boolean') {
-    validated.notifications = prefs.notifications;
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
   }
 
-  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
-    validated.language = prefs.language;
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
   }
 
-  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
-    validated.resultsPerPage = prefs.resultsPerPage;
+  if (typeof validated.resultsPerPage !== 'number' || 
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
   }
 
   return validated;
@@ -45,7 +48,7 @@ function savePreferences(prefs: Partial<UserPreferences>): void {
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
   if (!stored) return DEFAULT_PREFERENCES;
-
+  
   try {
     const parsed = JSON.parse(stored);
     return validatePreferences(parsed);
@@ -54,43 +57,4 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  timezone: string;
-}
-
-function validateUserPreferences(prefs: UserPreferences): boolean {
-  const validThemes = ['light', 'dark', 'auto'];
-  const validLanguages = ['en', 'es', 'fr', 'de'];
-  
-  if (!validThemes.includes(prefs.theme)) {
-    return false;
-  }
-  
-  if (!validLanguages.includes(prefs.language)) {
-    return false;
-  }
-  
-  if (typeof prefs.notifications !== 'boolean') {
-    return false;
-  }
-  
-  if (!prefs.timezone || prefs.timezone.trim() === '') {
-    return false;
-  }
-  
-  return true;
-}
-
-function getDefaultPreferences(): UserPreferences {
-  return {
-    theme: 'auto',
-    notifications: true,
-    language: 'en',
-    timezone: 'UTC'
-  };
-}
-
-export { UserPreferences, validateUserPreferences, getDefaultPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
