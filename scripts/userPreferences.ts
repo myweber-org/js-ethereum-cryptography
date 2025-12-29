@@ -1,67 +1,57 @@
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'system';
-  notifications: {
-    email: boolean;
-    push: boolean;
-    frequency: 'instant' | 'daily' | 'weekly';
-  };
-  privacy: {
-    profileVisibility: 'public' | 'private' | 'friends';
-    searchable: boolean;
-  };
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
 
-function validateUserPreferences(prefs: any): prefs is UserPreferences {
-  const validThemes = ['light', 'dark', 'system'];
-  const validFrequencies = ['instant', 'daily', 'weekly'];
-  const validVisibilities = ['public', 'private', 'friends'];
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
 
-  return (
-    typeof prefs === 'object' &&
-    prefs !== null &&
-    validThemes.includes(prefs.theme) &&
-    typeof prefs.notifications === 'object' &&
-    typeof prefs.notifications.email === 'boolean' &&
-    typeof prefs.notifications.push === 'boolean' &&
-    validFrequencies.includes(prefs.notifications.frequency) &&
-    typeof prefs.privacy === 'object' &&
-    validVisibilities.includes(prefs.privacy.profileVisibility) &&
-    typeof prefs.privacy.searchable === 'boolean'
-  );
-}
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
 
-function saveUserPreferences(prefs: UserPreferences): void {
-  if (!validateUserPreferences(prefs)) {
-    throw new Error('Invalid user preferences structure');
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+    validated.theme = prefs.theme;
   }
-  
-  const serialized = JSON.stringify(prefs);
-  localStorage.setItem('userPreferences', serialized);
+
+  if (typeof prefs.notifications === 'boolean') {
+    validated.notifications = prefs.notifications;
+  }
+
+  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
+    validated.language = prefs.language;
+  }
+
+  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
+    validated.resultsPerPage = prefs.resultsPerPage;
+  }
+
+  return validated;
 }
 
-function loadUserPreferences(): UserPreferences | null {
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validated = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validated));
+}
+
+function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (!stored) return null;
-
-  try {
-    const parsed = JSON.parse(stored);
-    return validateUserPreferences(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function getDefaultPreferences(): UserPreferences {
-  return {
-    theme: 'system',
-    notifications: {
-      email: true,
-      push: false,
-      frequency: 'daily'
-    },
-    privacy: {
-      profileVisibility: 'public',
-      searchable: true
+  if (stored) {
+    try {
+      return validatePreferences(JSON.parse(stored));
+    } catch {
+      return DEFAULT_PREFERENCES;
     }
-  };
+  }
+  return DEFAULT_PREFERENCES;
 }
+
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
