@@ -122,4 +122,85 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  fontSize: z.number().min(8).max(32).default(14),
+  autoSave: z.boolean().default(true),
+  lastUpdated: z.date().optional()
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+class PreferencesManager {
+  private static STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
+        return PreferenceSchema.parse(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences:', error);
+    }
+    return PreferenceSchema.parse({});
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const validated = PreferenceSchema.partial().parse(updates);
+    this.preferences = { 
+      ...this.preferences, 
+      ...validated, 
+      lastUpdated: new Date() 
+    };
+    this.savePreferences();
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        PreferencesManager.STORAGE_KEY, 
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = PreferenceSchema.parse({});
+    this.savePreferences();
+  }
+
+  validatePreferences(data: unknown): { success: boolean; errors?: string[] } {
+    try {
+      PreferenceSchema.parse(data);
+      return { success: true };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return { 
+          success: false, 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+        };
+      }
+      return { success: false, errors: ['Unknown validation error'] };
+    }
+  }
+}
+
+export const preferencesManager = new PreferencesManager();
