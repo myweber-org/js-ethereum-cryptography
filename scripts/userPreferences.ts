@@ -12,28 +12,25 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   resultsPerPage: 20
 };
 
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
-
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-
-  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-    validated.theme = prefs.theme;
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = 'auto';
   }
-
-  if (typeof prefs.notifications === 'boolean') {
-    validated.notifications = prefs.notifications;
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = true;
   }
-
-  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
-    validated.language = prefs.language;
+  
+  if (typeof validated.language !== 'string' || validated.language.trim() === '') {
+    validated.language = 'en-US';
   }
-
-  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
-    validated.resultsPerPage = prefs.resultsPerPage;
+  
+  if (!Number.isInteger(validated.resultsPerPage) || validated.resultsPerPage < 5 || validated.resultsPerPage > 100) {
+    validated.resultsPerPage = 20;
   }
-
+  
   return validated;
 }
 
@@ -44,14 +41,12 @@ function savePreferences(prefs: Partial<UserPreferences>): void {
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (stored) {
-    try {
-      return validatePreferences(JSON.parse(stored));
-    } catch {
-      return DEFAULT_PREFERENCES;
-    }
+  if (!stored) return DEFAULT_PREFERENCES;
+  
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
   }
-  return DEFAULT_PREFERENCES;
 }
-
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
