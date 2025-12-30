@@ -213,4 +213,60 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'light',
+  language: 'en',
+  notificationsEnabled: true,
+  itemsPerPage: 25
+};
+
+class UserPreferencesManager {
+  private readonly storageKey = 'user_preferences';
+
+  getPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored) {
+        return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const updated = { ...current, ...updates };
+    
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(updated));
+    } catch (error) {
+      console.warn('Failed to save preferences to storage:', error);
+    }
+    
+    return updated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    try {
+      localStorage.removeItem(this.storageKey);
+    } catch (error) {
+      console.warn('Failed to clear preferences from storage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  hasStoredPreferences(): boolean {
+    return localStorage.getItem(this.storageKey) !== null;
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
