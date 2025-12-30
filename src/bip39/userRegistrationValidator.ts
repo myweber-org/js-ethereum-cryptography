@@ -83,4 +83,76 @@ export function getValidationErrors(input: unknown): string[] {
     }
     return ['An unexpected validation error occurred'];
   }
+}interface UserRegistrationData {
+  email: string;
+  password: string;
+  confirmPassword: string;
 }
+
+class UserRegistrationValidator {
+  private readonly emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private readonly passwordMinLength: number = 8;
+
+  validateEmail(email: string): string[] {
+    const errors: string[] = [];
+    
+    if (!email.trim()) {
+      errors.push('Email is required');
+    } else if (!this.emailRegex.test(email)) {
+      errors.push('Invalid email format');
+    }
+    
+    return errors;
+  }
+
+  validatePassword(password: string): string[] {
+    const errors: string[] = [];
+    
+    if (!password) {
+      errors.push('Password is required');
+      return errors;
+    }
+    
+    if (password.length < this.passwordMinLength) {
+      errors.push(`Password must be at least ${this.passwordMinLength} characters`);
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      errors.push('Password must contain at least one uppercase letter');
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      errors.push('Password must contain at least one lowercase letter');
+    }
+    
+    if (!/\d/.test(password)) {
+      errors.push('Password must contain at least one number');
+    }
+    
+    if (!/[!@#$%^&*]/.test(password)) {
+      errors.push('Password must contain at least one special character');
+    }
+    
+    return errors;
+  }
+
+  validateRegistration(data: UserRegistrationData): Record<string, string[]> {
+    const errors: Record<string, string[]> = {
+      email: this.validateEmail(data.email),
+      password: this.validatePassword(data.password)
+    };
+    
+    if (data.password !== data.confirmPassword) {
+      errors.confirmPassword = ['Passwords do not match'];
+    }
+    
+    return errors;
+  }
+
+  isValidRegistration(data: UserRegistrationData): boolean {
+    const errors = this.validateRegistration(data);
+    return Object.values(errors).every(errorArray => errorArray.length === 0);
+  }
+}
+
+export { UserRegistrationValidator, UserRegistrationData };
