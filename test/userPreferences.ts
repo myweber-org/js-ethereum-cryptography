@@ -49,4 +49,55 @@ function loadPreferences(): UserPreferences {
   } catch {
     return DEFAULT_PREFERENCES;
   }
+}export type Theme = 'light' | 'dark' | 'auto';
+export type Language = 'en' | 'es' | 'fr';
+
+export interface UserPreferences {
+  theme: Theme;
+  language: Language;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en',
+  notificationsEnabled: true,
+  fontSize: 14,
+};
+
+export class PreferenceManager {
+  private static STORAGE_KEY = 'user_preferences';
+
+  static loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.STORAGE_KEY);
+    if (stored) {
+      try {
+        return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+      } catch {
+        return DEFAULT_PREFERENCES;
+      }
+    }
+    return DEFAULT_PREFERENCES;
+  }
+
+  static savePreferences(prefs: Partial<UserPreferences>): void {
+    const current = this.loadPreferences();
+    const updated = { ...current, ...prefs };
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+  }
+
+  static resetToDefaults(): void {
+    localStorage.removeItem(this.STORAGE_KEY);
+  }
+
+  static validatePreferences(prefs: UserPreferences): boolean {
+    const validThemes: Theme[] = ['light', 'dark', 'auto'];
+    const validLanguages: Language[] = ['en', 'es', 'fr'];
+    
+    return validThemes.includes(prefs.theme) &&
+           validLanguages.includes(prefs.language) &&
+           typeof prefs.notificationsEnabled === 'boolean' &&
+           prefs.fontSize >= 10 && prefs.fontSize <= 24;
+  }
 }
