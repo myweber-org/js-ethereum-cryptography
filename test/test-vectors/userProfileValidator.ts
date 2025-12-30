@@ -102,4 +102,61 @@ class UserProfileValidator {
   }
 }
 
-export { UserProfile, UserProfileValidator };
+export { UserProfile, UserProfileValidator };interface UserProfile {
+  id: string;
+  email: string;
+  age: number;
+  preferences: string[];
+}
+
+class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+class UserProfileValidator {
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly MIN_AGE = 13;
+  private static readonly MAX_AGE = 120;
+  private static readonly MAX_PREFERENCES = 10;
+
+  static validate(profile: Partial<UserProfile>): void {
+    if (profile.id !== undefined && !this.isValidId(profile.id)) {
+      throw new ValidationError('Invalid user ID format');
+    }
+
+    if (profile.email !== undefined && !this.isValidEmail(profile.email)) {
+      throw new ValidationError('Email address is malformed');
+    }
+
+    if (profile.age !== undefined && !this.isValidAge(profile.age)) {
+      throw new ValidationError(`Age must be between ${this.MIN_AGE} and ${this.MAX_AGE}`);
+    }
+
+    if (profile.preferences !== undefined && !this.isValidPreferences(profile.preferences)) {
+      throw new ValidationError(`Preferences cannot exceed ${this.MAX_PREFERENCES} items`);
+    }
+  }
+
+  private static isValidId(id: string): boolean {
+    return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id);
+  }
+
+  private static isValidEmail(email: string): boolean {
+    return this.EMAIL_REGEX.test(email);
+  }
+
+  private static isValidAge(age: number): boolean {
+    return Number.isInteger(age) && age >= this.MIN_AGE && age <= this.MAX_AGE;
+  }
+
+  private static isValidPreferences(preferences: string[]): boolean {
+    return Array.isArray(preferences) && 
+           preferences.length <= this.MAX_PREFERENCES &&
+           preferences.every(pref => typeof pref === 'string' && pref.trim().length > 0);
+  }
+}
+
+export { UserProfileValidator, ValidationError, UserProfile };
