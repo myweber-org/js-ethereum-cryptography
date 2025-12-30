@@ -1,94 +1,19 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
   language: string;
-  resultsPerPage: number;
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
-};
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
-const MAX_RESULTS_PER_PAGE = 100;
-
-class UserPreferencesManager {
-  private preferences: UserPreferences;
-
-  constructor(initialPreferences?: Partial<UserPreferences>) {
-    this.preferences = this.validateAndMergePreferences(initialPreferences);
-  }
-
-  private validateAndMergePreferences(
-    partialPreferences?: Partial<UserPreferences>
-  ): UserPreferences {
-    const merged = { ...DEFAULT_PREFERENCES, ...partialPreferences };
-
-    if (!['light', 'dark', 'auto'].includes(merged.theme)) {
-      merged.theme = DEFAULT_PREFERENCES.theme;
-    }
-
-    if (typeof merged.notifications !== 'boolean') {
-      merged.notifications = DEFAULT_PREFERENCES.notifications;
-    }
-
-    if (!VALID_LANGUAGES.includes(merged.language)) {
-      merged.language = DEFAULT_PREFERENCES.language;
-    }
-
-    if (typeof merged.resultsPerPage !== 'number' ||
-        merged.resultsPerPage < MIN_RESULTS_PER_PAGE ||
-        merged.resultsPerPage > MAX_RESULTS_PER_PAGE) {
-      merged.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
-    }
-
-    return merged;
-  }
-
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
-  }
-
-  updatePreferences(newPreferences: Partial<UserPreferences>): UserPreferences {
-    this.preferences = this.validateAndMergePreferences({
-      ...this.preferences,
-      ...newPreferences
-    });
-    return this.getPreferences();
-  }
-
-  resetToDefaults(): UserPreferences {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    return this.getPreferences();
-  }
-
-  exportPreferences(): string {
-    return JSON.stringify(this.preferences);
-  }
-
-  static importPreferences(jsonString: string): UserPreferencesManager {
-    try {
-      const parsed = JSON.parse(jsonString);
-      return new UserPreferencesManager(parsed);
-    } catch {
-      return new UserPreferencesManager();
-    }
-  }
-}
-
-export { UserPreferencesManager, DEFAULT_PREFERENCES };interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
+  notificationsEnabled: boolean;
   fontSize: number;
 }
 
 class UserPreferencesManager {
   private static readonly STORAGE_KEY = 'user_preferences';
+  private static readonly DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 16
+  };
+
   private preferences: UserPreferences;
 
   constructor() {
@@ -96,49 +21,54 @@ class UserPreferencesManager {
   }
 
   private loadPreferences(): UserPreferences {
-    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return this.getDefaultPreferences();
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validateAndMerge(parsed);
       }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage', error);
     }
-    return this.getDefaultPreferences();
+    return { ...UserPreferencesManager.DEFAULT_PREFERENCES };
   }
 
-  private getDefaultPreferences(): UserPreferences {
-    return {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      fontSize: 16
-    };
+  private validateAndMerge(partial: Partial<UserPreferences>): UserPreferences {
+    const merged = { ...UserPreferencesManager.DEFAULT_PREFERENCES, ...partial };
+    
+    if (!['light', 'dark', 'auto'].includes(merged.theme)) {
+      merged.theme = 'auto';
+    }
+    
+    if (typeof merged.fontSize !== 'number' || merged.fontSize < 12 || merged.fontSize > 24) {
+      merged.fontSize = 16;
+    }
+    
+    if (typeof merged.notificationsEnabled !== 'boolean') {
+      merged.notificationsEnabled = true;
+    }
+    
+    if (typeof merged.language !== 'string' || merged.language.trim().length === 0) {
+      merged.language = 'en-US';
+    }
+    
+    return merged;
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = { ...this.preferences, ...updates };
-    this.validatePreferences();
+    this.preferences = this.validateAndMerge({ ...this.preferences, ...updates });
     this.savePreferences();
   }
 
-  private validatePreferences(): void {
-    if (!['light', 'dark', 'auto'].includes(this.preferences.theme)) {
-      this.preferences.theme = 'auto';
-    }
-    if (typeof this.preferences.notifications !== 'boolean') {
-      this.preferences.notifications = true;
-    }
-    if (typeof this.preferences.fontSize !== 'number' || this.preferences.fontSize < 8 || this.preferences.fontSize > 72) {
-      this.preferences.fontSize = 16;
-    }
-  }
-
   private savePreferences(): void {
-    localStorage.setItem(
-      UserPreferencesManager.STORAGE_KEY,
-      JSON.stringify(this.preferences)
-    );
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences to storage', error);
+    }
   }
 
   getPreferences(): Readonly<UserPreferences> {
@@ -146,8 +76,20 @@ class UserPreferencesManager {
   }
 
   resetToDefaults(): void {
-    this.preferences = this.getDefaultPreferences();
+    this.preferences = { ...UserPreferencesManager.DEFAULT_PREFERENCES };
     this.savePreferences();
+  }
+
+  applyTheme(): void {
+    const theme = this.preferences.theme === 'auto' 
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : this.preferences.theme;
+    
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+
+  applyFontSize(): void {
+    document.documentElement.style.fontSize = `${this.preferences.fontSize}px`;
   }
 }
 
