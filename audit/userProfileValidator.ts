@@ -1,49 +1,55 @@
 import { z } from 'zod';
 
 const UserProfileSchema = z.object({
-  id: z.string().uuid(),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  age: z.number().int().min(18).max(120).optional(),
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters long')
+    .max(20, 'Username cannot exceed 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  
+  email: z
+    .string()
+    .email('Please provide a valid email address'),
+  
+  age: z
+    .number()
+    .int('Age must be an integer')
+    .min(18, 'User must be at least 18 years old')
+    .max(120, 'Age must be a reasonable value'),
+  
   preferences: z.object({
-    theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-    notifications: z.boolean().default(true),
-  }).default({}),
-  createdAt: z.date().default(() => new Date()),
+    newsletter: z.boolean(),
+    theme: z.enum(['light', 'dark', 'auto']),
+    language: z.string().default('en')
+  }).optional(),
+  
+  createdAt: z
+    .date()
+    .default(() => new Date())
 });
 
 type UserProfile = z.infer<typeof UserProfileSchema>;
 
-function validateUserProfile(input: unknown): UserProfile {
+export function validateUserProfile(data: unknown): UserProfile {
   try {
-    return UserProfileSchema.parse(input);
+    return UserProfileSchema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('Validation failed:', error.errors);
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
     }
-    throw new Error('Invalid user profile data');
+    throw error;
   }
 }
 
-export { UserProfileSchema, validateUserProfile, type UserProfile };import { z } from 'zod';
-
-const userProfileSchema = z.object({
-  username: z.string().min(3).max(20),
-  email: z.string().email(),
-  age: z.number().int().positive().optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-    notifications: z.boolean().default(true)
-  }).default({}),
-  createdAt: z.date().default(() => new Date())
-});
-
-type UserProfile = z.infer<typeof userProfileSchema>;
-
-export function validateUserProfile(input: unknown): UserProfile {
-  return userProfileSchema.parse(input);
-}
-
-export function safeValidateUserProfile(input: unknown) {
-  return userProfileSchema.safeParse(input);
+export function createDefaultProfile(username: string, email: string): Partial<UserProfile> {
+  return {
+    username,
+    email,
+    preferences: {
+      newsletter: false,
+      theme: 'auto',
+      language: 'en'
+    }
+  };
 }
