@@ -45,4 +45,79 @@ function validateAndApplyPreferences(prefs: UserPreferences): void {
   console.log('Preferences applied successfully:', prefs);
 }
 
-export { UserPreferences, PreferenceValidator, validateAndApplyPreferences };
+export { UserPreferences, PreferenceValidator, validateAndApplyPreferences };import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: {
+    email: boolean;
+    push: boolean;
+    frequency: 'instant' | 'daily' | 'weekly';
+  };
+  privacy: {
+    profileVisibility: 'public' | 'private' | 'friends';
+    dataSharing: boolean;
+  };
+}
+
+const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['instant', 'daily', 'weekly']),
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']),
+    dataSharing: z.boolean(),
+  }),
+});
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return userPreferencesSchema.parse(input) as UserPreferences;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Invalid preferences: ${error.errors.map(e => `${e.path}: ${e.message}`).join(', ')}`);
+      }
+      throw new Error('Unexpected validation error');
+    }
+  }
+
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    try {
+      return userPreferencesSchema.partial().parse(updates) as Partial<UserPreferences>;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Invalid preference updates: ${error.errors.map(e => `${e.path}: ${e.message}`).join(', ')}`);
+      }
+      throw new Error('Unexpected validation error');
+    }
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: {
+        email: true,
+        push: false,
+        frequency: 'daily',
+      },
+      privacy: {
+        profileVisibility: 'private',
+        dataSharing: false,
+      },
+    };
+  }
+}
+
+export function sanitizePreferences(prefs: UserPreferences): UserPreferences {
+  return {
+    ...prefs,
+    privacy: {
+      ...prefs.privacy,
+      dataSharing: prefs.privacy.profileVisibility === 'public' ? prefs.privacy.dataSharing : false,
+    },
+  };
+}
