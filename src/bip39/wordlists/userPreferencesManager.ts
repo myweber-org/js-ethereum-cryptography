@@ -1,63 +1,112 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  fontSize: number;
-  notificationsEnabled: boolean;
+  notifications: boolean;
   language: string;
+  resultsPerPage: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
-  fontSize: 14,
-  notificationsEnabled: true,
-  language: 'en-US'
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
 };
 
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
+
 class UserPreferencesManager {
-  private readonly storageKey = 'user_preferences';
   private preferences: UserPreferences;
 
-  constructor() {
-    this.preferences = this.loadPreferences();
+  constructor(initialPreferences?: Partial<UserPreferences>) {
+    this.preferences = { ...DEFAULT_PREFERENCES, ...initialPreferences };
+    this.validateAndSanitize();
   }
 
-  private loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...DEFAULT_PREFERENCES, ...parsed };
-      }
-    } catch (error) {
-      console.warn('Failed to load preferences from localStorage:', error);
+  private validateAndSanitize(): void {
+    if (!['light', 'dark', 'auto'].includes(this.preferences.theme)) {
+      this.preferences.theme = DEFAULT_PREFERENCES.theme;
     }
-    return { ...DEFAULT_PREFERENCES };
-  }
 
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
+    if (typeof this.preferences.notifications !== 'boolean') {
+      this.preferences.notifications = DEFAULT_PREFERENCES.notifications;
+    }
+
+    if (!VALID_LANGUAGES.includes(this.preferences.language)) {
+      this.preferences.language = DEFAULT_PREFERENCES.language;
+    }
+
+    if (typeof this.preferences.resultsPerPage !== 'number' ||
+        this.preferences.resultsPerPage < MIN_RESULTS_PER_PAGE ||
+        this.preferences.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+      this.preferences.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
+    }
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
+    const previousPreferences = { ...this.preferences };
     this.preferences = { ...this.preferences, ...updates };
-    this.savePreferences();
-  }
-
-  private savePreferences(): void {
+    
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.preferences));
+      this.validateAndSanitize();
+      this.saveToStorage();
+      this.notifyListeners(previousPreferences, this.preferences);
     } catch (error) {
-      console.error('Failed to save preferences to localStorage:', error);
+      this.preferences = previousPreferences;
+      throw new Error('Failed to update preferences: ' + (error as Error).message);
     }
   }
 
-  resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
   }
 
-  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
-    return this.preferences[key];
+  resetToDefaults(): void {
+    this.updatePreferences(DEFAULT_PREFERENCES);
+  }
+
+  private saveToStorage(): void {
+    try {
+      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+    } catch (error) {
+      console.warn('Failed to save preferences to localStorage:', error);
+    }
+  }
+
+  static loadFromStorage(): UserPreferencesManager {
+    try {
+      const stored = localStorage.getItem('userPreferences');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new UserPreferencesManager(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return new UserPreferencesManager();
+  }
+
+  private listeners: Set<(oldPrefs: UserPreferences, newPrefs: UserPreferences) => void> = new Set();
+
+  addChangeListener(listener: (oldPrefs: UserPreferences, newPrefs: UserPreferences) => void): void {
+    this.listeners.add(listener);
+  }
+
+  removeChangeListener(listener: (oldPrefs: UserPreferences, newPrefs: UserPreferences) => void): void {
+    this.listeners.delete(listener);
+  }
+
+  private notifyListeners(oldPrefs: UserPreferences, newPrefs: UserPreferences): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(oldPrefs, newPrefs);
+      } catch (error) {
+        console.error('Error in preferences change listener:', error);
+      }
+    });
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export { UserPreferencesManager, DEFAULT_PREFERENCES };
+export type { UserPreferences };
