@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface UserPayload {
-  userId: string;
+  id: string;
   email: string;
   role: string;
 }
@@ -15,32 +15,34 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticateToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    res.status(401).json({ error: 'Access token required' });
+    res.status(401).json({ error: 'Authentication token required' });
     return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      res.status(403).json({ error: 'Invalid or expired token' });
-      return;
-    }
-
-    req.user = decoded as UserPayload;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+    req.user = decoded;
     next();
-  });
+  } catch (error) {
+    res.status(403).json({ error: 'Invalid or expired token' });
+  }
 };
 
-export const authorizeRole = (...allowedRoles: string[]) => {
+export const authorizeRole = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({ error: 'User not authenticated' });
       return;
     }
 
