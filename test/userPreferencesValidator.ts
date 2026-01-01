@@ -1,3 +1,4 @@
+
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
@@ -5,54 +6,49 @@ interface UserPreferences {
   fontSize: number;
 }
 
-class PreferenceError extends Error {
-  constructor(message: string, public field: string) {
-    super(message);
-    this.name = 'PreferenceError';
-  }
-}
+class PreferenceValidator {
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
 
-function validateUserPreferences(prefs: UserPreferences): void {
-  const validThemes = ['light', 'dark', 'auto'];
-  const validLanguages = ['en', 'es', 'fr', 'de'];
-  const minFontSize = 12;
-  const maxFontSize = 24;
+  static validate(prefs: UserPreferences): string[] {
+    const errors: string[] = [];
 
-  if (!validThemes.includes(prefs.theme)) {
-    throw new PreferenceError(
-      `Theme must be one of: ${validThemes.join(', ')}`,
-      'theme'
-    );
-  }
-
-  if (typeof prefs.notifications !== 'boolean') {
-    throw new PreferenceError('Notifications must be a boolean value', 'notifications');
-  }
-
-  if (!validLanguages.includes(prefs.language)) {
-    throw new PreferenceError(
-      `Language must be one of: ${validLanguages.join(', ')}`,
-      'language'
-    );
-  }
-
-  if (prefs.fontSize < minFontSize || prefs.fontSize > maxFontSize) {
-    throw new PreferenceError(
-      `Font size must be between ${minFontSize} and ${maxFontSize}`,
-      'fontSize'
-    );
-  }
-}
-
-function updateUserPreferences(prefs: UserPreferences): void {
-  try {
-    validateUserPreferences(prefs);
-    console.log('Preferences updated successfully:', prefs);
-  } catch (error) {
-    if (error instanceof PreferenceError) {
-      console.error(`Validation failed for field "${error.field}": ${error.message}`);
-    } else {
-      console.error('Unexpected error:', error);
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
     }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value.');
+    }
+
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size ${prefs.fontSize} out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}.`);
+    }
+
+    return errors;
   }
 }
+
+function validateAndApplyPreferences(prefs: UserPreferences): void {
+  const validationErrors = PreferenceValidator.validate(prefs);
+  
+  if (validationErrors.length > 0) {
+    console.error('Invalid preferences:');
+    validationErrors.forEach(error => console.error(`  - ${error}`));
+    throw new Error('Preferences validation failed');
+  }
+
+  console.log('Preferences applied successfully:', {
+    theme: prefs.theme,
+    notificationsEnabled: prefs.notifications,
+    language: prefs.language,
+    fontSize: `${prefs.fontSize}px`
+  });
+}
+
+export { UserPreferences, PreferenceValidator, validateAndApplyPreferences };
