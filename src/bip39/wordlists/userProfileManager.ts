@@ -1,124 +1,37 @@
 
 interface UserProfile {
-  id: number;
+  id: string;
   username: string;
   email: string;
   age?: number;
   isActive: boolean;
-}
-
-class UserProfileManager {
-  private profiles: Map<number, UserProfile>;
-
-  constructor() {
-    this.profiles = new Map();
-  }
-
-  addProfile(profile: UserProfile): void {
-    if (this.profiles.has(profile.id)) {
-      throw new Error(`Profile with ID ${profile.id} already exists`);
-    }
-    
-    if (!this.validateEmail(profile.email)) {
-      throw new Error(`Invalid email format: ${profile.email}`);
-    }
-
-    if (profile.age !== undefined && profile.age < 0) {
-      throw new Error(`Age cannot be negative: ${profile.age}`);
-    }
-
-    this.profiles.set(profile.id, profile);
-  }
-
-  updateProfile(id: number, updates: Partial<UserProfile>): void {
-    const profile = this.profiles.get(id);
-    
-    if (!profile) {
-      throw new Error(`Profile with ID ${id} not found`);
-    }
-
-    if (updates.email && !this.validateEmail(updates.email)) {
-      throw new Error(`Invalid email format: ${updates.email}`);
-    }
-
-    if (updates.age !== undefined && updates.age < 0) {
-      throw new Error(`Age cannot be negative: ${updates.age}`);
-    }
-
-    this.profiles.set(id, { ...profile, ...updates });
-  }
-
-  getProfile(id: number): UserProfile | undefined {
-    return this.profiles.get(id);
-  }
-
-  getActiveProfiles(): UserProfile[] {
-    return Array.from(this.profiles.values())
-      .filter(profile => profile.isActive);
-  }
-
-  private validateEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-}
-
-export { UserProfileManager, UserProfile };interface UserProfile {
-  id: string;
-  email: string;
-  username: string;
-  age?: number;
-  preferences: {
-    theme: 'light' | 'dark';
-    notifications: boolean;
-  };
+  lastLogin: Date;
 }
 
 class UserProfileManager {
   private profiles: Map<string, UserProfile> = new Map();
 
-  validateProfile(data: Partial<UserProfile>): data is UserProfile {
-    const requiredFields = ['id', 'email', 'username', 'preferences'] as const;
-    return requiredFields.every(field => 
-      data[field] !== undefined && 
-      (field !== 'preferences' || this.validatePreferences(data.preferences))
-    );
-  }
-
-  private validatePreferences(prefs?: any): prefs is UserProfile['preferences'] {
-    return (
-      prefs &&
-      typeof prefs === 'object' &&
-      ['light', 'dark'].includes(prefs.theme) &&
-      typeof prefs.notifications === 'boolean'
-    );
-  }
-
-  addProfile(profileData: Partial<UserProfile>): boolean {
-    if (!this.validateProfile(profileData)) {
-      console.error('Invalid profile data structure');
+  addProfile(profile: UserProfile): boolean {
+    if (this.profiles.has(profile.id)) {
       return false;
     }
 
-    if (this.profiles.has(profileData.id!)) {
-      console.error(`Profile with id ${profileData.id} already exists`);
+    if (!this.validateProfile(profile)) {
       return false;
     }
 
-    this.profiles.set(profileData.id!, profileData as UserProfile);
+    this.profiles.set(profile.id, profile);
     return true;
   }
 
   updateProfile(id: string, updates: Partial<UserProfile>): boolean {
-    const existing = this.profiles.get(id);
-    if (!existing) {
-      console.error(`Profile ${id} not found`);
+    const existingProfile = this.profiles.get(id);
+    if (!existingProfile) {
       return false;
     }
 
-    const updatedProfile = { ...existing, ...updates };
+    const updatedProfile = { ...existingProfile, ...updates };
     if (!this.validateProfile(updatedProfile)) {
-      console.error('Updated profile data is invalid');
       return false;
     }
 
@@ -130,9 +43,41 @@ class UserProfileManager {
     return this.profiles.get(id);
   }
 
-  getAllProfiles(): UserProfile[] {
-    return Array.from(this.profiles.values());
+  deactivateProfile(id: string): boolean {
+    const profile = this.profiles.get(id);
+    if (!profile) {
+      return false;
+    }
+
+    return this.updateProfile(id, { isActive: false });
+  }
+
+  getActiveProfiles(): UserProfile[] {
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive)
+      .sort((a, b) => b.lastLogin.getTime() - a.lastLogin.getTime());
+  }
+
+  private validateProfile(profile: UserProfile): boolean {
+    if (!profile.id || !profile.username || !profile.email) {
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profile.email)) {
+      return false;
+    }
+
+    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+      return false;
+    }
+
+    if (profile.username.length < 3 || profile.username.length > 50) {
+      return false;
+    }
+
+    return true;
   }
 }
 
-export { UserProfileManager, type UserProfile };
+export { UserProfileManager, UserProfile };
