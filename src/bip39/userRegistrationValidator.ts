@@ -1,158 +1,47 @@
-import { z } from 'zod';
-
-const passwordSchema = z.string()
-  .min(8, 'Password must be at least 8 characters')
-  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/[0-9]/, 'Password must contain at least one number')
-  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
-
-export const registrationSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: passwordSchema,
-  confirmPassword: z.string(),
-  username: z.string().min(3, 'Username must be at least 3 characters').max(20),
-  dateOfBirth: z.date().refine(date => {
-    const age = new Date().getFullYear() - date.getFullYear();
-    return age >= 13;
-  }, 'You must be at least 13 years old')
-}).refine(data => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword']
-});
-
-export type RegistrationData = z.infer<typeof registrationSchema>;
-
-export function validateRegistration(data: unknown): RegistrationData {
-  return registrationSchema.parse(data);
-}
-
-export function getValidationErrors(data: unknown): string[] {
-  try {
-    registrationSchema.parse(data);
-    return [];
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-    }
-    return ['Unknown validation error'];
-  }
-}import { z } from 'zod';
-
-export const UserRegistrationSchema = z.object({
-  username: z.string()
-    .min(3, 'Username must be at least 3 characters')
-    .max(50, 'Username cannot exceed 50 characters')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
-  
-  email: z.string()
-    .email('Please provide a valid email address')
-    .max(100, 'Email cannot exceed 100 characters'),
-  
-  password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(100, 'Password cannot exceed 100 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
-  
-  birthDate: z.date()
-    .max(new Date(), 'Birth date cannot be in the future')
-    .refine(date => {
-      const age = new Date().getFullYear() - date.getFullYear();
-      return age >= 13;
-    }, 'You must be at least 13 years old to register'),
-  
-  termsAccepted: z.boolean()
-    .refine(val => val === true, 'You must accept the terms and conditions')
-});
-
-export type UserRegistrationData = z.infer<typeof UserRegistrationSchema>;
-
-export function validateUserRegistration(input: unknown): UserRegistrationData {
-  return UserRegistrationSchema.parse(input);
-}
-
-export function getValidationErrors(input: unknown): string[] {
-  try {
-    UserRegistrationSchema.parse(input);
-    return [];
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return error.errors.map(err => err.message);
-    }
-    return ['An unexpected validation error occurred'];
-  }
-}interface UserRegistrationData {
+interface UserRegistrationData {
   email: string;
   password: string;
   confirmPassword: string;
 }
 
-class UserRegistrationValidator {
-  private readonly emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  private readonly passwordMinLength: number = 8;
+class RegistrationValidator {
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly MIN_PASSWORD_LENGTH = 8;
 
-  validateEmail(email: string): string[] {
+  static validate(data: UserRegistrationData): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
-    if (!email.trim()) {
-      errors.push('Email is required');
-    } else if (!this.emailRegex.test(email)) {
+
+    if (!this.isValidEmail(data.email)) {
       errors.push('Invalid email format');
     }
-    
-    return errors;
-  }
 
-  validatePassword(password: string): string[] {
-    const errors: string[] = [];
-    
-    if (!password) {
-      errors.push('Password is required');
-      return errors;
+    if (!this.isStrongPassword(data.password)) {
+      errors.push(`Password must be at least ${this.MIN_PASSWORD_LENGTH} characters long and contain uppercase, lowercase, and numbers`);
     }
-    
-    if (password.length < this.passwordMinLength) {
-      errors.push(`Password must be at least ${this.passwordMinLength} characters`);
-    }
-    
-    if (!/[A-Z]/.test(password)) {
-      errors.push('Password must contain at least one uppercase letter');
-    }
-    
-    if (!/[a-z]/.test(password)) {
-      errors.push('Password must contain at least one lowercase letter');
-    }
-    
-    if (!/\d/.test(password)) {
-      errors.push('Password must contain at least one number');
-    }
-    
-    if (!/[!@#$%^&*]/.test(password)) {
-      errors.push('Password must contain at least one special character');
-    }
-    
-    return errors;
-  }
 
-  validateRegistration(data: UserRegistrationData): Record<string, string[]> {
-    const errors: Record<string, string[]> = {
-      email: this.validateEmail(data.email),
-      password: this.validatePassword(data.password)
-    };
-    
     if (data.password !== data.confirmPassword) {
-      errors.confirmPassword = ['Passwords do not match'];
+      errors.push('Passwords do not match');
     }
-    
-    return errors;
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 
-  isValidRegistration(data: UserRegistrationData): boolean {
-    const errors = this.validateRegistration(data);
-    return Object.values(errors).every(errorArray => errorArray.length === 0);
+  private static isValidEmail(email: string): boolean {
+    return this.EMAIL_REGEX.test(email);
+  }
+
+  private static isStrongPassword(password: string): boolean {
+    if (password.length < this.MIN_PASSWORD_LENGTH) return false;
+    
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    
+    return hasUpperCase && hasLowerCase && hasNumbers;
   }
 }
 
-export { UserRegistrationValidator, UserRegistrationData };
+export { UserRegistrationData, RegistrationValidator };
