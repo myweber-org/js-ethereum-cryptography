@@ -1,54 +1,51 @@
-
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  fontSize: number;
+  timezone: string;
 }
 
-class PreferenceValidator {
-  private static readonly MIN_FONT_SIZE = 12;
-  private static readonly MAX_FONT_SIZE = 24;
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
 
-  static validate(prefs: UserPreferences): string[] {
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
     const errors: string[] = [];
 
-    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
+    if (!preferences.theme || !['light', 'dark', 'auto'].includes(preferences.theme)) {
+      errors.push('Theme must be one of: light, dark, auto');
     }
 
-    if (typeof prefs.notifications !== 'boolean') {
-      errors.push('Notifications must be a boolean value.');
+    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value');
     }
 
-    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+    if (preferences.language && !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+      errors.push(`Language must be one of: ${this.SUPPORTED_LANGUAGES.join(', ')}`);
     }
 
-    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
-      errors.push(`Font size ${prefs.fontSize} out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}.`);
+    if (preferences.timezone && !this.VALID_TIMEZONES.test(preferences.timezone)) {
+      errors.push('Timezone must be in format: Area/Location (e.g., America/New_York)');
     }
 
-    return errors;
+    if (errors.length > 0) {
+      throw new PreferenceValidationError(`Validation failed:\n${errors.join('\n')}`);
+    }
+
+    return {
+      theme: preferences.theme as 'light' | 'dark' | 'auto',
+      notifications: preferences.notifications ?? true,
+      language: preferences.language ?? 'en',
+      timezone: preferences.timezone ?? 'UTC'
+    };
   }
 }
 
-function validateAndApplyPreferences(prefs: UserPreferences): void {
-  const validationErrors = PreferenceValidator.validate(prefs);
-  
-  if (validationErrors.length > 0) {
-    console.error('Invalid preferences:');
-    validationErrors.forEach(error => console.error(`  - ${error}`));
-    throw new Error('Preferences validation failed');
-  }
-
-  console.log('Preferences applied successfully:', {
-    theme: prefs.theme,
-    notificationsEnabled: prefs.notifications,
-    language: prefs.language,
-    fontSize: `${prefs.fontSize}px`
-  });
-}
-
-export { UserPreferences, PreferenceValidator, validateAndApplyPreferences };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
