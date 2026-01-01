@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const PreferenceSchema = z.object({
+export const UserPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).default('auto'),
   notifications: z.object({
     email: z.boolean().default(true),
@@ -10,32 +10,16 @@ const PreferenceSchema = z.object({
   privacy: z.object({
     profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
     searchIndexing: z.boolean().default(true)
-  }).default({})
+  }),
+  language: z.string().min(2).max(5).default('en')
 }).strict();
 
-type UserPreferences = z.infer<typeof PreferenceSchema>;
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        path: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Invalid preferences: ${JSON.stringify(formattedErrors)}`);
-    }
-    throw error;
-  }
+export function validateUserPreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
 }
 
 export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const current = PreferenceSchema.partial().parse(existing);
-  const merged = { ...current, ...updates };
-  return validatePreferences(merged);
+  return UserPreferencesSchema.parse({});
 }
