@@ -138,4 +138,57 @@ const defaultPrefs: UserPreferences = {
   fontSize: 16
 };
 
-export const preferencesManager = new UserPreferencesManager(defaultPrefs);
+export const preferencesManager = new UserPreferencesManager(defaultPrefs);import { reactive, watch } from 'vue';
+
+interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+const STORAGE_KEY = 'app_user_preferences';
+
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      console.warn('Failed to parse stored preferences');
+    }
+  }
+  return {
+    theme: 'light',
+    language: 'en',
+    notificationsEnabled: true,
+    itemsPerPage: 20
+  };
+}
+
+export function useUserPreferences() {
+  const preferences = reactive<UserPreferences>(loadPreferences());
+
+  watch(preferences, (newPreferences) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newPreferences));
+  }, { deep: true });
+
+  function resetToDefaults() {
+    Object.assign(preferences, {
+      theme: 'light',
+      language: 'en',
+      notificationsEnabled: true,
+      itemsPerPage: 20
+    });
+  }
+
+  function toggleTheme() {
+    preferences.theme = preferences.theme === 'light' ? 'dark' : 'light';
+  }
+
+  return {
+    preferences,
+    resetToDefaults,
+    toggleTheme
+  };
+}
