@@ -1,89 +1,62 @@
 import { z } from 'zod';
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
   notifications: z.object({
     email: z.boolean().default(true),
     push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
   }),
   privacy: z.object({
     profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  })
+    dataSharing: z.boolean().default(false)
+  }),
+  language: z.string().min(2).max(5).default('en')
 }).strict();
 
-type UserPreferences = z.infer<typeof PreferenceSchema>;
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
+      }
+      throw new Error('Invalid preferences data structure');
     }
-    throw new Error('Unexpected validation error');
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return UserPreferencesSchema.parse({});
+  }
+
+  static mergePreferences(
+    existing: Partial<UserPreferences>,
+    updates: Partial<UserPreferences>
+  ): UserPreferences {
+    const merged = { ...existing, ...updates };
+    return this.validate(merged);
   }
 }
 
-export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
-
-class PreferenceError extends Error {
-  constructor(message: string, public field: string) {
-    super(message);
-    this.name = 'PreferenceError';
-  }
-}
-
-function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+export function validatePreferencesUpdate(
+  current: UserPreferences,
+  updates: Partial<UserPreferences>
+): { isValid: boolean; errors: string[]; updated?: UserPreferences } {
   const errors: string[] = [];
   
-  if (!prefs.theme) {
-    errors.push('Theme is required');
-  } else if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-    errors.push('Theme must be light, dark, or auto');
+  try {
+    const merged = PreferencesValidator.mergePreferences(current, updates);
+    return { isValid: true, errors: [], updated: merged };
+  } catch (error) {
+    if (error instanceof Error) {
+      errors.push(error.message);
+    }
+    return { isValid: false, errors };
   }
-  
-  if (prefs.notifications === undefined) {
-    errors.push('Notifications preference is required');
-  }
-  
-  if (!prefs.language) {
-    errors.push('Language is required');
-  } else if (typeof prefs.language !== 'string' || prefs.language.length < 2) {
-    errors.push('Language must be at least 2 characters');
-  }
-  
-  if (prefs.fontSize === undefined) {
-    errors.push('Font size is required');
-  } else if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
-    errors.push('Font size must be between 8 and 72');
-  }
-  
-  if (errors.length > 0) {
-    throw new PreferenceError(`Validation failed: ${errors.join('; ')}`, 'preferences');
-  }
-  
-  return prefs as UserPreferences;
 }
-
-function formatValidationError(error: unknown): string {
-  if (error instanceof PreferenceError) {
-    return `[${error.field.toUpperCase()}] ${error.message}`;
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'Unknown validation error';
-}
-
-export { validateUserPreferences, formatValidationError, PreferenceError };
-export type { UserPreferences };
