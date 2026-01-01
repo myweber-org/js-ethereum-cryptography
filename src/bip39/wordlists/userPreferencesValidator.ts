@@ -29,4 +29,61 @@ export function validatePreferences(input: unknown): UserPreferences {
 
 export function getDefaultPreferences(): UserPreferences {
   return PreferenceSchema.parse({});
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
 }
+
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: string[] = [];
+  
+  if (!prefs.theme) {
+    errors.push('Theme is required');
+  } else if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be light, dark, or auto');
+  }
+  
+  if (prefs.notifications === undefined) {
+    errors.push('Notifications preference is required');
+  }
+  
+  if (!prefs.language) {
+    errors.push('Language is required');
+  } else if (typeof prefs.language !== 'string' || prefs.language.length < 2) {
+    errors.push('Language must be at least 2 characters');
+  }
+  
+  if (prefs.fontSize === undefined) {
+    errors.push('Font size is required');
+  } else if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+    errors.push('Font size must be between 8 and 72');
+  }
+  
+  if (errors.length > 0) {
+    throw new PreferenceError(`Validation failed: ${errors.join('; ')}`, 'preferences');
+  }
+  
+  return prefs as UserPreferences;
+}
+
+function formatValidationError(error: unknown): string {
+  if (error instanceof PreferenceError) {
+    return `[${error.field.toUpperCase()}] ${error.message}`;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Unknown validation error';
+}
+
+export { validateUserPreferences, formatValidationError, PreferenceError };
+export type { UserPreferences };
