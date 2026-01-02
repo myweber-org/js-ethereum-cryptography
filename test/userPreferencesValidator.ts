@@ -1,100 +1,42 @@
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  timezone: string;
-  itemsPerPage: number;
-}
+import { z } from 'zod';
 
-class PreferenceValidationError extends Error {
-  constructor(
-    public field: string,
-    public value: any,
-    public rule: string,
-    message: string
-  ) {
-    super(message);
-    this.name = 'PreferenceValidationError';
-  }
-}
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+});
 
-class UserPreferencesValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
-  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-  static validate(preferences: Partial<UserPreferences>): void {
-    if (preferences.theme !== undefined) {
-      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
-        throw new PreferenceValidationError(
-          'theme',
-          preferences.theme,
-          'allowed_values',
-          'Theme must be one of: light, dark, auto'
+export class UserPreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
         );
+        throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
       }
-    }
-
-    if (preferences.notifications !== undefined) {
-      if (typeof preferences.notifications !== 'boolean') {
-        throw new PreferenceValidationError(
-          'notifications',
-          preferences.notifications,
-          'boolean',
-          'Notifications must be a boolean value'
-        );
-      }
-    }
-
-    if (preferences.language !== undefined) {
-      if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
-        throw new PreferenceValidationError(
-          'language',
-          preferences.language,
-          'supported_language',
-          `Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`
-        );
-      }
-    }
-
-    if (preferences.timezone !== undefined) {
-      if (!UserPreferencesValidator.VALID_TIMEZONES.test(preferences.timezone)) {
-        throw new PreferenceValidationError(
-          'timezone',
-          preferences.timezone,
-          'timezone_format',
-          'Timezone must be in format: Area/Location (e.g., America/New_York)'
-        );
-      }
-    }
-
-    if (preferences.itemsPerPage !== undefined) {
-      if (!Number.isInteger(preferences.itemsPerPage) || preferences.itemsPerPage < 5 || preferences.itemsPerPage > 100) {
-        throw new PreferenceValidationError(
-          'itemsPerPage',
-          preferences.itemsPerPage,
-          'range',
-          'Items per page must be an integer between 5 and 100'
-        );
-      }
+      throw error;
     }
   }
 
-  static validateAll(preferences: UserPreferences): void {
-    const requiredFields: (keyof UserPreferences)[] = ['theme', 'notifications', 'language', 'timezone', 'itemsPerPage'];
-    
-    for (const field of requiredFields) {
-      if (preferences[field] === undefined) {
-        throw new PreferenceValidationError(
-          field,
-          undefined,
-          'required',
-          `${field} is required`
-        );
-      }
-    }
-    
-    this.validate(preferences);
+  static getDefaultPreferences(): UserPreferences {
+    return UserPreferencesSchema.parse({});
+  }
+
+  static mergeWithDefaults(partial: Partial<UserPreferences>): UserPreferences {
+    const defaults = this.getDefaultPreferences();
+    return UserPreferencesSchema.parse({ ...defaults, ...partial });
   }
 }
-
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
