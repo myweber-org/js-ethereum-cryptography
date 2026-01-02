@@ -1,4 +1,3 @@
-
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
@@ -6,85 +5,62 @@ interface UserPreferences {
   fontSize: number;
 }
 
-class PreferenceError extends Error {
-  constructor(message: string, public field: string) {
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
     super(message);
-    this.name = 'PreferenceError';
+    this.name = 'PreferenceValidationError';
   }
 }
 
-class UserPreferencesValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
-  private static readonly MIN_FONT_SIZE = 12;
-  private static readonly MAX_FONT_SIZE = 24;
-
-  static validate(preferences: Partial<UserPreferences>): UserPreferences {
-    const validated: UserPreferences = {
-      theme: this.validateTheme(preferences.theme),
-      notifications: this.validateNotifications(preferences.notifications),
-      language: this.validateLanguage(preferences.language),
-      fontSize: this.validateFontSize(preferences.fontSize)
-    };
-
-    return validated;
+const validateUserPreferences = (prefs: UserPreferences): void => {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Theme must be one of: ${validThemes.join(', ')}`
+    );
   }
 
-  private static validateTheme(theme?: string): UserPreferences['theme'] {
-    if (!theme) {
-      throw new PreferenceError('Theme is required', 'theme');
-    }
-
-    if (theme !== 'light' && theme !== 'dark' && theme !== 'auto') {
-      throw new PreferenceError(
-        `Theme must be one of: light, dark, auto. Received: ${theme}`,
-        'theme'
-      );
-    }
-
-    return theme as UserPreferences['theme'];
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
   }
 
-  private static validateNotifications(notifications?: boolean): boolean {
-    if (notifications === undefined) {
-      throw new PreferenceError('Notifications preference is required', 'notifications');
-    }
-
-    return notifications;
+  if (!prefs.language || prefs.language.trim().length === 0) {
+    throw new PreferenceValidationError('Language must be specified');
   }
 
-  private static validateLanguage(language?: string): string {
-    if (!language) {
-      throw new PreferenceError('Language is required', 'language');
-    }
-
-    if (!this.SUPPORTED_LANGUAGES.includes(language)) {
-      throw new PreferenceError(
-        `Language must be one of: ${this.SUPPORTED_LANGUAGES.join(', ')}. Received: ${language}`,
-        'language'
-      );
-    }
-
-    return language;
+  if (prefs.fontSize < 12 || prefs.fontSize > 24) {
+    throw new PreferenceValidationError('Font size must be between 12 and 24');
   }
 
-  private static validateFontSize(fontSize?: number): number {
-    if (fontSize === undefined) {
-      throw new PreferenceError('Font size is required', 'fontSize');
-    }
-
-    if (!Number.isInteger(fontSize)) {
-      throw new PreferenceError('Font size must be an integer', 'fontSize');
-    }
-
-    if (fontSize < this.MIN_FONT_SIZE || fontSize > this.MAX_FONT_SIZE) {
-      throw new PreferenceError(
-        `Font size must be between ${this.MIN_FONT_SIZE} and ${this.MAX_FONT_SIZE}. Received: ${fontSize}`,
-        'fontSize'
-      );
-    }
-
-    return fontSize;
+  if (!Number.isInteger(prefs.fontSize)) {
+    throw new PreferenceValidationError('Font size must be an integer');
   }
-}
+};
 
-export { UserPreferencesValidator, UserPreferences, PreferenceError };
+const validatePreferencesWithFallback = (
+  prefs: Partial<UserPreferences>
+): UserPreferences => {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 16
+  };
+
+  const mergedPreferences = { ...defaultPreferences, ...prefs };
+
+  try {
+    validateUserPreferences(mergedPreferences);
+    return mergedPreferences;
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.warn(`Invalid preferences: ${error.message}. Using defaults.`);
+      return defaultPreferences;
+    }
+    throw error;
+  }
+};
+
+export { validateUserPreferences, validatePreferencesWithFallback, PreferenceValidationError };
+export type { UserPreferences };
