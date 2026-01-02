@@ -64,4 +64,42 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: boolean;
+  fontSize: number;
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (prefs.theme && !validThemes.includes(prefs.theme)) {
+    return false;
+  }
+  
+  if (prefs.fontSize && (prefs.fontSize < 8 || prefs.fontSize > 72)) {
+    return false;
+  }
+  
+  if (prefs.language && typeof prefs.language !== 'string') {
+    return false;
+  }
+  
+  if (prefs.notifications !== undefined && typeof prefs.notifications !== 'boolean') {
+    return false;
+  }
+  
+  return true;
+}
+
+function applyUserPreferences(prefs: UserPreferences): void {
+  document.documentElement.setAttribute('data-theme', prefs.theme);
+  document.documentElement.lang = prefs.language;
+  
+  if (prefs.notifications) {
+    console.log('Notifications enabled');
+  }
+  
+  document.documentElement.style.fontSize = `${prefs.fontSize}px`;
+}
