@@ -279,4 +279,52 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+function validateUserPreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  const minFontSize = 8;
+  const maxFontSize = 72;
+
+  if (!validThemes.includes(prefs.theme)) {
+    return false;
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    return false;
+  }
+
+  if (typeof prefs.language !== 'string' || prefs.language.length === 0) {
+    return false;
+  }
+
+  if (typeof prefs.fontSize !== 'number' || 
+      prefs.fontSize < minFontSize || 
+      prefs.fontSize > maxFontSize) {
+    return false;
+  }
+
+  return true;
+}
+
+function updateUserPreferences(newPrefs: Partial<UserPreferences>): UserPreferences {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 16
+  };
+
+  const mergedPreferences = { ...defaultPreferences, ...newPrefs };
+  
+  if (!validateUserPreferences(mergedPreferences)) {
+    throw new Error('Invalid user preferences');
+  }
+
+  return mergedPreferences;
+}
