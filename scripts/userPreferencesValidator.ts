@@ -1,44 +1,61 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']),
-  notifications: z.object({
-    email: z.boolean(),
-    push: z.boolean(),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).optional()
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']),
-    searchIndexing: z.boolean().default(true)
-  }).optional(),
-  updatedAt: z.date().default(() => new Date())
-});
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
-    }
-    throw error;
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
   }
 }
 
-export function createDefaultPreferences(): UserPreferences {
-  return {
-    theme: 'auto',
-    notifications: {
-      email: true,
-      push: false,
-      frequency: 'daily'
-    },
-    privacy: {
-      profileVisibility: 'friends',
-      searchIndexing: false
-    }
-  };
+function validateUserPreferences(prefs: UserPreferences): void {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceError(
+      `Theme must be one of: ${validThemes.join(', ')}`,
+      'theme'
+    );
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceError('Notifications must be a boolean value', 'notifications');
+  }
+
+  if (!prefs.language || prefs.language.trim().length === 0) {
+    throw new PreferenceError('Language cannot be empty', 'language');
+  }
+
+  if (prefs.fontSize < 12 || prefs.fontSize > 24) {
+    throw new PreferenceError('Font size must be between 12 and 24', 'fontSize');
+  }
 }
+
+function updateUserPreferences(prefs: UserPreferences): { success: boolean; error?: string } {
+  try {
+    validateUserPreferences(prefs);
+    
+    // Simulate saving to database
+    console.log('Saving preferences:', prefs);
+    
+    return { success: true };
+  } catch (error) {
+    if (error instanceof PreferenceError) {
+      return { 
+        success: false, 
+        error: `Validation failed for ${error.field}: ${error.message}`
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: 'Unknown validation error occurred'
+    };
+  }
+}
+
+export { UserPreferences, validateUserPreferences, updateUserPreferences, PreferenceError };
