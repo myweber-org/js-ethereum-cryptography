@@ -2,53 +2,29 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  resultsPerPage: number;
+  timezone: string;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
-};
+function validateUserPreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  const timezoneRegex = /^[A-Za-z_]+\/[A-Za-z_]+$/;
 
-function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
-  
-  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = 'auto';
-  }
-  
-  if (typeof validated.notifications !== 'boolean') {
-    validated.notifications = true;
-  }
-  
-  if (typeof validated.language !== 'string' || validated.language.length < 2) {
-    validated.language = 'en-US';
-  }
-  
-  if (!Number.isInteger(validated.resultsPerPage) || validated.resultsPerPage < 5 || validated.resultsPerPage > 100) {
-    validated.resultsPerPage = 20;
-  }
-  
-  return validated;
+  return (
+    validThemes.includes(prefs.theme) &&
+    typeof prefs.notifications === 'boolean' &&
+    validLanguages.includes(prefs.language) &&
+    timezoneRegex.test(prefs.timezone)
+  );
 }
 
-function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validated = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validated));
-}
+function updateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    timezone: 'UTC'
+  };
 
-function loadPreferences(): UserPreferences {
-  const stored = localStorage.getItem('userPreferences');
-  if (!stored) return DEFAULT_PREFERENCES;
-  
-  try {
-    const parsed = JSON.parse(stored);
-    return validatePreferences(parsed);
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
+  return { ...defaultPreferences, ...prefs };
 }
-
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
