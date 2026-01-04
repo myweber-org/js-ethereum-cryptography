@@ -6,56 +6,43 @@ interface UserPreferences {
 }
 
 class PreferenceValidator {
-  private static readonly MIN_FONT_SIZE = 12;
-  private static readonly MAX_FONT_SIZE = 24;
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_FONT_SIZE = 8;
+  private static readonly MAX_FONT_SIZE = 72;
 
-  static validate(prefs: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
+  static validate(prefs: UserPreferences): string[] {
     const errors: string[] = [];
 
-    if (prefs.theme !== undefined && !['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme: ${prefs.theme}`);
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
     }
 
-    if (prefs.notifications !== undefined && typeof prefs.notifications !== 'boolean') {
-      errors.push('Notifications must be a boolean value');
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value.');
     }
 
-    if (prefs.language !== undefined) {
-      if (typeof prefs.language !== 'string') {
-        errors.push('Language must be a string');
-      } else if (!this.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-        errors.push(`Unsupported language: ${prefs.language}`);
-      }
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
     }
 
-    if (prefs.fontSize !== undefined) {
-      if (typeof prefs.fontSize !== 'number') {
-        errors.push('Font size must be a number');
-      } else if (prefs.fontSize < this.MIN_FONT_SIZE || prefs.fontSize > this.MAX_FONT_SIZE) {
-        errors.push(`Font size must be between ${this.MIN_FONT_SIZE} and ${this.MAX_FONT_SIZE}`);
-      }
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size ${prefs.fontSize} is out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}.`);
     }
 
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  static normalize(prefs: Partial<UserPreferences>): UserPreferences {
-    const defaults: UserPreferences = {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      fontSize: 16
-    };
-
-    return {
-      ...defaults,
-      ...prefs
-    };
+    return errors;
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+function validateAndApplyPreferences(prefs: UserPreferences): void {
+  const validationErrors = PreferenceValidator.validate(prefs);
+  
+  if (validationErrors.length > 0) {
+    console.error('Invalid preferences:');
+    validationErrors.forEach(error => console.error(`  - ${error}`));
+    throw new Error('Preferences validation failed');
+  }
+
+  console.log('Preferences applied successfully:', prefs);
+}
+
+export { UserPreferences, PreferenceValidator, validateAndApplyPreferences };
