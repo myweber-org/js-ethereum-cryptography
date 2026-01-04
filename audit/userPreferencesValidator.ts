@@ -1,86 +1,53 @@
-import { z } from 'zod';
 
-const ThemeSchema = z.enum(['light', 'dark', 'auto']);
-const NotificationPreferenceSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
-});
-
-export const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default('auto'),
-  notifications: NotificationPreferenceSchema.default({
-    email: true,
-    push: false,
-    frequency: 'daily'
-  }),
-  language: z.string().min(2).max(5).default('en'),
-  timezone: z.string().optional(),
-  createdAt: z.date().default(() => new Date())
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  return UserPreferencesSchema.parse(input);
-}
-
-export function safeValidateUserPreferences(input: unknown) {
-  return UserPreferencesSchema.safeParse(input);
-}interface UserPreferences {
+interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
   fontSize: number;
 }
 
-class PreferenceValidationError extends Error {
-  constructor(message: string, public field: string) {
-    super(message);
-    this.name = 'PreferenceValidationError';
+class PreferenceValidator {
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+
+  static validate(prefs: UserPreferences): string[] {
+    const errors: string[] = [];
+
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme value: ${prefs.theme}. Must be 'light', 'dark', or 'auto'`);
+    }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value');
+    }
+
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size ${prefs.fontSize} is out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}`);
+    }
+
+    return errors;
+  }
+
+  static validateAndThrow(prefs: UserPreferences): void {
+    const errors = this.validate(prefs);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed:\n${errors.join('\n')}`);
+    }
   }
 }
 
-const validateUserPreferences = (prefs: Partial<UserPreferences>): UserPreferences => {
-  const defaults: UserPreferences = {
-    theme: 'auto',
-    notifications: true,
-    language: 'en',
-    fontSize: 14
-  };
-
-  const validated: UserPreferences = { ...defaults, ...prefs };
-
-  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    throw new PreferenceValidationError(
-      'Theme must be one of: light, dark, auto',
-      'theme'
-    );
+function applyUserPreferences(prefs: UserPreferences): void {
+  try {
+    PreferenceValidator.validateAndThrow(prefs);
+    console.log('Preferences applied successfully:', prefs);
+  } catch (error) {
+    console.error('Failed to apply preferences:', error.message);
   }
+}
 
-  if (typeof validated.notifications !== 'boolean') {
-    throw new PreferenceValidationError(
-      'Notifications must be a boolean value',
-      'notifications'
-    );
-  }
-
-  if (typeof validated.language !== 'string' || validated.language.length !== 2) {
-    throw new PreferenceValidationError(
-      'Language must be a 2-character ISO code',
-      'language'
-    );
-  }
-
-  if (typeof validated.fontSize !== 'number' || validated.fontSize < 8 || validated.fontSize > 72) {
-    throw new PreferenceValidationError(
-      'Font size must be between 8 and 72',
-      'fontSize'
-    );
-  }
-
-  return validated;
-};
-
-export { validateUserPreferences, PreferenceValidationError, UserPreferences };
+export { UserPreferences, PreferenceValidator, applyUserPreferences };
