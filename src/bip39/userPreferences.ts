@@ -12,27 +12,31 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   resultsPerPage: 20
 };
 
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
+
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
-  
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
+
   if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = 'auto';
+    validated.theme = DEFAULT_PREFERENCES.theme;
   }
-  
+
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
+  }
+
   if (typeof validated.notifications !== 'boolean') {
-    validated.notifications = true;
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
   }
-  
-  if (typeof validated.language !== 'string' || validated.language.length < 2) {
-    validated.language = 'en-US';
-  }
-  
+
   if (typeof validated.resultsPerPage !== 'number' || 
-      validated.resultsPerPage < 5 || 
-      validated.resultsPerPage > 100) {
-    validated.resultsPerPage = 20;
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
   }
-  
+
   return validated;
 }
 
@@ -43,8 +47,10 @@ function savePreferences(prefs: Partial<UserPreferences>): void {
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (!stored) return DEFAULT_PREFERENCES;
-  
+  if (!stored) {
+    return DEFAULT_PREFERENCES;
+  }
+
   try {
     const parsed = JSON.parse(stored);
     return validatePreferences(parsed);
