@@ -60,4 +60,66 @@ export class ValidationError extends Error {
 
 export function createDefaultPreferences(): UserPreferences {
   return UserPreferencesSchema.parse({});
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
 }
+
+class PreferenceError extends Error {
+  constructor(message: string, public field: keyof UserPreferences) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
+
+const validatePreferences = (prefs: Partial<UserPreferences>): UserPreferences => {
+  const defaultPrefs: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 14
+  };
+
+  const validated: UserPreferences = { ...defaultPrefs, ...prefs };
+
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    throw new PreferenceError('Theme must be light, dark, or auto', 'theme');
+  }
+
+  if (typeof validated.notifications !== 'boolean') {
+    throw new PreferenceError('Notifications must be a boolean value', 'notifications');
+  }
+
+  if (!validated.language || validated.language.trim().length === 0) {
+    throw new PreferenceError('Language must be a non-empty string', 'language');
+  }
+
+  if (validated.fontSize < 8 || validated.fontSize > 72) {
+    throw new PreferenceError('Font size must be between 8 and 72', 'fontSize');
+  }
+
+  if (!Number.isInteger(validated.fontSize)) {
+    throw new PreferenceError('Font size must be an integer', 'fontSize');
+  }
+
+  return validated;
+};
+
+const saveUserPreferences = (userId: string, preferences: Partial<UserPreferences>): void => {
+  try {
+    const validated = validatePreferences(preferences);
+    console.log(`Saving preferences for user ${userId}:`, validated);
+  } catch (error) {
+    if (error instanceof PreferenceError) {
+      console.error(`Validation failed for field "${error.field}": ${error.message}`);
+    } else {
+      console.error('Unknown error occurred:', error);
+    }
+    throw error;
+  }
+};
+
+export { validatePreferences, saveUserPreferences, PreferenceError };
+export type { UserPreferences };
