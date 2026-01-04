@@ -15,7 +15,13 @@ declare global {
   }
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
+
+export const authenticateToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -25,12 +31,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT secret not configured');
-    }
-
-    const decoded = jwt.verify(token, secret) as UserPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
     req.user = decoded;
     next();
   } catch (error) {
