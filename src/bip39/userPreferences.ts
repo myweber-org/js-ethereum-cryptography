@@ -2,40 +2,55 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  itemsPerPage: number;
+  resultsPerPage: number;
 }
 
-function validateUserPreferences(prefs: Partial<UserPreferences>): boolean {
-  const validThemes = ['light', 'dark', 'auto'];
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
   
-  if (prefs.theme && !validThemes.includes(prefs.theme)) {
-    return false;
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = 'auto';
   }
   
-  if (prefs.itemsPerPage !== undefined) {
-    if (!Number.isInteger(prefs.itemsPerPage) || prefs.itemsPerPage < 1 || prefs.itemsPerPage > 100) {
-      return false;
-    }
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = true;
   }
   
-  if (prefs.language !== undefined) {
-    const languageRegex = /^[a-z]{2}(-[A-Z]{2})?$/;
-    if (!languageRegex.test(prefs.language)) {
-      return false;
-    }
+  if (typeof validated.language !== 'string' || validated.language.length < 2) {
+    validated.language = 'en-US';
   }
   
-  return true;
+  if (typeof validated.resultsPerPage !== 'number' || 
+      validated.resultsPerPage < 5 || 
+      validated.resultsPerPage > 100) {
+    validated.resultsPerPage = 20;
+  }
+  
+  return validated;
 }
 
-function applyUserPreferences(prefs: UserPreferences): void {
-  console.log('Applying user preferences:', prefs);
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validated = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validated));
+}
+
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) return DEFAULT_PREFERENCES;
   
-  if (prefs.theme === 'dark' || (prefs.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    document.documentElement.classList.add('dark-theme');
-  } else {
-    document.documentElement.classList.remove('dark-theme');
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
   }
 }
 
-export { UserPreferences, validateUserPreferences, applyUserPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
