@@ -1,16 +1,19 @@
+
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  language: string;
-  notificationsEnabled: boolean;
+  notifications: boolean;
   fontSize: number;
+  language: string;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
-  language: 'en-US',
-  notificationsEnabled: true,
-  fontSize: 14
+  notifications: true,
+  fontSize: 16,
+  language: 'en-US'
 };
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
 
 class UserPreferencesManager {
   private preferences: UserPreferences;
@@ -21,63 +24,57 @@ class UserPreferencesManager {
 
   private loadPreferences(): UserPreferences {
     const stored = localStorage.getItem('userPreferences');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        return this.validatePreferences(parsed);
-      } catch {
-        return { ...DEFAULT_PREFERENCES };
-      }
+    if (!stored) return { ...DEFAULT_PREFERENCES };
+
+    try {
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
     }
-    return { ...DEFAULT_PREFERENCES };
   }
 
   private validatePreferences(data: unknown): UserPreferences {
-    if (typeof data !== 'object' || data === null) {
-      throw new Error('Invalid preferences format');
+    const prefs = { ...DEFAULT_PREFERENCES };
+
+    if (data && typeof data === 'object') {
+      const obj = data as Record<string, unknown>;
+
+      if (['light', 'dark', 'auto'].includes(obj.theme as string)) {
+        prefs.theme = obj.theme as UserPreferences['theme'];
+      }
+
+      if (typeof obj.notifications === 'boolean') {
+        prefs.notifications = obj.notifications;
+      }
+
+      if (typeof obj.fontSize === 'number' && obj.fontSize >= 12 && obj.fontSize <= 24) {
+        prefs.fontSize = obj.fontSize;
+      }
+
+      if (typeof obj.language === 'string' && VALID_LANGUAGES.includes(obj.language)) {
+        prefs.language = obj.language;
+      }
     }
 
-    const prefs = data as Record<string, unknown>;
-    
-    return {
-      theme: this.validateTheme(prefs.theme),
-      language: this.validateLanguage(prefs.language),
-      notificationsEnabled: this.validateBoolean(prefs.notificationsEnabled),
-      fontSize: this.validateFontSize(prefs.fontSize)
-    };
-  }
-
-  private validateTheme(theme: unknown): UserPreferences['theme'] {
-    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
-      return theme;
-    }
-    return DEFAULT_PREFERENCES.theme;
-  }
-
-  private validateLanguage(language: unknown): string {
-    if (typeof language === 'string' && language.length >= 2) {
-      return language;
-    }
-    return DEFAULT_PREFERENCES.language;
-  }
-
-  private validateBoolean(value: unknown): boolean {
-    return typeof value === 'boolean' ? value : DEFAULT_PREFERENCES.notificationsEnabled;
-  }
-
-  private validateFontSize(size: unknown): number {
-    const num = Number(size);
-    return !isNaN(num) && num >= 8 && num <= 32 ? num : DEFAULT_PREFERENCES.fontSize;
+    return prefs;
   }
 
   getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): void {
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
     const newPreferences = { ...this.preferences, ...updates };
-    this.preferences = this.validatePreferences(newPreferences);
-    this.savePreferences();
+    const validated = this.validatePreferences(newPreferences);
+
+    if (JSON.stringify(validated) !== JSON.stringify(this.preferences)) {
+      this.preferences = validated;
+      this.savePreferences();
+      return true;
+    }
+
+    return false;
   }
 
   private savePreferences(): void {
@@ -89,12 +86,16 @@ class UserPreferencesManager {
     this.savePreferences();
   }
 
-  isDarkMode(): boolean {
+  getTheme(): UserPreferences['theme'] {
+    return this.preferences.theme;
+  }
+
+  getEffectiveTheme(): 'light' | 'dark' {
     if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    return this.preferences.theme === 'dark';
+    return this.preferences.theme;
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
