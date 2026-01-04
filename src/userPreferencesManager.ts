@@ -1,3 +1,4 @@
+
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
@@ -49,13 +50,12 @@ class UserPreferencesManager {
   }
 
   updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    const oldPreferences = { ...this.preferences };
+    const previousPreferences = { ...this.preferences };
     
-    this.preferences = newPreferences;
+    this.preferences = { ...this.preferences, ...updates };
     this.validateAndFixPreferences();
 
-    return JSON.stringify(oldPreferences) !== JSON.stringify(this.preferences);
+    return JSON.stringify(previousPreferences) !== JSON.stringify(this.preferences);
   }
 
   resetToDefaults(): void {
@@ -63,7 +63,7 @@ class UserPreferencesManager {
   }
 
   exportPreferences(): string {
-    return JSON.stringify(this.preferences);
+    return JSON.stringify(this.preferences, null, 2);
   }
 
   static importPreferences(jsonString: string): UserPreferencesManager | null {
@@ -76,4 +76,4 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, DEFAULT_PREFERENCES, VALID_LANGUAGES };
