@@ -83,4 +83,47 @@ const validateUserPreferences = (prefs: Partial<UserPreferences>): UserPreferenc
   return validated;
 };
 
-export { validateUserPreferences, PreferenceValidationError, UserPreferences };
+export { validateUserPreferences, PreferenceValidationError, UserPreferences };import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    dataSharing: z.boolean().default(false)
+  }).optional()
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(`Invalid preferences: ${error.errors.map(e => `${e.path}: ${e.message}`).join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+export function mergePreferences(defaults: UserPreferences, overrides: Partial<UserPreferences>): UserPreferences {
+  return {
+    ...defaults,
+    ...overrides,
+    notifications: {
+      ...defaults.notifications,
+      ...overrides.notifications
+    },
+    privacy: overrides.privacy ? {
+      ...defaults.privacy,
+      ...overrides.privacy
+    } : defaults.privacy
+  };
+}
+
+export const DEFAULT_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({});
