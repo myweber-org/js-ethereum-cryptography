@@ -1,61 +1,44 @@
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
+import { z } from 'zod';
 
-class PreferenceError extends Error {
-  constructor(message: string, public field: string) {
-    super(message);
-    this.name = 'PreferenceError';
-  }
-}
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).strict();
 
-function validateUserPreferences(prefs: UserPreferences): void {
-  const validThemes = ['light', 'dark', 'auto'];
-  
-  if (!validThemes.includes(prefs.theme)) {
-    throw new PreferenceError(
-      `Theme must be one of: ${validThemes.join(', ')}`,
-      'theme'
-    );
-  }
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-  if (typeof prefs.notifications !== 'boolean') {
-    throw new PreferenceError('Notifications must be a boolean value', 'notifications');
-  }
-
-  if (!prefs.language || prefs.language.trim().length === 0) {
-    throw new PreferenceError('Language cannot be empty', 'language');
-  }
-
-  if (prefs.fontSize < 12 || prefs.fontSize > 24) {
-    throw new PreferenceError('Font size must be between 12 and 24', 'fontSize');
-  }
-}
-
-function updateUserPreferences(prefs: UserPreferences): { success: boolean; error?: string } {
+export function validateUserPreferences(input: unknown): UserPreferences {
   try {
-    validateUserPreferences(prefs);
-    
-    // Simulate saving to database
-    console.log('Saving preferences:', prefs);
-    
-    return { success: true };
+    return UserPreferencesSchema.parse(input);
   } catch (error) {
-    if (error instanceof PreferenceError) {
-      return { 
-        success: false, 
-        error: `Validation failed for ${error.field}: ${error.message}`
-      };
+    if (error instanceof z.ZodError) {
+      const validationErrors = error.errors.map(err => ({
+        path: err.path.join('.'),
+        message: err.message
+      }));
+      throw new Error(`Invalid preferences: ${JSON.stringify(validationErrors)}`);
     }
-    
-    return { 
-      success: false, 
-      error: 'Unknown validation error occurred'
-    };
+    throw error;
   }
 }
 
-export { UserPreferences, validateUserPreferences, updateUserPreferences, PreferenceError };
+export function getDefaultPreferences(): UserPreferences {
+  return UserPreferencesSchema.parse({});
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validateUserPreferences(merged);
+}
