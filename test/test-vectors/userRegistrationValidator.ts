@@ -98,3 +98,57 @@ export function getValidationErrors(data: unknown): Record<string, string> {
     throw error;
   }
 }
+interface UserRegistration {
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+class RegistrationValidator {
+  private readonly emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private readonly minPasswordLength: number = 8;
+
+  validateEmail(email: string): boolean {
+    return this.emailRegex.test(email);
+  }
+
+  validatePasswordStrength(password: string): boolean {
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    return password.length >= this.minPasswordLength && 
+           hasUpperCase && 
+           hasLowerCase && 
+           hasNumbers && 
+           hasSpecialChar;
+  }
+
+  validatePasswordMatch(password: string, confirmPassword: string): boolean {
+    return password === confirmPassword;
+  }
+
+  validateRegistration(userData: UserRegistration): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!this.validateEmail(userData.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (!this.validatePasswordStrength(userData.password)) {
+      errors.push('Password must be at least 8 characters with uppercase, lowercase, number, and special character');
+    }
+
+    if (!this.validatePasswordMatch(userData.password, userData.confirmPassword)) {
+      errors.push('Passwords do not match');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+  }
+}
+
+export { RegistrationValidator, UserRegistration };
