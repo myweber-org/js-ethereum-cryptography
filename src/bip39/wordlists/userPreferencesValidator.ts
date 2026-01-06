@@ -95,4 +95,40 @@ function mergePreferences(
   return { ...existing, ...validatedUpdates };
 }
 
-export { UserPreferences, validateUserPreferences, mergePreferences, DEFAULT_PREFERENCES };
+export { UserPreferences, validateUserPreferences, mergePreferences, DEFAULT_PREFERENCES };import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationLevelSchema = z.enum(['all', 'mentions', 'none']);
+
+const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  emailNotifications: z.boolean().default(true),
+  notificationLevel: NotificationLevelSchema.default('all'),
+  autoSaveInterval: z.number().min(1).max(60).default(5),
+  language: z.string().length(2).default('en'),
+  twoFactorEnabled: z.boolean().default(false),
+  lastUpdated: z.date().default(() => new Date())
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultPreferences(userId: string): UserPreferences {
+  return UserPreferencesSchema.parse({ userId });
+}
+
+export function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validatePreferences(merged);
+}
