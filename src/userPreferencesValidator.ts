@@ -202,4 +202,77 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+export const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).refine(
+  (data) => !(data.privacy.profileVisibility === 'public' && data.privacy.searchIndexing === false),
+  {
+    message: 'Public profiles must be searchable',
+    path: ['privacy', 'searchIndexing']
+  }
+);
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return userPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const formattedErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        throw new ValidationError('Invalid preferences configuration', formattedErrors);
+      }
+      throw error;
+    }
+  }
+
+  static getDefaults(): UserPreferences {
+    return userPreferencesSchema.parse({});
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: Array<{ field: string; message: string }>
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export function sanitizePreferences(prefs: Partial<UserPreferences>): Partial<UserPreferences> {
+  const sanitized: Partial<UserPreferences> = {};
+  
+  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+    sanitized.theme = prefs.theme;
+  }
+  
+  if (prefs.notifications) {
+    sanitized.notifications = {
+      email: typeof prefs.notifications.email === 'boolean' ? prefs.notifications.email : true,
+      push: typeof prefs.notifications.push === 'boolean' ? prefs.notifications.push : false,
+      frequency: ['instant', 'daily', 'weekly'].includes(prefs.notifications.frequency || '')
+        ? prefs.notifications.frequency
+        : 'daily'
+    };
+  }
+  
+  return sanitized;
+}
