@@ -1,18 +1,12 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.boolean().default(true),
-  language: z.string().min(2).default('en'),
-  fontSize: z.number().min(12).max(24).default(16),
-  autoSave: z.boolean().default(true),
-  lastUpdated: z.date().optional()
-});
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-class PreferencesManager {
-  private static readonly STORAGE_KEY = 'user_preferences_v1';
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
   constructor() {
@@ -20,47 +14,68 @@ class PreferencesManager {
   }
 
   private loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
-      if (!stored) return PreferenceSchema.parse({});
-
-      const parsed = JSON.parse(stored);
-      parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
-      return PreferenceSchema.parse(parsed);
-    } catch {
-      return PreferenceSchema.parse({});
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      } catch {
+        return this.getDefaultPreferences();
+      }
     }
+    return this.getDefaultPreferences();
   }
 
-  private savePreferences(): void {
-    const data = { ...this.preferences, lastUpdated: new Date() };
-    localStorage.setItem(PreferencesManager.STORAGE_KEY, JSON.stringify(data));
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 14
+    };
   }
 
-  getPreferences(): UserPreferences {
+  private validatePreferences(data: any): UserPreferences {
+    const defaults = this.getDefaultPreferences();
+    
+    return {
+      theme: ['light', 'dark', 'auto'].includes(data.theme) ? data.theme : defaults.theme,
+      notifications: typeof data.notifications === 'boolean' ? data.notifications : defaults.notifications,
+      language: typeof data.language === 'string' && data.language.length === 2 ? data.language : defaults.language,
+      fontSize: typeof data.fontSize === 'number' && data.fontSize >= 10 && data.fontSize <= 24 ? data.fontSize : defaults.fontSize
+    };
+  }
+
+  public getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
-    const validated = PreferenceSchema.partial().parse(updates);
-    this.preferences = { ...this.preferences, ...validated };
+  public updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = {
+      ...this.preferences,
+      ...updates
+    };
     this.savePreferences();
-    return this.getPreferences();
   }
 
-  resetToDefaults(): UserPreferences {
-    this.preferences = PreferenceSchema.parse({});
-    localStorage.removeItem(PreferencesManager.STORAGE_KEY);
-    return this.getPreferences();
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
   }
 
-  validatePreferences(prefs: unknown): UserPreferences {
-    return PreferenceSchema.parse(prefs);
+  public resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
   }
 
-  getLastUpdateTime(): Date | undefined {
-    return this.preferences.lastUpdated;
+  public isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
   }
 }
 
-export const preferencesManager = new PreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
