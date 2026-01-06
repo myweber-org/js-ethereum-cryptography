@@ -1,64 +1,41 @@
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  timezone: string;
-}
+import { z } from 'zod';
 
-class PreferenceValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PreferenceValidationError';
-  }
-}
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }).default({}),
+  language: z.string().min(2).max(5).default('en')
+});
 
-class UserPreferencesValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
-  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-  static validate(preferences: Partial<UserPreferences>): UserPreferences {
-    const validated: UserPreferences = {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      timezone: 'UTC',
-      ...preferences
-    };
-
-    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-      throw new PreferenceValidationError(
-        `Invalid theme '${validated.theme}'. Must be 'light', 'dark', or 'auto'.`
-      );
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+      }
+      throw new Error('Failed to validate user preferences');
     }
-
-    if (typeof validated.notifications !== 'boolean') {
-      throw new PreferenceValidationError(
-        `Notifications must be a boolean value, received '${validated.notifications}'.`
-      );
-    }
-
-    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(validated.language)) {
-      throw new PreferenceValidationError(
-        `Unsupported language '${validated.language}'. Supported languages: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}.`
-      );
-    }
-
-    if (!UserPreferencesValidator.VALID_TIMEZONES.test(validated.timezone)) {
-      throw new PreferenceValidationError(
-        `Invalid timezone format '${validated.timezone}'. Must be in format 'Area/Location'.`
-      );
-    }
-
-    return validated;
   }
 
-  static sanitize(preferences: UserPreferences): UserPreferences {
-    return {
-      ...preferences,
-      language: preferences.language.toLowerCase(),
-      timezone: preferences.timezone.replace(/\s+/g, '_')
-    };
+  static sanitize(preferences: Partial<UserPreferences>): UserPreferences {
+    const defaults = UserPreferencesSchema.parse({});
+    return { ...defaults, ...preferences };
+  }
+
+  static isThemeDark(preferences: UserPreferences): boolean {
+    if (preferences.theme === 'dark') return true;
+    if (preferences.theme === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 }
-
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
