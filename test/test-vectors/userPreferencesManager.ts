@@ -220,4 +220,71 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferencesManager = new UserPreferencesManager();
+export const userPreferencesManager = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      } catch {
+        return this.defaultPreferences;
+      }
+    }
+    return this.defaultPreferences;
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const merged = { ...current, ...updates };
+    const validated = this.validatePreferences(merged);
+    
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(validated)
+    );
+    
+    return validated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    return this.defaultPreferences;
+  }
+
+  private validatePreferences(prefs: any): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const theme = validThemes.includes(prefs.theme) ? prefs.theme : 'auto';
+    
+    const language = typeof prefs.language === 'string' 
+      ? prefs.language 
+      : 'en-US';
+    
+    const notificationsEnabled = typeof prefs.notificationsEnabled === 'boolean'
+      ? prefs.notificationsEnabled
+      : true;
+    
+    const fontSize = typeof prefs.fontSize === 'number' 
+      ? Math.max(8, Math.min(72, prefs.fontSize))
+      : 14;
+
+    return { theme, language, notificationsEnabled, fontSize };
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
