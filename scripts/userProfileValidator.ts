@@ -1,76 +1,56 @@
-interface UserProfile {
-  id: number;
-  username: string;
-  email: string;
-  age?: number;
-  isActive: boolean;
-}
-
-class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
-function validateUserProfile(profile: UserProfile): void {
-  const errors: string[] = [];
-
-  if (!profile.username || profile.username.trim().length < 3) {
-    errors.push('Username must be at least 3 characters long');
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!profile.email || !emailRegex.test(profile.email)) {
-    errors.push('Invalid email format');
-  }
-
-  if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
-    errors.push('Age must be between 0 and 150');
-  }
-
-  if (typeof profile.isActive !== 'boolean') {
-    errors.push('isActive must be a boolean value');
-  }
-
-  if (errors.length > 0) {
-    throw new ValidationError(`Validation failed: ${errors.join('; ')}`);
-  }
-}
-
-function createUserProfile(data: Partial<UserProfile>): UserProfile {
-  const defaultProfile: UserProfile = {
-    id: Date.now(),
-    username: '',
-    email: '',
-    isActive: true
-  };
-
-  const profile = { ...defaultProfile, ...data };
-  validateUserProfile(profile);
-  return profile;
-}import { z } from 'zod';
+import { z } from 'zod';
 
 const UserProfileSchema = z.object({
-  id: z.string().uuid(),
-  username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  age: z.number().int().min(18).max(120).optional(),
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username cannot exceed 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  
+  email: z
+    .string()
+    .email('Please provide a valid email address'),
+  
+  age: z
+    .number()
+    .int('Age must be an integer')
+    .min(18, 'You must be at least 18 years old')
+    .max(120, 'Please provide a valid age'),
+  
   preferences: z.object({
     theme: z.enum(['light', 'dark', 'auto']),
-    notifications: z.boolean().default(true),
-  }).default({}),
-  createdAt: z.date().default(() => new Date()),
+    notifications: z.boolean(),
+    language: z.string().default('en')
+  }).optional(),
+  
+  createdAt: z
+    .date()
+    .default(() => new Date())
 });
 
 type UserProfile = z.infer<typeof UserProfileSchema>;
 
-function validateUserProfile(input: unknown): UserProfile {
-  return UserProfileSchema.parse(input);
+export function validateUserProfile(input: unknown): UserProfile {
+  try {
+    return UserProfileSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
+    }
+    throw error;
+  }
 }
 
-function safeValidateUserProfile(input: unknown) {
-  return UserProfileSchema.safeParse(input);
+export function createDefaultProfile(): UserProfile {
+  return UserProfileSchema.parse({
+    username: '',
+    email: '',
+    age: 18,
+    preferences: {
+      theme: 'auto',
+      notifications: true,
+      language: 'en'
+    }
+  });
 }
-
-export { UserProfileSchema, type UserProfile, validateUserProfile, safeValidateUserProfile };
