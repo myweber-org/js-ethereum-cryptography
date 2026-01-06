@@ -41,4 +41,38 @@ export function mergePreferences(
 ): UserPreferences {
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
+}import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationLevelSchema = z.enum(['all', 'mentions', 'none']);
+
+export const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  emailNotifications: z.boolean().default(true),
+  notificationLevel: NotificationLevelSchema.default('all'),
+  twoFactorEnabled: z.boolean().default(false),
+  language: z.string().min(2).max(5).default('en'),
+  timezone: z.string().default('UTC'),
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().optional()
+}).refine((data) => {
+  if (!data.emailNotifications && data.notificationLevel !== 'none') {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Notification level must be "none" when email notifications are disabled',
+  path: ['notificationLevel']
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
+}
+
+export function sanitizeUserPreferencesUpdate(update: Partial<UserPreferences>): Partial<UserPreferences> {
+  const { userId, createdAt, ...sanitized } = update;
+  return sanitized;
 }
