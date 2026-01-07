@@ -919,4 +919,51 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+export class PreferenceManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 16
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(PreferenceManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return { ...this.defaultPreferences, ...JSON.parse(stored) };
+      } catch {
+        return this.defaultPreferences;
+      }
+    }
+    return this.defaultPreferences;
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const updated = { ...current, ...updates };
+    localStorage.setItem(PreferenceManager.STORAGE_KEY, JSON.stringify(updated));
+    return updated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.removeItem(PreferenceManager.STORAGE_KEY);
+    return this.defaultPreferences;
+  }
+
+  isDarkMode(): boolean {
+    const prefs = this.getPreferences();
+    if (prefs.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return prefs.theme === 'dark';
+  }
+}
