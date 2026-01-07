@@ -2,63 +2,52 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  fontSize: number;
+  resultsPerPage: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
   notifications: true,
-  language: 'en',
-  fontSize: 14
+  language: 'en-US',
+  resultsPerPage: 10
 };
 
-function validatePreferences(prefs: Partial<UserPreferences>): boolean {
-  if (prefs.theme && !['light', 'dark', 'auto'].includes(prefs.theme)) {
-    return false;
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const VALID_RESULTS_PER_PAGE = [10, 25, 50, 100];
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
+
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
   }
-  
-  if (prefs.fontSize && (prefs.fontSize < 8 || prefs.fontSize > 32)) {
-    return false;
+
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
   }
-  
-  if (prefs.language && typeof prefs.language !== 'string') {
-    return false;
+
+  if (!VALID_RESULTS_PER_PAGE.includes(validated.resultsPerPage)) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
   }
-  
-  return true;
+
+  return validated;
 }
 
-function updateUserPreferences(
-  current: UserPreferences,
-  updates: Partial<UserPreferences>
-): UserPreferences | null {
-  if (!validatePreferences(updates)) {
-    return null;
-  }
-  
-  return {
-    ...current,
-    ...updates
-  };
-}
-
-function savePreferences(prefs: UserPreferences): void {
-  localStorage.setItem('userPreferences', JSON.stringify(prefs));
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validated = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validated));
 }
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (validatePreferences(parsed)) {
-        return { ...DEFAULT_PREFERENCES, ...parsed };
-      }
-    } catch {
-      console.warn('Failed to parse stored preferences');
-    }
+  if (!stored) return DEFAULT_PREFERENCES;
+
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
   }
-  return DEFAULT_PREFERENCES;
 }
 
-export { UserPreferences, validatePreferences, updateUserPreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
