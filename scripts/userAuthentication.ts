@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 interface UserPayload {
   userId: string;
   email: string;
-  role: string;
 }
 
 declare global {
@@ -24,7 +23,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const secretKey = process.env.JWT_SECRET_KEY;
+  const secretKey = process.env.JWT_SECRET;
   if (!secretKey) {
     res.status(500).json({ error: 'Server configuration error' });
     return;
@@ -36,70 +35,16 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const userPayload = decoded as UserPayload;
-    req.user = {
-      userId: userPayload.userId,
-      email: userPayload.email,
-      role: userPayload.role
-    };
-    
+    req.user = decoded as UserPayload;
     next();
   });
 };
 
-export const authorizeRole = (allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      res.status(403).json({ error: 'Insufficient permissions' });
-      return;
-    }
-
-    next();
-  };
-};import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-interface UserPayload {
-  userId: string;
-  email: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: UserPayload;
-    }
-  }
-}
-
-export const authenticateUser = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authentication required' });
-    return;
+export const generateAccessToken = (userData: UserPayload): string => {
+  const secretKey = process.env.JWT_SECRET;
+  if (!secretKey) {
+    throw new Error('JWT secret key not configured');
   }
 
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as UserPayload;
-    
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
-  }
+  return jwt.sign(userData, secretKey, { expiresIn: '1h' });
 };
