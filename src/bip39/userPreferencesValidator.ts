@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const PreferenceSchema = z.object({
+const UserPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).default('auto'),
   notifications: z.object({
     email: z.boolean().default(true),
@@ -14,11 +14,11 @@ const PreferenceSchema = z.object({
   language: z.string().min(2).max(5).default('en')
 }).strict();
 
-type UserPreferences = z.infer<typeof PreferenceSchema>;
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-export function validatePreferences(input: unknown): UserPreferences {
+export function validateUserPreferences(input: unknown): UserPreferences {
   try {
-    return PreferenceSchema.parse(input);
+    return UserPreferencesSchema.parse(input);
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errorMessages = error.errors.map(err => 
@@ -31,7 +31,7 @@ export function validatePreferences(input: unknown): UserPreferences {
 }
 
 export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
+  return UserPreferencesSchema.parse({});
 }
 
 export function mergePreferences(
@@ -39,5 +39,5 @@ export function mergePreferences(
   updates: Partial<UserPreferences>
 ): UserPreferences {
   const merged = { ...existing, ...updates };
-  return validatePreferences(merged);
+  return validateUserPreferences(merged);
 }
