@@ -185,4 +185,82 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, UserPreferences };
+export { UserPreferencesManager, UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor(initialPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.validateAndMerge(
+      initialPreferences || {}, 
+      DEFAULT_PREFERENCES
+    );
+  }
+
+  private validateAndMerge(
+    custom: Partial<UserPreferences>, 
+    defaults: UserPreferences
+  ): UserPreferences {
+    const merged = { ...defaults, ...custom };
+
+    if (!['light', 'dark', 'auto'].includes(merged.theme)) {
+      merged.theme = defaults.theme;
+    }
+
+    if (typeof merged.notifications !== 'boolean') {
+      merged.notifications = defaults.notifications;
+    }
+
+    if (!VALID_LANGUAGES.includes(merged.language)) {
+      merged.language = defaults.language;
+    }
+
+    if (typeof merged.resultsPerPage !== 'number' || 
+        merged.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+        merged.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+      merged.resultsPerPage = defaults.resultsPerPage;
+    }
+
+    return merged;
+  }
+
+  updatePreferences(newPreferences: Partial<UserPreferences>): UserPreferences {
+    this.preferences = this.validateAndMerge(newPreferences, this.preferences);
+    return this.getPreferences();
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    return this.getPreferences();
+  }
+
+  isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
+  }
+}
+
+export { UserPreferencesManager, DEFAULT_PREFERENCES };
+export type { UserPreferences };
