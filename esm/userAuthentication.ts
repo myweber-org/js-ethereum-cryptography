@@ -1,42 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface AuthenticatedRequest extends Request {
-  user?: string | object;
-}
-
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key';
-
-export const authenticateToken = (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): void => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    res.status(401).json({ error: 'Authentication token required' });
-    return;
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      res.status(403).json({ error: 'Invalid or expired token' });
-      return;
-    }
-    
-    req.user = user;
-    next();
-  });
-};
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
 interface UserPayload {
   userId: string;
-  role: string;
   email: string;
+  role: string;
 }
 
 declare global {
@@ -47,7 +15,13 @@ declare global {
   }
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
+
+export const authenticateToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -57,11 +31,17 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as UserPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Invalid or expired token' });
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Token expired' });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      res.status(403).json({ error: 'Invalid token' });
+    } else {
+      res.status(500).json({ error: 'Authentication failed' });
+    }
   }
 };
 
@@ -79,12 +59,4 @@ export const authorizeRole = (allowedRoles: string[]) => {
 
     next();
   };
-};
-
-export const generateToken = (userData: UserPayload): string => {
-  return jwt.sign(
-    userData,
-    process.env.JWT_SECRET as string,
-    { expiresIn: '24h' }
-  );
 };
