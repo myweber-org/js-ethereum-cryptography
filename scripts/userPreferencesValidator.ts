@@ -1,78 +1,56 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
 
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+const validatePreferences = (prefs: UserPreferences): void => {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceError(
+      `Theme must be one of: ${validThemes.join(', ')}`,
+      'theme'
+    );
+  }
 
-export function validateUserPreferences(input: unknown): UserPreferences {
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceError('Notifications must be a boolean', 'notifications');
+  }
+
+  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
+    throw new PreferenceError('Language must be a non-empty string', 'language');
+  }
+
+  if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+    throw new PreferenceError('Font size must be between 8 and 72', 'fontSize');
+  }
+};
+
+const exampleUsage = () => {
   try {
-    return UserPreferencesSchema.parse(input);
+    const userPrefs: UserPreferences = {
+      theme: 'dark',
+      notifications: true,
+      language: 'en-US',
+      fontSize: 14
+    };
+
+    validatePreferences(userPrefs);
+    console.log('Preferences are valid');
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const validationErrors = error.errors.map(err => ({
-        path: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Invalid preferences: ${JSON.stringify(validationErrors)}`);
+    if (error instanceof PreferenceError) {
+      console.error(`Validation failed for ${error.field}: ${error.message}`);
+    } else {
+      console.error('Unexpected error:', error);
     }
-    throw error;
   }
-}
-
-export function getDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
-}
-
-export function mergePreferences(
-  existing: Partial<UserPreferences>,
-  updates: Partial<UserPreferences>
-): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validateUserPreferences(merged);
-}import { z } from 'zod';
-
-const ThemeSchema = z.enum(['light', 'dark', 'system']);
-const NotificationLevelSchema = z.enum(['all', 'mentions', 'none']);
-
-export const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default('system'),
-  emailNotifications: z.boolean().default(true),
-  notificationLevel: NotificationLevelSchema.default('all'),
-  twoFactorEnabled: z.boolean().default(false),
-  language: z.string().min(2).max(5).default('en'),
-  timezone: z.string().default('UTC'),
-  createdAt: z.date().default(() => new Date()),
-  updatedAt: z.date().optional()
-}).refine((data) => {
-  if (!data.emailNotifications && data.notificationLevel !== 'none') {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Notification level must be "none" when email notifications are disabled',
-  path: ['notificationLevel']
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  return UserPreferencesSchema.parse(input);
-}
-
-export function sanitizeUserPreferencesUpdate(update: Partial<UserPreferences>): Partial<UserPreferences> {
-  const { userId, createdAt, ...sanitized } = update;
-  return sanitized;
-}
+};
