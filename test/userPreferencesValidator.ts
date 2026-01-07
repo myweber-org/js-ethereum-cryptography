@@ -1,17 +1,17 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  theme: z.enum(["light", "dark", "auto"]),
   notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(["immediate", "daily", "weekly"]),
   }),
   privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
-    searchIndexing: z.boolean().default(true)
+    profileVisibility: z.enum(["public", "private", "friends"]),
+    searchIndexing: z.boolean(),
   }),
-  language: z.string().min(2).max(5).default('en')
+  language: z.string().min(2).max(5),
 });
 
 type UserPreferences = z.infer<typeof UserPreferencesSchema>;
@@ -21,18 +21,25 @@ export function validateUserPreferences(input: unknown): UserPreferences {
     return UserPreferencesSchema.parse(input);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(`Invalid user preferences: ${error.errors.map(e => e.message).join(', ')}`);
+      const errorMessages = error.errors.map(err => `${err.path.join(".")}: ${err.message}`);
+      throw new Error(`Invalid preferences: ${errorMessages.join(", ")}`);
     }
-    throw error;
+    throw new Error("Validation failed due to unexpected error");
   }
 }
 
-export function getDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const current = UserPreferencesSchema.partial().parse(existing);
-  const merged = { ...current, ...updates };
-  return UserPreferencesSchema.parse(merged);
+export function createDefaultPreferences(): UserPreferences {
+  return {
+    theme: "auto",
+    notifications: {
+      email: true,
+      push: false,
+      frequency: "daily",
+    },
+    privacy: {
+      profileVisibility: "friends",
+      searchIndexing: true,
+    },
+    language: "en",
+  };
 }
