@@ -142,4 +142,70 @@ export function validatePreferences(input: unknown): UserPreferences {
 
 export function getDefaultPreferences(): UserPreferences {
   return PreferenceSchema.parse({});
+}import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    dataSharing: z.boolean().default(false)
+  }).default({}),
+  language: z.string().min(2).max(5).default('en')
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new ValidationError(
+          'Invalid user preferences',
+          errorMessages
+        );
+      }
+      throw error;
+    }
+  }
+
+  static validatePartial(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const partialSchema = UserPreferencesSchema.partial();
+    return partialSchema.parse(updates);
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return UserPreferencesSchema.parse({});
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: string[]
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+
+  formatDetails(): string {
+    return this.details.join('\n');
+  }
+}
+
+export function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = PreferencesValidator.validatePartial(updates);
+  return { ...existing, ...validatedUpdates };
 }
