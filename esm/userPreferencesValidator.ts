@@ -208,4 +208,44 @@ export function mergePreferences(
 ): UserPreferences {
   const validatedUpdates = PreferencesValidator.validatePartial(updates);
   return { ...existing, ...validatedUpdates };
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  resultsPerPage: z.number().int().min(5).max(100)
+});
+
+export const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  resultsPerPage: 20
+};
+
+export function validatePreferences(input: unknown): UserPreferences {
+  const result = UserPreferencesSchema.safeParse(input);
+  
+  if (!result.success) {
+    console.warn('Invalid preferences detected, using defaults:', result.error.format());
+    return defaultPreferences;
+  }
+  
+  return result.data;
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...defaultPreferences, ...existing, ...updates };
+  return validatePreferences(merged);
 }
