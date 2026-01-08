@@ -33,51 +33,31 @@ class PreferenceValidator {
     return errors;
   }
 
-  static validateAndThrow(prefs: UserPreferences): void {
-    const errors = this.validate(prefs);
-    if (errors.length > 0) {
-      throw new Error(`Validation failed:\n${errors.join('\n')}`);
-    }
+  static normalizePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+    return {
+      theme: prefs.theme || 'auto',
+      notifications: prefs.notifications ?? true,
+      language: prefs.language || 'en',
+      fontSize: prefs.fontSize || 16
+    };
   }
 }
 
-function applyUserPreferences(prefs: UserPreferences): void {
-  try {
-    PreferenceValidator.validateAndThrow(prefs);
-    console.log('Preferences applied successfully:', prefs);
-  } catch (error) {
-    console.error('Failed to apply preferences:', error.message);
+function validateUserConfiguration(config: unknown): UserPreferences | null {
+  if (!config || typeof config !== 'object') {
+    console.error('Invalid configuration format');
+    return null;
   }
+
+  const normalized = PreferenceValidator.normalizePreferences(config as Partial<UserPreferences>);
+  const errors = PreferenceValidator.validate(normalized);
+
+  if (errors.length > 0) {
+    console.error('Configuration validation failed:', errors);
+    return null;
+  }
+
+  return normalized;
 }
 
-export { UserPreferences, PreferenceValidator, applyUserPreferences };import { z } from "zod";
-
-const ThemeSchema = z.enum(["light", "dark", "system"]);
-const LanguageSchema = z.enum(["en", "es", "fr", "de"]);
-const NotificationSettingsSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  frequency: z.enum(["instant", "daily", "weekly"]).optional(),
-});
-
-export const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default("system"),
-  language: LanguageSchema.default("en"),
-  notifications: NotificationSettingsSchema.default({
-    email: true,
-    push: false,
-  }),
-  timezone: z.string().optional(),
-  createdAt: z.date().default(() => new Date()),
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  return UserPreferencesSchema.parse(input);
-}
-
-export function safeValidatePreferences(input: unknown) {
-  return UserPreferencesSchema.safeParse(input);
-}
+export { UserPreferences, PreferenceValidator, validateUserConfiguration };
