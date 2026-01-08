@@ -106,3 +106,58 @@ class RegistrationValidator {
 }
 
 export { UserRegistration, RegistrationValidator };
+import { User, UserRepository } from './userRepository';
+import { ValidationError, DatabaseError } from './errors';
+
+export class UserRegistrationService {
+  constructor(private userRepository: UserRepository) {}
+
+  async registerUser(email: string, password: string, name: string): Promise<User> {
+    this.validateInput(email, password, name);
+    
+    const existingUser = await this.userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new ValidationError('Email already registered');
+    }
+
+    const hashedPassword = await this.hashPassword(password);
+    const newUser: User = {
+      email,
+      passwordHash: hashedPassword,
+      name,
+      createdAt: new Date(),
+      isActive: true
+    };
+
+    try {
+      const savedUser = await this.userRepository.save(newUser);
+      return savedUser;
+    } catch (error) {
+      throw new DatabaseError('Failed to save user to database');
+    }
+  }
+
+  private validateInput(email: string, password: string, name: string): void {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new ValidationError('Invalid email format');
+    }
+
+    if (password.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters');
+    }
+
+    if (name.trim().length === 0) {
+      throw new ValidationError('Name cannot be empty');
+    }
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    // In a real application, use a proper hashing library like bcrypt
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+}
