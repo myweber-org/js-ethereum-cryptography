@@ -227,4 +227,104 @@ const defaultPreferences: UserPreferences = {
   fontSize: 16
 };
 
-export const userPrefs = new UserPreferencesManager(defaultPreferences);
+export const userPrefs = new UserPreferencesManager(defaultPreferences);interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+type PreferenceChangeCallback = (key: keyof UserPreferences, value: any) => void;
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+  private changeCallbacks: Set<PreferenceChangeCallback>;
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+    this.changeCallbacks = new Set();
+    this.setupStorageListener();
+  }
+
+  get<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+    return this.preferences[key];
+  }
+
+  set<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): void {
+    const oldValue = this.preferences[key];
+    if (oldValue !== value) {
+      this.preferences[key] = value;
+      this.savePreferences();
+      this.notifyChange(key, value);
+    }
+  }
+
+  getAll(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = { ...defaults };
+    this.savePreferences();
+    Object.keys(defaults).forEach(key => {
+      this.notifyChange(key as keyof UserPreferences, defaults[key as keyof UserPreferences]);
+    });
+  }
+
+  subscribe(callback: PreferenceChangeCallback): () => void {
+    this.changeCallbacks.add(callback);
+    return () => this.changeCallbacks.delete(callback);
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  private notifyChange<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): void {
+    this.changeCallbacks.forEach(callback => {
+      try {
+        callback(key, value);
+      } catch (error) {
+        console.error('Error in preference change callback:', error);
+      }
+    });
+  }
+
+  private setupStorageListener(): void {
+    window.addEventListener('storage', (event: StorageEvent) => {
+      if (event.key === UserPreferencesManager.STORAGE_KEY && event.newValue) {
+        try {
+          const newPreferences = JSON.parse(event.newValue);
+          Object.keys(newPreferences).forEach(key => {
+            const prefKey = key as keyof UserPreferences;
+            if (this.preferences[prefKey] !== newPreferences[prefKey]) {
+              this.preferences[prefKey] = newPreferences[prefKey];
+              this.notifyChange(prefKey, newPreferences[prefKey]);
+            }
+          });
+        } catch (error) {
+          console.error('Failed to process storage event:', error);
+        }
+      }
+    });
+  }
+}
+
+export default UserPreferencesManager;
