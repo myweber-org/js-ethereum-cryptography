@@ -1,45 +1,47 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(["light", "dark", "auto"]),
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
   notifications: z.object({
-    email: z.boolean(),
-    push: z.boolean(),
-    frequency: z.enum(["immediate", "daily", "weekly"]),
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
   }),
   privacy: z.object({
-    profileVisibility: z.enum(["public", "private", "friends"]),
-    searchIndexing: z.boolean(),
-  }),
-  language: z.string().min(2).max(5),
-});
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  })
+}).strict();
 
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+type UserPreferences = z.infer<typeof PreferenceSchema>;
 
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join(".")}: ${err.message}`);
-      throw new Error(`Invalid preferences: ${errorMessages.join(", ")}`);
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return PreferenceSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const messages = error.errors.map(err => {
+          const path = err.path.join('.');
+          return `Invalid value at '${path}': ${err.message}`;
+        });
+        throw new Error(`Validation failed:\n${messages.join('\n')}`);
+      }
+      throw new Error('Unexpected validation error');
     }
-    throw new Error("Validation failed due to unexpected error");
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return PreferenceSchema.parse({});
   }
 }
 
-export function createDefaultPreferences(): UserPreferences {
-  return {
-    theme: "auto",
-    notifications: {
-      email: true,
-      push: false,
-      frequency: "daily",
-    },
-    privacy: {
-      profileVisibility: "friends",
-      searchIndexing: true,
-    },
-    language: "en",
-  };
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const base = PreferencesValidator.getDefaultPreferences();
+  const merged = { ...base, ...existing, ...updates };
+  
+  return PreferencesValidator.validate(merged);
 }
