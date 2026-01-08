@@ -1,17 +1,12 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('light'),
-  notifications: z.boolean().default(true),
-  language: z.string().min(2).default('en'),
-  resultsPerPage: z.number().min(5).max(100).default(20),
-});
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-const STORAGE_KEY = 'user_preferences';
-
-class PreferenceManager {
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
   constructor() {
@@ -19,41 +14,67 @@ class PreferenceManager {
   }
 
   private loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return PreferenceSchema.parse(parsed);
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return this.validatePreferences(JSON.parse(stored));
+      } catch {
+        return this.getDefaultPreferences();
       }
-    } catch (error) {
-      console.warn('Failed to load preferences, using defaults:', error);
     }
-    return PreferenceSchema.parse({});
+    return this.getDefaultPreferences();
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
-    const merged = { ...this.preferences, ...updates };
-    const validated = PreferenceSchema.parse(merged);
-    
-    this.preferences = validated;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
-    
-    return validated;
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en-US',
+      fontSize: 16
+    };
   }
 
-  getPreferences(): UserPreferences {
+  private validatePreferences(data: any): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const theme = validThemes.includes(data.theme) ? data.theme : 'auto';
+    const notifications = typeof data.notifications === 'boolean' ? data.notifications : true;
+    const language = typeof data.language === 'string' ? data.language : 'en-US';
+    const fontSize = typeof data.fontSize === 'number' && data.fontSize >= 12 && data.fontSize <= 24 
+      ? data.fontSize : 16;
+
+    return { theme, notifications, language, fontSize };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = this.validatePreferences({
+      ...this.preferences,
+      ...updates
+    });
+    this.savePreferences();
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
     return { ...this.preferences };
   }
 
-  resetToDefaults(): UserPreferences {
-    this.preferences = PreferenceSchema.parse({});
-    localStorage.removeItem(STORAGE_KEY);
-    return this.preferences;
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
   }
 
-  validateExternalData(data: unknown): UserPreferences {
-    return PreferenceSchema.parse(data);
+  isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
   }
 }
 
-export const preferenceManager = new PreferenceManager();
+export { UserPreferencesManager, type UserPreferences };
