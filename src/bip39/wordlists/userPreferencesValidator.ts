@@ -1,172 +1,86 @@
-import { z } from 'zod';
 
-export const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }).default({}),
-  language: z.string().min(2).max(5).default('en')
-}).refine((data) => {
-  return !(data.privacy.profileVisibility === 'public' && data.privacy.searchIndexing === false);
-}, {
-  message: 'Public profiles must be searchable',
-  path: ['privacy.searchIndexing']
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Validation failed: ${JSON.stringify(formattedErrors)}`);
-    }
-    throw error;
-  }
-}
-
-export function createDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
-}
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  itemsPerPage: number;
+  fontSize: number;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  itemsPerPage: 10
-};
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
 
-const VALID_LANGUAGES = new Set(['en-US', 'es-ES', 'fr-FR', 'de-DE']);
-const MIN_ITEMS_PER_PAGE = 5;
-const MAX_ITEMS_PER_PAGE = 100;
+class UserPreferencesValidator {
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
 
-function validateUserPreferences(input: unknown): UserPreferences {
-  if (!input || typeof input !== 'object') {
-    return DEFAULT_PREFERENCES;
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: this.validateTheme(preferences.theme),
+      notifications: this.validateNotifications(preferences.notifications),
+      language: this.validateLanguage(preferences.language),
+      fontSize: this.validateFontSize(preferences.fontSize)
+    };
+
+    return validated;
   }
 
-  const partial = input as Partial<UserPreferences>;
-  const result: UserPreferences = { ...DEFAULT_PREFERENCES };
+  private static validateTheme(theme?: string): 'light' | 'dark' | 'auto' {
+    if (!theme) {
+      throw new PreferenceValidationError('Theme is required');
+    }
 
-  if (partial.theme && ['light', 'dark', 'auto'].includes(partial.theme)) {
-    result.theme = partial.theme;
-  }
+    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
+      return theme;
+    }
 
-  if (typeof partial.notifications === 'boolean') {
-    result.notifications = partial.notifications;
-  }
-
-  if (typeof partial.language === 'string' && VALID_LANGUAGES.has(partial.language)) {
-    result.language = partial.language;
-  }
-
-  if (typeof partial.itemsPerPage === 'number') {
-    result.itemsPerPage = Math.max(
-      MIN_ITEMS_PER_PAGE,
-      Math.min(MAX_ITEMS_PER_PAGE, partial.itemsPerPage)
+    throw new PreferenceValidationError(
+      `Invalid theme '${theme}'. Must be 'light', 'dark', or 'auto'`
     );
   }
 
-  return result;
-}
-
-function mergePreferences(
-  existing: UserPreferences,
-  updates: Partial<UserPreferences>
-): UserPreferences {
-  const validatedUpdates = validateUserPreferences(updates);
-  return { ...existing, ...validatedUpdates };
-}
-
-export { UserPreferences, validateUserPreferences, mergePreferences, DEFAULT_PREFERENCES };import { z } from 'zod';
-
-const ThemeSchema = z.enum(['light', 'dark', 'system']);
-const NotificationLevelSchema = z.enum(['all', 'mentions', 'none']);
-
-const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default('system'),
-  emailNotifications: z.boolean().default(true),
-  notificationLevel: NotificationLevelSchema.default('all'),
-  autoSaveInterval: z.number().min(1).max(60).default(5),
-  language: z.string().length(2).default('en'),
-  twoFactorEnabled: z.boolean().default(false),
-  lastUpdated: z.date().default(() => new Date())
-});
-
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+  private static validateNotifications(notifications?: boolean): boolean {
+    if (notifications === undefined) {
+      throw new PreferenceValidationError('Notifications preference is required');
     }
-    throw error;
+    return notifications;
+  }
+
+  private static validateLanguage(language?: string): string {
+    if (!language) {
+      throw new PreferenceValidationError('Language is required');
+    }
+
+    if (!this.SUPPORTED_LANGUAGES.includes(language)) {
+      throw new PreferenceValidationError(
+        `Language '${language}' is not supported. Supported languages: ${this.SUPPORTED_LANGUAGES.join(', ')}`
+      );
+    }
+
+    return language;
+  }
+
+  private static validateFontSize(fontSize?: number): number {
+    if (fontSize === undefined) {
+      throw new PreferenceValidationError('Font size is required');
+    }
+
+    if (!Number.isInteger(fontSize)) {
+      throw new PreferenceValidationError('Font size must be an integer');
+    }
+
+    if (fontSize < this.MIN_FONT_SIZE || fontSize > this.MAX_FONT_SIZE) {
+      throw new PreferenceValidationError(
+        `Font size must be between ${this.MIN_FONT_SIZE} and ${this.MAX_FONT_SIZE}`
+      );
+    }
+
+    return fontSize;
   }
 }
 
-export function createDefaultPreferences(userId: string): UserPreferences {
-  return UserPreferencesSchema.parse({ userId });
-}
-
-export function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validatePreferences(merged);
-}import { z } from 'zod';
-
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
-    }
-    throw new Error('Unexpected validation error');
-  }
-}
-
-export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const current = PreferenceSchema.partial().parse(existing);
-  const merged = { ...current, ...updates };
-  return validatePreferences(merged);
-}
+export { UserPreferencesValidator, UserPreferences, PreferenceValidationError };
