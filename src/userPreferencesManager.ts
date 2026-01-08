@@ -8,45 +8,104 @@ interface UserPreferences {
 class UserPreferencesManager {
   private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
-  private listeners: Set<(prefs: UserPreferences) => void> = new Set();
 
-  constructor(defaultPreferences: UserPreferences) {
-    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-    this.preferences = stored ? JSON.parse(stored) : defaultPreferences;
+  constructor(defaultPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences();
+    
+    if (defaultPreferences) {
+      this.preferences = { ...this.preferences, ...defaultPreferences };
+    }
   }
 
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage', error);
+    }
+
+    return this.getDefaultPreferences();
+  }
+
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      language: 'en',
+      notificationsEnabled: true,
+      fontSize: 16
+    };
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
+    const previous = { ...this.preferences };
     this.preferences = { ...this.preferences, ...updates };
-    localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(this.preferences));
-    this.notifyListeners();
+    
+    if (!this.validatePreferences(this.preferences)) {
+      this.preferences = previous;
+      throw new Error('Invalid preferences provided');
+    }
+
+    this.savePreferences();
   }
 
-  resetToDefaults(defaults: UserPreferences): void {
-    this.preferences = defaults;
-    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
-    this.notifyListeners();
+  private validatePreferences(prefs: UserPreferences): boolean {
+    const validThemes = ['light', 'dark', 'auto'];
+    if (!validThemes.includes(prefs.theme)) {
+      return false;
+    }
+
+    if (typeof prefs.language !== 'string' || prefs.language.length === 0) {
+      return false;
+    }
+
+    if (typeof prefs.notificationsEnabled !== 'boolean') {
+      return false;
+    }
+
+    if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+      return false;
+    }
+
+    return true;
   }
 
-  addListener(listener: (prefs: UserPreferences) => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences to storage', error);
+    }
   }
 
-  private notifyListeners(): void {
-    const currentPrefs = this.getPreferences();
-    this.listeners.forEach(listener => listener(currentPrefs));
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): boolean {
+    try {
+      const imported = JSON.parse(jsonString);
+      this.updatePreferences(imported);
+      return true;
+    } catch (error) {
+      console.error('Failed to import preferences', error);
+      return false;
+    }
   }
 }
 
-const defaultUserPreferences: UserPreferences = {
-  theme: 'auto',
-  language: 'en-US',
-  notificationsEnabled: true,
-  fontSize: 16
-};
-
-export const userPrefsManager = new UserPreferencesManager(defaultUserPreferences);
+export { UserPreferencesManager, UserPreferences };
