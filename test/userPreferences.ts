@@ -2,46 +2,57 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  timezone: string;
+  resultsPerPage: number;
 }
 
-function validateUserPreferences(prefs: UserPreferences): boolean {
-  const validThemes = ['light', 'dark', 'auto'];
-  const validLanguages = ['en', 'es', 'fr', 'de'];
-  const timezoneRegex = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
 
-  if (!validThemes.includes(prefs.theme)) {
-    return false;
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+    validated.theme = prefs.theme;
   }
 
-  if (typeof prefs.notifications !== 'boolean') {
-    return false;
+  if (typeof prefs.notifications === 'boolean') {
+    validated.notifications = prefs.notifications;
   }
 
-  if (!validLanguages.includes(prefs.language)) {
-    return false;
+  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
+    validated.language = prefs.language;
   }
 
-  if (!timezoneRegex.test(prefs.timezone)) {
-    return false;
+  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
+    validated.resultsPerPage = prefs.resultsPerPage;
   }
 
-  return true;
+  return validated;
 }
 
-function updateUserPreferences(newPrefs: Partial<UserPreferences>): UserPreferences {
-  const defaultPreferences: UserPreferences = {
-    theme: 'auto',
-    notifications: true,
-    language: 'en',
-    timezone: 'UTC'
-  };
-
-  const mergedPreferences = { ...defaultPreferences, ...newPrefs };
-  
-  if (!validateUserPreferences(mergedPreferences)) {
-    throw new Error('Invalid user preferences provided');
-  }
-
-  return mergedPreferences;
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validatedPrefs = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validatedPrefs));
 }
+
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem('userPreferences');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      return validatePreferences(parsed);
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
+  }
+  return DEFAULT_PREFERENCES;
+}
+
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
