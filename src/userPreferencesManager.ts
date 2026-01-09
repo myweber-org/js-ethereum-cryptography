@@ -5,14 +5,8 @@ interface UserPreferences {
   fontSize: number;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  fontSize: 14
-};
-
 class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
   constructor() {
@@ -20,70 +14,62 @@ class UserPreferencesManager {
   }
 
   private loadPreferences(): UserPreferences {
-    const stored = localStorage.getItem('userPreferences');
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        return this.validatePreferences(parsed);
+        return this.validatePreferences(JSON.parse(stored));
       } catch {
-        return { ...DEFAULT_PREFERENCES };
+        return this.getDefaultPreferences();
       }
     }
-    return { ...DEFAULT_PREFERENCES };
+    return this.getDefaultPreferences();
   }
 
-  private validatePreferences(data: unknown): UserPreferences {
-    if (typeof data !== 'object' || data === null) {
-      throw new Error('Invalid preferences format');
-    }
-
-    const prefs = data as Record<string, unknown>;
-    
+  private getDefaultPreferences(): UserPreferences {
     return {
-      theme: this.validateTheme(prefs.theme),
-      notifications: this.validateBoolean(prefs.notifications),
-      language: this.validateString(prefs.language),
-      fontSize: this.validateFontSize(prefs.fontSize)
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16
     };
   }
 
-  private validateTheme(theme: unknown): UserPreferences['theme'] {
-    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
-      return theme;
-    }
-    return DEFAULT_PREFERENCES.theme;
-  }
+  private validatePreferences(data: any): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const defaultPrefs = this.getDefaultPreferences();
 
-  private validateBoolean(value: unknown): boolean {
-    return typeof value === 'boolean' ? value : DEFAULT_PREFERENCES.notifications;
-  }
-
-  private validateString(value: unknown): string {
-    return typeof value === 'string' && value.length > 0 ? value : DEFAULT_PREFERENCES.language;
-  }
-
-  private validateFontSize(value: unknown): number {
-    const num = Number(value);
-    return !isNaN(num) && num >= 8 && num <= 32 ? num : DEFAULT_PREFERENCES.fontSize;
-  }
-
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
+    return {
+      theme: validThemes.includes(data.theme) ? data.theme : defaultPrefs.theme,
+      notifications: typeof data.notifications === 'boolean' ? data.notifications : defaultPrefs.notifications,
+      language: typeof data.language === 'string' ? data.language : defaultPrefs.language,
+      fontSize: typeof data.fontSize === 'number' && data.fontSize >= 12 && data.fontSize <= 24 
+        ? data.fontSize 
+        : defaultPrefs.fontSize
+    };
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    const newPreferences = { ...this.preferences, ...updates };
-    this.preferences = this.validatePreferences(newPreferences);
+    this.preferences = {
+      ...this.preferences,
+      ...this.validatePreferences(updates)
+    };
     this.savePreferences();
   }
 
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
   resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.preferences = this.getDefaultPreferences();
     this.savePreferences();
   }
 
   private savePreferences(): void {
-    localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
   }
 
   isDarkMode(): boolean {
@@ -94,4 +80,4 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
