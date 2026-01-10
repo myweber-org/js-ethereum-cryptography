@@ -315,3 +315,81 @@ profileManager.addProfile(sampleProfile);
 profileManager.updateProfile('user-001', { age: 31 });
 const retrievedProfile = profileManager.getProfile('user-001');
 const activeProfiles = profileManager.listActiveProfiles();
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+  lastLogin: Date;
+}
+
+class UserProfileManager {
+  private profiles: Map<string, UserProfile> = new Map();
+
+  addProfile(profile: UserProfile): void {
+    if (this.profiles.has(profile.id)) {
+      throw new Error(`Profile with ID ${profile.id} already exists`);
+    }
+
+    if (!this.validateEmail(profile.email)) {
+      throw new Error(`Invalid email format: ${profile.email}`);
+    }
+
+    if (profile.age < 0 || profile.age > 150) {
+      throw new Error(`Invalid age value: ${profile.age}`);
+    }
+
+    this.profiles.set(profile.id, { ...profile });
+  }
+
+  updateProfile(id: string, updates: Partial<UserProfile>): void {
+    const existingProfile = this.profiles.get(id);
+    if (!existingProfile) {
+      throw new Error(`Profile with ID ${id} not found`);
+    }
+
+    if (updates.email && !this.validateEmail(updates.email)) {
+      throw new Error(`Invalid email format: ${updates.email}`);
+    }
+
+    if (updates.age !== undefined && (updates.age < 0 || updates.age > 150)) {
+      throw new Error(`Invalid age value: ${updates.age}`);
+    }
+
+    this.profiles.set(id, { ...existingProfile, ...updates });
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    const profile = this.profiles.get(id);
+    return profile ? { ...profile } : undefined;
+  }
+
+  getActiveUsers(): UserProfile[] {
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive)
+      .map(profile => ({ ...profile }));
+  }
+
+  deactivateInactiveUsers(daysThreshold: number): string[] {
+    const deactivatedIds: string[] = [];
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
+
+    this.profiles.forEach((profile, id) => {
+      if (profile.lastLogin < thresholdDate && profile.isActive) {
+        profile.isActive = false;
+        deactivatedIds.push(id);
+      }
+    });
+
+    return deactivatedIds;
+  }
+
+  private validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+}
+
+export { UserProfileManager, UserProfile };
