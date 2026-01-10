@@ -67,4 +67,133 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const userPreferences = new UserPreferencesManager();typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    language: string;
+    notifications: {
+        email: boolean;
+        push: boolean;
+        frequency: 'instant' | 'daily' | 'weekly';
+    };
+    privacy: {
+        profileVisibility: 'public' | 'private' | 'friends';
+        dataSharing: boolean;
+    };
+}
+
+class UserPreferencesManager {
+    private static readonly STORAGE_KEY = 'user_preferences';
+    private preferences: UserPreferences;
+
+    constructor(defaultPreferences?: Partial<UserPreferences>) {
+        this.preferences = this.loadPreferences() || this.getDefaultPreferences();
+        
+        if (defaultPreferences) {
+            this.preferences = { ...this.preferences, ...defaultPreferences };
+        }
+    }
+
+    private getDefaultPreferences(): UserPreferences {
+        return {
+            theme: 'auto',
+            language: 'en-US',
+            notifications: {
+                email: true,
+                push: false,
+                frequency: 'daily'
+            },
+            privacy: {
+                profileVisibility: 'private',
+                dataSharing: false
+            }
+        };
+    }
+
+    private loadPreferences(): UserPreferences | null {
+        try {
+            const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    public savePreferences(): boolean {
+        try {
+            localStorage.setItem(
+                UserPreferencesManager.STORAGE_KEY,
+                JSON.stringify(this.preferences)
+            );
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    public updatePreferences(updates: Partial<UserPreferences>): void {
+        this.preferences = { ...this.preferences, ...updates };
+        
+        if (updates.theme) {
+            this.applyTheme(updates.theme);
+        }
+    }
+
+    private applyTheme(theme: UserPreferences['theme']): void {
+        const root = document.documentElement;
+        
+        switch (theme) {
+            case 'light':
+                root.classList.remove('dark-theme');
+                root.classList.add('light-theme');
+                break;
+            case 'dark':
+                root.classList.remove('light-theme');
+                root.classList.add('dark-theme');
+                break;
+            case 'auto':
+                root.classList.remove('light-theme', 'dark-theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                root.classList.add(prefersDark ? 'dark-theme' : 'light-theme');
+                break;
+        }
+    }
+
+    public getPreferences(): Readonly<UserPreferences> {
+        return { ...this.preferences };
+    }
+
+    public resetToDefaults(): void {
+        this.preferences = this.getDefaultPreferences();
+        this.applyTheme(this.preferences.theme);
+    }
+
+    public validatePreferences(): { valid: boolean; errors: string[] } {
+        const errors: string[] = [];
+        const { theme, language, notifications, privacy } = this.preferences;
+
+        if (!['light', 'dark', 'auto'].includes(theme)) {
+            errors.push('Invalid theme selection');
+        }
+
+        if (!language.match(/^[a-z]{2}-[A-Z]{2}$/)) {
+            errors.push('Invalid language format');
+        }
+
+        if (!['instant', 'daily', 'weekly'].includes(notifications.frequency)) {
+            errors.push('Invalid notification frequency');
+        }
+
+        if (!['public', 'private', 'friends'].includes(privacy.profileVisibility)) {
+            errors.push('Invalid privacy setting');
+        }
+
+        return {
+            valid: errors.length === 0,
+            errors
+        };
+    }
+}
+
+export { UserPreferencesManager, type UserPreferences };
+```
