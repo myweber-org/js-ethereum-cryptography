@@ -27,4 +27,43 @@ export function isPreferencesValid(input: unknown): boolean {
   } catch {
     return false;
   }
+}import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  })
+}).refine(
+  (data) => !(data.privacy.profileVisibility === 'private' && data.privacy.searchIndexing),
+  {
+    message: 'Private profiles cannot be indexed by search engines',
+    path: ['privacy', 'searchIndexing']
+  }
+);
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      ).join('; ');
+      throw new Error(`Invalid preferences: ${errorMessages}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultPreferences(): UserPreferences {
+  return UserPreferencesSchema.parse({});
 }
