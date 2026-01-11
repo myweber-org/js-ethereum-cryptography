@@ -181,4 +181,65 @@ function applyUserPreferences(prefs: UserPreferences): void {
   }
 }
 
-export { UserPreferences, PreferenceError, validateUserPreferences, applyUserPreferences };
+export { UserPreferences, PreferenceError, validateUserPreferences, applyUserPreferences };import { z } from 'zod';
+
+const preferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }).default({})
+}).refine(
+  (data) => !(data.notifications.push && !data.privacy.searchIndexing),
+  {
+    message: 'Push notifications require search indexing to be enabled',
+    path: ['notifications.push']
+  }
+);
+
+export type UserPreferences = z.infer<typeof preferenceSchema>;
+
+export class PreferenceValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return preferenceSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const formattedErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        throw new PreferenceValidationError('Invalid preferences configuration', formattedErrors);
+      }
+      throw error;
+    }
+  }
+
+  static validatePartial(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const partialSchema = preferenceSchema.partial();
+    return partialSchema.parse(updates);
+  }
+}
+
+export class PreferenceValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: Array<{ field: string; message: string }>
+  ) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+export function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = PreferenceValidator.validatePartial(updates);
+  return { ...existing, ...validatedUpdates };
+}
