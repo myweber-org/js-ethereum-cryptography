@@ -1,98 +1,63 @@
+import { z } from 'zod';
 
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
-
-class PreferenceValidator {
-  private static readonly MIN_FONT_SIZE = 12;
-  private static readonly MAX_FONT_SIZE = 24;
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
-
-  static validate(prefs: UserPreferences): string[] {
-    const errors: string[] = [];
-
-    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme value: ${prefs.theme}. Must be 'light', 'dark', or 'auto'`);
-    }
-
-    if (typeof prefs.notifications !== 'boolean') {
-      errors.push('Notifications must be a boolean value');
-    }
-
-    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
-    }
-
-    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
-      errors.push(`Font size ${prefs.fontSize} is out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}`);
-    }
-
-    return errors;
-  }
-
-  static normalizePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-    return {
-      theme: prefs.theme || 'auto',
-      notifications: prefs.notifications ?? true,
-      language: prefs.language || 'en',
-      fontSize: prefs.fontSize || 16
-    };
-  }
-}
-
-function validateUserConfiguration(config: unknown): UserPreferences | null {
-  if (!config || typeof config !== 'object') {
-    console.error('Invalid configuration format');
-    return null;
-  }
-
-  const normalized = PreferenceValidator.normalizePreferences(config as Partial<UserPreferences>);
-  const errors = PreferenceValidator.validate(normalized);
-
-  if (errors.length > 0) {
-    console.error('Configuration validation failed:', errors);
-    return null;
-  }
-
-  return normalized;
-}
-
-export { UserPreferences, PreferenceValidator, validateUserConfiguration };import { z } from 'zod';
-
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
   notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['instant', 'daily', 'weekly']).optional()
   }),
   privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }).default({}),
-  language: z.string().min(2).max(5).default('en')
+    profileVisibility: z.enum(['public', 'private', 'friends']),
+    dataSharing: z.boolean().default(false)
+  }).optional()
 });
 
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+export type UserPreferences = z.infer<typeof PreferenceSchema>;
 
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+export class PreferenceValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return PreferenceSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const issues = error.issues.map(issue => ({
+          path: issue.path.join('.'),
+          message: issue.message
+        }));
+        throw new PreferenceValidationError('Invalid preferences format', issues);
+      }
+      throw error;
     }
-    throw error;
+  }
+
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    return PreferenceSchema.partial().parse(updates);
   }
 }
 
-export function mergeWithDefaults(partialPrefs: Partial<UserPreferences>): UserPreferences {
-  const validated = validateUserPreferences(partialPrefs);
-  return UserPreferencesSchema.parse({
-    ...UserPreferencesSchema.parse({}),
-    ...validated
-  });
+export class PreferenceValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly issues: Array<{ path: string; message: string }>
+  ) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+
+  formatIssues(): string {
+    return this.issues
+      .map(issue => `• ${issue.path}: ${issue.message}`)
+      .join('\n');
+  }
+}
+
+export function sanitizePreferences(prefs: UserPreferences): UserPreferences {
+  return {
+    ...prefs,
+    privacy: {
+      profileVisibility: prefs.privacy?.profileVisibility || 'private',
+      dataSharing: prefs.privacy?.dataSharing || false
+    }
+  };
 }
