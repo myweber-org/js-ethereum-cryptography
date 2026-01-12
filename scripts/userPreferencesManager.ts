@@ -99,4 +99,80 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return { ...this.defaultPreferences, ...JSON.parse(stored) };
+      } catch {
+        return this.defaultPreferences;
+      }
+    }
+    return this.defaultPreferences;
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const validated = this.validatePreferences({ ...current, ...updates });
+    
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY, 
+      JSON.stringify(validated)
+    );
+    
+    return validated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    return this.defaultPreferences;
+  }
+
+  private validatePreferences(prefs: UserPreferences): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const theme = validThemes.includes(prefs.theme) 
+      ? prefs.theme 
+      : this.defaultPreferences.theme;
+
+    const fontSize = Math.max(8, Math.min(72, prefs.fontSize));
+
+    return {
+      ...prefs,
+      theme,
+      fontSize,
+      notificationsEnabled: Boolean(prefs.notificationsEnabled)
+    };
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.getPreferences(), null, 2);
+  }
+
+  importPreferences(jsonString: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonString);
+      this.updatePreferences(parsed);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 export { UserPreferencesManager, type UserPreferences };
