@@ -72,4 +72,55 @@ const invalidPreferences = {
 };
 
 updateUserPreferences(invalidPreferences);
-```
+```interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class ValidationError extends Error {
+  constructor(
+    public field: string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: ValidationError[] = [];
+
+  if (!prefs.theme || !['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push(new ValidationError('theme', 'Theme must be light, dark, or auto'));
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    errors.push(new ValidationError('notifications', 'Notifications must be a boolean'));
+  }
+
+  if (!prefs.language || typeof prefs.language !== 'string' || prefs.language.length < 2) {
+    errors.push(new ValidationError('language', 'Language must be a string with at least 2 characters'));
+  }
+
+  if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+    errors.push(new ValidationError('fontSize', 'Font size must be between 8 and 72'));
+  }
+
+  if (errors.length > 0) {
+    const errorDetails = errors.map(e => `${e.field}: ${e.message}`).join('; ');
+    throw new Error(`Validation failed: ${errorDetails}`);
+  }
+
+  return prefs as UserPreferences;
+}
+
+export function createDefaultPreferences(): UserPreferences {
+  return {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 16
+  };
+}
