@@ -173,4 +173,59 @@ export const defaultPreferences: UserPreferences = {
   language: 'en-US',
   notificationsEnabled: true,
   fontSize: 14,
+};interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  itemsPerPage: 25
 };
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
+  }
+  
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
+  }
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
+  }
+  
+  if (!Number.isInteger(validated.itemsPerPage) || validated.itemsPerPage < 1 || validated.itemsPerPage > 100) {
+    validated.itemsPerPage = DEFAULT_PREFERENCES.itemsPerPage;
+  }
+  
+  return validated;
+}
+
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validated = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validated));
+}
+
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) return DEFAULT_PREFERENCES;
+  
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
+  }
+}
+
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
