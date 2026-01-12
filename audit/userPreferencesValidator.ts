@@ -60,4 +60,63 @@ export function sanitizePreferences(prefs: UserPreferences): UserPreferences {
       dataSharing: prefs.privacy?.dataSharing || false
     }
   };
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
 }
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  itemsPerPage: 25
+};
+
+const THEME_VALUES = ['light', 'dark', 'auto'] as const;
+
+function validateUserPreferences(input: unknown): UserPreferences {
+  if (typeof input !== 'object' || input === null) {
+    return DEFAULT_PREFERENCES;
+  }
+
+  const partial = input as Partial<UserPreferences>;
+  
+  const theme = THEME_VALUES.includes(partial.theme as any) 
+    ? partial.theme 
+    : DEFAULT_PREFERENCES.theme;
+
+  const notifications = typeof partial.notifications === 'boolean'
+    ? partial.notifications
+    : DEFAULT_PREFERENCES.notifications;
+
+  const language = typeof partial.language === 'string' 
+    ? partial.language.trim() || DEFAULT_PREFERENCES.language
+    : DEFAULT_PREFERENCES.language;
+
+  const itemsPerPage = typeof partial.itemsPerPage === 'number' 
+    ? Math.max(5, Math.min(100, partial.itemsPerPage))
+    : DEFAULT_PREFERENCES.itemsPerPage;
+
+  return {
+    theme,
+    notifications,
+    language,
+    itemsPerPage
+  };
+}
+
+function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = validateUserPreferences(updates);
+  return {
+    ...existing,
+    ...validatedUpdates,
+    itemsPerPage: Math.max(5, Math.min(100, validatedUpdates.itemsPerPage))
+  };
+}
+
+export { UserPreferences, validateUserPreferences, mergePreferences, DEFAULT_PREFERENCES };
