@@ -1,45 +1,57 @@
+import { z } from 'zod';
 
-interface UserPreferences {
+export interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  itemsPerPage: number;
+  fontSize: number;
+  autoSave: boolean;
 }
 
-class PreferenceValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
-  private static readonly MIN_ITEMS_PER_PAGE = 5;
-  private static readonly MAX_ITEMS_PER_PAGE = 100;
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  fontSize: z.number().int().min(12).max(24),
+  autoSave: z.boolean()
+});
 
-  static validate(prefs: UserPreferences): string[] {
-    const errors: string[] = [];
-
-    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme selection: ${prefs.theme}`);
+export class PreferencesValidator {
+  static validate(preferences: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(preferences);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Invalid preferences: ${errorMessages.join(', ')}`);
+      }
+      throw error;
     }
-
-    if (typeof prefs.notifications !== 'boolean') {
-      errors.push('Notifications must be a boolean value');
-    }
-
-    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-      errors.push(`Unsupported language: ${prefs.language}`);
-    }
-
-    if (prefs.itemsPerPage < PreferenceValidator.MIN_ITEMS_PER_PAGE || 
-        prefs.itemsPerPage > PreferenceValidator.MAX_ITEMS_PER_PAGE) {
-      errors.push(`Items per page must be between ${PreferenceValidator.MIN_ITEMS_PER_PAGE} and ${PreferenceValidator.MAX_ITEMS_PER_PAGE}`);
-    }
-
-    return errors;
   }
 
-  static validateAndThrow(prefs: UserPreferences): void {
-    const errors = this.validate(prefs);
-    if (errors.length > 0) {
-      throw new Error(`Validation failed: ${errors.join('; ')}`);
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    try {
+      return UserPreferencesSchema.partial().parse(updates);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Invalid preference updates: ${errorMessages.join(', ')}`);
+      }
+      throw error;
     }
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16,
+      autoSave: true
+    };
   }
 }
-
-export { UserPreferences, PreferenceValidator };
