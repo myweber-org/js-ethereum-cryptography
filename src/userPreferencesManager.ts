@@ -1,65 +1,43 @@
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
+  theme: 'light' | 'dark';
   fontSize: number;
   notificationsEnabled: boolean;
-  language: string;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  fontSize: 16,
-  notificationsEnabled: true,
-  language: 'en-US'
+  theme: 'light',
+  fontSize: 14,
+  notificationsEnabled: true
 };
 
-const STORAGE_KEY = 'app_user_preferences';
-
 class UserPreferencesManager {
-  private preferences: UserPreferences;
+  private readonly storageKey = 'user_preferences';
 
-  constructor() {
-    this.preferences = this.loadPreferences();
-  }
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.storageKey);
+    if (!stored) return DEFAULT_PREFERENCES;
 
-  private loadPreferences(): UserPreferences {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...DEFAULT_PREFERENCES, ...parsed };
-      }
-    } catch (error) {
-      console.warn('Failed to load user preferences:', error);
+      const parsed = JSON.parse(stored) as Partial<UserPreferences>;
+      return { ...DEFAULT_PREFERENCES, ...parsed };
+    } catch {
+      return DEFAULT_PREFERENCES;
     }
-    return { ...DEFAULT_PREFERENCES };
-  }
-
-  private savePreferences(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
-    } catch (error) {
-      console.warn('Failed to save user preferences:', error);
-    }
-  }
-
-  getPreferences(): Readonly<UserPreferences> {
-    return { ...this.preferences };
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = { ...this.preferences, ...updates };
-    this.savePreferences();
+    const current = this.getPreferences();
+    const updated = { ...current, ...updates };
+    localStorage.setItem(this.storageKey, JSON.stringify(updated));
   }
 
   resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
+    localStorage.removeItem(this.storageKey);
   }
 
-  clearPreferences(): void {
-    localStorage.removeItem(STORAGE_KEY);
-    this.preferences = { ...DEFAULT_PREFERENCES };
+  hasStoredPreferences(): boolean {
+    return localStorage.getItem(this.storageKey) !== null;
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();
