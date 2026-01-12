@@ -1,23 +1,17 @@
-import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-interface UserPayload {
-  userId: string;
-  email: string;
-  role: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: UserPayload;
-    }
-  }
-}
+import { Request, Response, NextFunction } from 'express';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+export interface AuthenticatedRequest extends Request {
+  user?: any;
+}
+
+export const authenticateToken = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -26,29 +20,17 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       res.status(403).json({ error: 'Invalid or expired token' });
       return;
     }
-
-    req.user = decoded as UserPayload;
+    
+    req.user = user;
     next();
   });
 };
 
-export const authorizeRole = (...allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      res.status(403).json({ error: 'Insufficient permissions' });
-      return;
-    }
-
-    next();
-  };
+export const generateAccessToken = (userData: object): string => {
+  return jwt.sign(userData, JWT_SECRET, { expiresIn: '1h' });
 };
