@@ -1,7 +1,7 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
   language: string;
+  notificationsEnabled: boolean;
   fontSize: number;
 }
 
@@ -22,34 +22,6 @@ class UserPreferencesManager {
     }
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): void {
-    const validatedUpdates = this.validateUpdates(updates);
-    this.preferences = { ...this.preferences, ...validatedUpdates };
-    this.savePreferences();
-  }
-
-  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> {
-    const validated: Partial<UserPreferences> = {};
-
-    if (updates.theme && ['light', 'dark', 'auto'].includes(updates.theme)) {
-      validated.theme = updates.theme;
-    }
-
-    if (typeof updates.notifications === 'boolean') {
-      validated.notifications = updates.notifications;
-    }
-
-    if (updates.language && typeof updates.language === 'string') {
-      validated.language = updates.language;
-    }
-
-    if (updates.fontSize && updates.fontSize >= 8 && updates.fontSize <= 32) {
-      validated.fontSize = updates.fontSize;
-    }
-
-    return validated;
-  }
-
   private savePreferences(): void {
     localStorage.setItem(
       UserPreferencesManager.STORAGE_KEY,
@@ -57,7 +29,20 @@ class UserPreferencesManager {
     );
   }
 
-  getPreferences(): UserPreferences {
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    if (updates.theme && !['light', 'dark', 'auto'].includes(updates.theme)) {
+      throw new Error('Invalid theme value');
+    }
+
+    if (updates.fontSize && (updates.fontSize < 12 || updates.fontSize > 24)) {
+      throw new Error('Font size must be between 12 and 24');
+    }
+
+    this.preferences = { ...this.preferences, ...updates };
+    this.savePreferences();
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
     return { ...this.preferences };
   }
 
@@ -67,11 +52,11 @@ class UserPreferencesManager {
   }
 }
 
-const defaultPreferences: UserPreferences = {
+const defaultPrefs: UserPreferences = {
   theme: 'auto',
-  notifications: true,
-  language: 'en',
-  fontSize: 14
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 16
 };
 
-export const preferencesManager = new UserPreferencesManager(defaultPreferences);
+export const userPrefsManager = new UserPreferencesManager(defaultPrefs);
