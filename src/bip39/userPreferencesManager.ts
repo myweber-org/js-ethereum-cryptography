@@ -1,88 +1,66 @@
-
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
   language: string;
-  notificationsEnabled: boolean;
   fontSize: number;
-  autoSave: boolean;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  language: 'en-US',
-  notificationsEnabled: true,
-  fontSize: 14,
-  autoSave: true
-};
-
 class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
-  constructor() {
-    this.preferences = this.loadPreferences();
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
   }
 
-  public updatePreferences(updates: Partial<UserPreferences>): void {
-    const validatedUpdates = this.validateUpdates(updates);
-    this.preferences = { ...this.preferences, ...validatedUpdates };
-    this.savePreferences();
-  }
-
-  public getPreferences(): UserPreferences {
-    return { ...this.preferences };
-  }
-
-  public resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
-  }
-
-  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> {
-    const validated: Partial<UserPreferences> = {};
-
-    if (updates.theme !== undefined && ['light', 'dark', 'auto'].includes(updates.theme)) {
-      validated.theme = updates.theme;
-    }
-
-    if (updates.language !== undefined && typeof updates.language === 'string') {
-      validated.language = updates.language;
-    }
-
-    if (updates.notificationsEnabled !== undefined && typeof updates.notificationsEnabled === 'boolean') {
-      validated.notificationsEnabled = updates.notificationsEnabled;
-    }
-
-    if (updates.fontSize !== undefined && updates.fontSize >= 8 && updates.fontSize <= 32) {
-      validated.fontSize = updates.fontSize;
-    }
-
-    if (updates.autoSave !== undefined && typeof updates.autoSave === 'boolean') {
-      validated.autoSave = updates.autoSave;
-    }
-
-    return validated;
-  }
-
-  private loadPreferences(): UserPreferences {
+  private loadPreferences(): UserPreferences | null {
     try {
-      const stored = localStorage.getItem('userPreferences');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...DEFAULT_PREFERENCES, ...parsed };
-      }
-    } catch (error) {
-      console.warn('Failed to load user preferences:', error);
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
     }
-    return { ...DEFAULT_PREFERENCES };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    if (!this.validatePreferences(newPreferences)) {
+      return false;
+    }
+
+    this.preferences = newPreferences;
+    this.savePreferences();
+    return true;
+  }
+
+  private validatePreferences(prefs: UserPreferences): boolean {
+    return (
+      ['light', 'dark', 'auto'].includes(prefs.theme) &&
+      typeof prefs.notifications === 'boolean' &&
+      typeof prefs.language === 'string' &&
+      prefs.language.length >= 2 &&
+      typeof prefs.fontSize === 'number' &&
+      prefs.fontSize >= 8 &&
+      prefs.fontSize <= 32
+    );
   }
 
   private savePreferences(): void {
-    try {
-      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
-    } catch (error) {
-      console.error('Failed to save user preferences:', error);
-    }
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = defaults;
+    this.savePreferences();
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
