@@ -1,42 +1,58 @@
-import { z } from 'zod';
-
-const ThemeSchema = z.enum(['light', 'dark', 'system']);
-const NotificationPreferenceSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  frequency: z.enum(['instant', 'daily', 'weekly']).optional(),
-});
-
-export const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default('system'),
-  language: z.string().min(2).max(10).default('en'),
-  notifications: NotificationPreferenceSchema.default({
-    email: true,
-    push: false,
-  }),
-  createdAt: z.date().default(() => new Date()),
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  return UserPreferencesSchema.parse(input);
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
 }
 
-export function sanitizePreferences(input: Partial<UserPreferences>): Partial<UserPreferences> {
-  const result: Partial<UserPreferences> = {};
-  
-  if (input.theme && ThemeSchema.safeParse(input.theme).success) {
-    result.theme = input.theme;
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
   }
-  
-  if (input.language && typeof input.language === 'string') {
-    const trimmed = input.language.trim().substring(0, 10);
-    if (trimmed.length >= 2) {
-      result.language = trimmed;
+}
+
+function validateUserPreferences(prefs: UserPreferences): void {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  const minFontSize = 12;
+  const maxFontSize = 24;
+
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme: ${prefs.theme}. Must be one of: ${validThemes.join(', ')}`
+    );
+  }
+
+  if (!validLanguages.includes(prefs.language)) {
+    throw new PreferenceValidationError(
+      `Invalid language: ${prefs.language}. Must be one of: ${validLanguages.join(', ')}`
+    );
+  }
+
+  if (prefs.fontSize < minFontSize || prefs.fontSize > maxFontSize) {
+    throw new PreferenceValidationError(
+      `Font size ${prefs.fontSize} is out of range. Must be between ${minFontSize} and ${maxFontSize}`
+    );
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
+  }
+}
+
+function saveUserPreferences(prefs: UserPreferences): boolean {
+  try {
+    validateUserPreferences(prefs);
+    console.log('Preferences validated successfully');
+    return true;
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.error('Validation failed:', error.message);
+      return false;
     }
+    throw error;
   }
-  
-  return result;
 }
+
+export { UserPreferences, validateUserPreferences, saveUserPreferences, PreferenceValidationError };
