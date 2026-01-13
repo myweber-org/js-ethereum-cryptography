@@ -1,15 +1,14 @@
-typescript
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  language: string;
   notifications: boolean;
+  language: string;
   fontSize: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
-  language: 'en-US',
   notifications: true,
+  language: 'en-US',
   fontSize: 14
 };
 
@@ -25,35 +24,37 @@ class UserPreferencesManager {
   }
 
   private loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem('userPreferences');
+    if (!stored) return { ...DEFAULT_PREFERENCES };
+
     try {
-      const stored = localStorage.getItem('userPreferences');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return this.validatePreferences(parsed);
-      }
-    } catch (error) {
-      console.warn('Failed to load preferences from storage:', error);
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
     }
-    return { ...DEFAULT_PREFERENCES };
   }
 
   private validatePreferences(prefs: any): UserPreferences {
     const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
 
-    if (typeof prefs.theme === 'string' && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-      validated.theme = prefs.theme as 'light' | 'dark' | 'auto';
-    }
-
-    if (typeof prefs.language === 'string' && VALID_LANGUAGES.includes(prefs.language)) {
-      validated.language = prefs.language;
+    if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+      validated.theme = prefs.theme;
     }
 
     if (typeof prefs.notifications === 'boolean') {
       validated.notifications = prefs.notifications;
     }
 
+    if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
+      validated.language = prefs.language;
+    }
+
     if (typeof prefs.fontSize === 'number') {
-      validated.fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, prefs.fontSize));
+      validated.fontSize = Math.max(
+        MIN_FONT_SIZE,
+        Math.min(MAX_FONT_SIZE, prefs.fontSize)
+      );
     }
 
     return validated;
@@ -67,20 +68,24 @@ class UserPreferencesManager {
     const newPreferences = { ...this.preferences, ...updates };
     const validated = this.validatePreferences(newPreferences);
 
-    if (JSON.stringify(this.preferences) !== JSON.stringify(validated)) {
-      this.preferences = validated;
-      this.savePreferences();
-      return true;
+    if (this.arePreferencesEqual(this.preferences, validated)) {
+      return false;
     }
-    return false;
+
+    this.preferences = validated;
+    this.savePreferences();
+    return true;
+  }
+
+  private arePreferencesEqual(a: UserPreferences, b: UserPreferences): boolean {
+    return a.theme === b.theme &&
+           a.notifications === b.notifications &&
+           a.language === b.language &&
+           a.fontSize === b.fontSize;
   }
 
   private savePreferences(): void {
-    try {
-      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
-    }
+    localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
   }
 
   resetToDefaults(): void {
@@ -88,13 +93,12 @@ class UserPreferencesManager {
     this.savePreferences();
   }
 
-  isDarkMode(): boolean {
+  getTheme(): string {
     if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    return this.preferences.theme === 'dark';
+    return this.preferences.theme;
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
-```
+export default UserPreferencesManager;
