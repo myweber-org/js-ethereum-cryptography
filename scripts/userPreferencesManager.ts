@@ -101,4 +101,82 @@ class UserPreferencesManager {
   }
 }
 
-export default UserPreferencesManager;
+export default UserPreferencesManager;interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14
+};
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+
+  static loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  static savePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+    const current = this.loadPreferences();
+    const merged = { ...current, ...prefs };
+    const validated = this.validatePreferences(merged);
+    
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(validated));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+    
+    return validated;
+  }
+
+  static resetToDefaults(): UserPreferences {
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear preferences:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private static validatePreferences(data: any): UserPreferences {
+    const result = { ...DEFAULT_PREFERENCES };
+    
+    if (data && typeof data === 'object') {
+      if (['light', 'dark', 'auto'].includes(data.theme)) {
+        result.theme = data.theme;
+      }
+      
+      if (typeof data.language === 'string') {
+        result.language = data.language;
+      }
+      
+      if (typeof data.notificationsEnabled === 'boolean') {
+        result.notificationsEnabled = data.notificationsEnabled;
+      }
+      
+      if (typeof data.fontSize === 'number' && data.fontSize >= 8 && data.fontSize <= 32) {
+        result.fontSize = data.fontSize;
+      }
+    }
+    
+    return result;
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
