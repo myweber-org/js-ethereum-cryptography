@@ -74,4 +74,63 @@ const defaultPreferences: UserPreferences = {
   fontSize: 16
 };
 
-export const userPrefs = new UserPreferencesManager(defaultPreferences);
+export const userPrefs = new UserPreferencesManager(defaultPreferences);import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('light'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  fontSize: z.number().min(8).max(32).default(14),
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return PreferenceSchema.parse(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences, using defaults:', error);
+    }
+    return PreferenceSchema.parse({});
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const validated = PreferenceSchema.partial().parse(updates);
+    this.preferences = { ...this.preferences, ...validated };
+    this.savePreferences();
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = PreferenceSchema.parse({});
+    this.savePreferences();
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
