@@ -1,111 +1,43 @@
-import { z } from 'zod';
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notificationsEnabled: z.boolean().default(true),
-  language: z.string().min(2).max(5).default('en'),
-  itemsPerPage: z.number().int().min(5).max(100).default(25),
-  timezone: z.string().optional(),
-  emailFrequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-});
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
 
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+class PreferenceValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
 
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Invalid user preferences: ${errorMessages.join('; ')}`);
+  static validate(prefs: UserPreferences): string[] {
+    const errors: string[] = [];
+
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push('Theme must be light, dark, or auto');
     }
-    throw error;
+
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value');
+    }
+
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Language must be one of: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (!PreferenceValidator.VALID_TIMEZONES.test(prefs.timezone)) {
+      errors.push('Timezone must be in format Area/Location (e.g., America/New_York)');
+    }
+
+    return errors;
+  }
+
+  static validateAndThrow(prefs: UserPreferences): void {
+    const errors = this.validate(prefs);
+    if (errors.length > 0) {
+      throw new Error(`Invalid preferences: ${errors.join('; ')}`);
+    }
   }
 }
 
-export function getDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validateUserPreferences(merged);
-}import { z } from 'zod';
-
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
-    }
-    throw error;
-  }
-}
-
-export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const current = PreferenceSchema.partial().parse(existing);
-  const merged = { ...current, ...updates };
-  return validatePreferences(merged);
-}import { z } from 'zod';
-
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }).default({}),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        path: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Invalid preferences: ${JSON.stringify(formattedErrors)}`);
-    }
-    throw error;
-  }
-}
-
-export function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
-  const validatedUpdates = PreferenceSchema.partial().parse(updates);
-  return { ...existing, ...validatedUpdates };
-}
-
-export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}
+export { UserPreferences, PreferenceValidator };
