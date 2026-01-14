@@ -58,3 +58,66 @@ function loadPreferences(): UserPreferences {
 }
 
 export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
+
+class PreferencesManager {
+  private readonly storageKey = 'user_preferences';
+  
+  validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+    
+    if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+      validated.theme = prefs.theme as 'light' | 'dark' | 'auto';
+    }
+    
+    if (typeof prefs.notifications === 'boolean') {
+      validated.notifications = prefs.notifications;
+    }
+    
+    if (typeof prefs.language === 'string' && prefs.language.length >= 2) {
+      validated.language = prefs.language;
+    }
+    
+    if (typeof prefs.resultsPerPage === 'number' && prefs.resultsPerPage > 0 && prefs.resultsPerPage <= 100) {
+      validated.resultsPerPage = Math.floor(prefs.resultsPerPage);
+    }
+    
+    return validated;
+  }
+  
+  savePreferences(prefs: Partial<UserPreferences>): void {
+    const validated = this.validatePreferences(prefs);
+    localStorage.setItem(this.storageKey, JSON.stringify(validated));
+  }
+  
+  loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.storageKey);
+    if (!stored) return DEFAULT_PREFERENCES;
+    
+    try {
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
+  }
+  
+  resetToDefaults(): void {
+    localStorage.removeItem(this.storageKey);
+  }
+}
+
+export { PreferencesManager, DEFAULT_PREFERENCES };
+export type { UserPreferences };
