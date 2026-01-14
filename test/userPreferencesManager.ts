@@ -272,4 +272,94 @@ class UserPreferencesManager {
 const preferencesManager = new UserPreferencesManager();
 
 export { UserPreferencesManager, preferencesManager, type UserPreferences };
-```
+```interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences();
+    if (defaultPreferences) {
+      this.preferences = { ...this.preferences, ...defaultPreferences };
+    }
+  }
+
+  private loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return this.getDefaultPreferences();
+      }
+    }
+    return this.getDefaultPreferences();
+  }
+
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      fontSize: 14,
+      notificationsEnabled: true,
+      language: 'en-US'
+    };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
+    this.validatePreferences();
+    this.savePreferences();
+  }
+
+  private validatePreferences(): void {
+    if (this.preferences.fontSize < 8 || this.preferences.fontSize > 32) {
+      throw new Error('Font size must be between 8 and 32');
+    }
+
+    const validThemes: UserPreferences['theme'][] = ['light', 'dark', 'auto'];
+    if (!validThemes.includes(this.preferences.theme)) {
+      throw new Error('Invalid theme specified');
+    }
+
+    if (typeof this.preferences.notificationsEnabled !== 'boolean') {
+      throw new Error('Notifications enabled must be a boolean');
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): void {
+    try {
+      const imported = JSON.parse(jsonString);
+      this.updatePreferences(imported);
+    } catch (error) {
+      throw new Error('Invalid preferences format');
+    }
+  }
+}
+
+export { UserPreferencesManager, UserPreferences };
