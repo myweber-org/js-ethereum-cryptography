@@ -61,4 +61,107 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const userPreferences = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private static readonly DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return { ...UserPreferencesManager.DEFAULT_PREFERENCES };
+  }
+
+  private validatePreferences(data: unknown): UserPreferences {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid preferences data');
+    }
+
+    const prefs = data as Partial<UserPreferences>;
+    const validated: UserPreferences = { ...UserPreferencesManager.DEFAULT_PREFERENCES };
+
+    if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+      validated.theme = prefs.theme;
+    }
+
+    if (prefs.language && typeof prefs.language === 'string') {
+      validated.language = prefs.language;
+    }
+
+    if (typeof prefs.notificationsEnabled === 'boolean') {
+      validated.notificationsEnabled = prefs.notificationsEnabled;
+    }
+
+    if (typeof prefs.fontSize === 'number' && prefs.fontSize >= 8 && prefs.fontSize <= 32) {
+      validated.fontSize = prefs.fontSize;
+    }
+
+    return validated;
+  }
+
+  public getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  public updatePreferences(updates: Partial<UserPreferences>): boolean {
+    try {
+      const newPreferences = { ...this.preferences, ...updates };
+      const validated = this.validatePreferences(newPreferences);
+      
+      this.preferences = validated;
+      localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(validated));
+      return true;
+    } catch (error) {
+      console.error('Failed to update preferences:', error);
+      return false;
+    }
+  }
+
+  public resetToDefaults(): void {
+    this.preferences = { ...UserPreferencesManager.DEFAULT_PREFERENCES };
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+  }
+
+  public exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  public importPreferences(jsonString: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonString);
+      const validated = this.validatePreferences(parsed);
+      this.preferences = validated;
+      localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(validated));
+      return true;
+    } catch (error) {
+      console.error('Failed to import preferences:', error);
+      return false;
+    }
+  }
+}
+
+export { UserPreferencesManager, UserPreferences };
