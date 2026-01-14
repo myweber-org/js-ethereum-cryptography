@@ -98,3 +98,84 @@ console.log('Updated profile:', updated);
 
 const activeProfiles = profileManager.getActiveProfiles();
 console.log('Active profiles:', activeProfiles.length);
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  preferences: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+  };
+}
+
+class UserProfileManager {
+  private profiles: Map<string, UserProfile> = new Map();
+
+  validateProfile(profile: Partial<UserProfile>): boolean {
+    if (profile.username && profile.username.length < 3) {
+      return false;
+    }
+    
+    if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+      return false;
+    }
+    
+    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  addProfile(profile: UserProfile): void {
+    if (!this.validateProfile(profile)) {
+      throw new Error('Invalid profile data');
+    }
+    
+    if (this.profiles.has(profile.id)) {
+      throw new Error('Profile already exists');
+    }
+    
+    this.profiles.set(profile.id, profile);
+  }
+
+  updateProfile(id: string, updates: Partial<UserProfile>): void {
+    const existingProfile = this.profiles.get(id);
+    
+    if (!existingProfile) {
+      throw new Error('Profile not found');
+    }
+    
+    if (!this.validateProfile(updates)) {
+      throw new Error('Invalid update data');
+    }
+    
+    const updatedProfile: UserProfile = {
+      ...existingProfile,
+      ...updates,
+      preferences: {
+        ...existingProfile.preferences,
+        ...updates.preferences
+      }
+    };
+    
+    this.profiles.set(id, updatedProfile);
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
+  }
+
+  getAllProfiles(): UserProfile[] {
+    return Array.from(this.profiles.values());
+  }
+
+  filterByPreference(preferenceKey: keyof UserProfile['preferences'], value: any): UserProfile[] {
+    return this.getAllProfiles().filter(profile => 
+      profile.preferences[preferenceKey] === value
+    );
+  }
+}
+
+export { UserProfileManager, type UserProfile };
