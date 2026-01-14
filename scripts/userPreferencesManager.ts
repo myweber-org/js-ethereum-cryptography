@@ -226,4 +226,90 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  fontSize: z.number().min(12).max(24),
+  language: z.string().length(2)
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+const STORAGE_KEY = 'user_preferences_v1';
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private defaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      fontSize: 16,
+      language: 'en'
+    };
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return this.defaultPreferences();
+
+      const parsed = JSON.parse(stored);
+      const validated = PreferenceSchema.parse(parsed);
+      return validated;
+    } catch {
+      return this.defaultPreferences();
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    try {
+      const validated = PreferenceSchema.parse(newPreferences);
+      this.preferences = validated;
+      this.savePreferences();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('Invalid preferences:', error.errors);
+      }
+      throw new Error('Failed to update preferences');
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.defaultPreferences();
+    this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): void {
+    try {
+      const parsed = JSON.parse(jsonString);
+      const validated = PreferenceSchema.parse(parsed);
+      this.preferences = validated;
+      this.savePreferences();
+    } catch (error) {
+      throw new Error('Invalid preferences format');
+    }
+  }
+}
+
 export { UserPreferencesManager, type UserPreferences };
