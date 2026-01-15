@@ -9,82 +9,32 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
   notifications: true,
   language: 'en-US',
-  resultsPerPage: 10
+  resultsPerPage: 20
 };
 
 const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const VALID_RESULTS_PER_PAGE = [5, 10, 25, 50];
-
-function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-
-  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-    validated.theme = prefs.theme;
-  }
-
-  if (typeof prefs.notifications === 'boolean') {
-    validated.notifications = prefs.notifications;
-  }
-
-  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
-    validated.language = prefs.language;
-  }
-
-  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
-    validated.resultsPerPage = prefs.resultsPerPage;
-  }
-
-  return validated;
-}
-
-function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validated = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validated));
-}
-
-function loadPreferences(): UserPreferences {
-  const stored = localStorage.getItem('userPreferences');
-  if (stored) {
-    try {
-      return validatePreferences(JSON.parse(stored));
-    } catch {
-      return DEFAULT_PREFERENCES;
-    }
-  }
-  return DEFAULT_PREFERENCES;
-}
-
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en',
-  fontSize: 14
-};
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
   const validated = { ...DEFAULT_PREFERENCES, ...prefs };
   
   if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = 'auto';
+    validated.theme = DEFAULT_PREFERENCES.theme;
+  }
+  
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
   }
   
   if (typeof validated.notifications !== 'boolean') {
-    validated.notifications = true;
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
   }
   
-  if (!validated.language || typeof validated.language !== 'string') {
-    validated.language = 'en';
-  }
-  
-  if (typeof validated.fontSize !== 'number' || validated.fontSize < 8 || validated.fontSize > 32) {
-    validated.fontSize = 14;
+  if (typeof validated.resultsPerPage !== 'number' || 
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
   }
   
   return validated;
@@ -97,9 +47,7 @@ function savePreferences(prefs: Partial<UserPreferences>): void {
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (!stored) {
-    return DEFAULT_PREFERENCES;
-  }
+  if (!stored) return DEFAULT_PREFERENCES;
   
   try {
     const parsed = JSON.parse(stored);
