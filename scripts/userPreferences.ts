@@ -13,22 +13,22 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
+const MIN_RESULTS_PER_PAGE = 5;
 const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
   
   if (!['light', 'dark', 'auto'].includes(validated.theme)) {
     validated.theme = DEFAULT_PREFERENCES.theme;
   }
   
-  if (typeof validated.notifications !== 'boolean') {
-    validated.notifications = DEFAULT_PREFERENCES.notifications;
-  }
-  
   if (!VALID_LANGUAGES.includes(validated.language)) {
     validated.language = DEFAULT_PREFERENCES.language;
+  }
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
   }
   
   if (typeof validated.resultsPerPage !== 'number' || 
@@ -58,118 +58,3 @@ function loadPreferences(): UserPreferences {
 }
 
 export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  resultsPerPage: number;
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
-};
-
-class PreferencesManager {
-  private readonly storageKey = 'user_preferences';
-  
-  validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-    
-    if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-      validated.theme = prefs.theme as 'light' | 'dark' | 'auto';
-    }
-    
-    if (typeof prefs.notifications === 'boolean') {
-      validated.notifications = prefs.notifications;
-    }
-    
-    if (typeof prefs.language === 'string' && prefs.language.length >= 2) {
-      validated.language = prefs.language;
-    }
-    
-    if (typeof prefs.resultsPerPage === 'number' && prefs.resultsPerPage > 0 && prefs.resultsPerPage <= 100) {
-      validated.resultsPerPage = Math.floor(prefs.resultsPerPage);
-    }
-    
-    return validated;
-  }
-  
-  savePreferences(prefs: Partial<UserPreferences>): void {
-    const validated = this.validatePreferences(prefs);
-    localStorage.setItem(this.storageKey, JSON.stringify(validated));
-  }
-  
-  loadPreferences(): UserPreferences {
-    const stored = localStorage.getItem(this.storageKey);
-    if (!stored) return DEFAULT_PREFERENCES;
-    
-    try {
-      const parsed = JSON.parse(stored);
-      return this.validatePreferences(parsed);
-    } catch {
-      return DEFAULT_PREFERENCES;
-    }
-  }
-  
-  resetToDefaults(): void {
-    localStorage.removeItem(this.storageKey);
-  }
-}
-
-export { PreferencesManager, DEFAULT_PREFERENCES };
-export type { UserPreferences };interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: string;
-  notificationsEnabled: boolean;
-  fontSize: number;
-}
-
-function validateUserPreferences(prefs: Partial<UserPreferences>): boolean {
-  const validThemes = ['light', 'dark', 'auto'];
-  
-  if (prefs.theme && !validThemes.includes(prefs.theme)) {
-    return false;
-  }
-  
-  if (prefs.fontSize && (prefs.fontSize < 12 || prefs.fontSize > 24)) {
-    return false;
-  }
-  
-  if (prefs.language && typeof prefs.language !== 'string') {
-    return false;
-  }
-  
-  if (prefs.notificationsEnabled !== undefined && typeof prefs.notificationsEnabled !== 'boolean') {
-    return false;
-  }
-  
-  return true;
-}
-
-function applyUserPreferences(prefs: UserPreferences): void {
-  if (!validateUserPreferences(prefs)) {
-    throw new Error('Invalid user preferences');
-  }
-  
-  console.log('Applying user preferences:', prefs);
-  
-  if (prefs.theme) {
-    document.documentElement.setAttribute('data-theme', prefs.theme);
-  }
-  
-  if (prefs.fontSize) {
-    document.documentElement.style.fontSize = `${prefs.fontSize}px`;
-  }
-}
-
-const defaultPreferences: UserPreferences = {
-  theme: 'auto',
-  language: 'en',
-  notificationsEnabled: true,
-  fontSize: 16
-};
-
-export { UserPreferences, validateUserPreferences, applyUserPreferences, defaultPreferences };
