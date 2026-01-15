@@ -39,4 +39,46 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisible: z.boolean().default(true),
+    searchIndexed: z.boolean().default(false)
+  }),
+  language: z.string().min(2).max(5).default('en')
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const defaultPreferences = UserPreferencesSchema.parse({});
+        console.warn('Invalid preferences, using defaults:', error.errors);
+        return defaultPreferences;
+      }
+      throw error;
+    }
+  }
+
+  static mergeWithDefaults(partial: Partial<UserPreferences>): UserPreferences {
+    const current = UserPreferencesSchema.parse({});
+    return UserPreferencesSchema.parse({ ...current, ...partial });
+  }
+
+  static isThemeDark(prefs: UserPreferences): boolean {
+    if (prefs.theme === 'dark') return true;
+    if (prefs.theme === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+}
