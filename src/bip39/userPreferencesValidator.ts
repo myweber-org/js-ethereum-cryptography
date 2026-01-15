@@ -90,3 +90,62 @@ export class PreferencesValidator {
     return this.validate({ ...defaults, ...partial });
   }
 }
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  fontSize: number;
+  language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  fontSize: 14,
+  language: 'en-US'
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+
+class PreferencesValidator {
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+    if (preferences.theme && ['light', 'dark', 'auto'].includes(preferences.theme)) {
+      validated.theme = preferences.theme;
+    }
+
+    if (typeof preferences.notifications === 'boolean') {
+      validated.notifications = preferences.notifications;
+    }
+
+    if (typeof preferences.fontSize === 'number' && preferences.fontSize >= 8 && preferences.fontSize <= 24) {
+      validated.fontSize = preferences.fontSize;
+    }
+
+    if (preferences.language && VALID_LANGUAGES.includes(preferences.language)) {
+      validated.language = preferences.language;
+    }
+
+    return validated;
+  }
+
+  static validateStrict(preferences: Partial<UserPreferences>): UserPreferences {
+    const result = this.validate(preferences);
+    
+    if (preferences.theme && !['light', 'dark', 'auto'].includes(preferences.theme)) {
+      throw new Error(`Invalid theme: ${preferences.theme}`);
+    }
+
+    if (preferences.language && !VALID_LANGUAGES.includes(preferences.language)) {
+      throw new Error(`Unsupported language: ${preferences.language}`);
+    }
+
+    if (preferences.fontSize && (preferences.fontSize < 8 || preferences.fontSize > 24)) {
+      throw new Error(`Font size must be between 8 and 24, got: ${preferences.fontSize}`);
+    }
+
+    return result;
+  }
+}
+
+export { UserPreferences, PreferencesValidator };
