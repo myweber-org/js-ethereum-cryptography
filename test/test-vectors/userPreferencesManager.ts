@@ -211,4 +211,72 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return this.validateAndMerge(parsed);
+      } catch {
+        return { ...this.defaultPreferences };
+      }
+    }
+    return { ...this.defaultPreferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const merged = { ...current, ...updates };
+    
+    if (this.validatePreferences(merged)) {
+      localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+    
+    throw new Error('Invalid preferences provided');
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    return { ...this.defaultPreferences };
+  }
+
+  private validatePreferences(prefs: UserPreferences): boolean {
+    const validThemes = ['light', 'dark', 'auto'];
+    return (
+      validThemes.includes(prefs.theme) &&
+      typeof prefs.language === 'string' &&
+      prefs.language.length >= 2 &&
+      typeof prefs.notificationsEnabled === 'boolean' &&
+      Number.isInteger(prefs.fontSize) &&
+      prefs.fontSize >= 8 &&
+      prefs.fontSize <= 32
+    );
+  }
+
+  private validateAndMerge(partial: any): UserPreferences {
+    const result = { ...this.defaultPreferences, ...partial };
+    if (!this.validatePreferences(result)) {
+      return { ...this.defaultPreferences };
+    }
+    return result;
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
