@@ -23,15 +23,15 @@ class UserPreferencesValidator {
       errors.push('Theme must be one of: light, dark, auto');
     }
 
-    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
+    if (typeof preferences.notifications !== 'boolean') {
       errors.push('Notifications must be a boolean value');
     }
 
-    if (preferences.language && !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+    if (!preferences.language || !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
       errors.push(`Language must be one of: ${this.SUPPORTED_LANGUAGES.join(', ')}`);
     }
 
-    if (preferences.timezone && !this.VALID_TIMEZONES.test(preferences.timezone)) {
+    if (!preferences.timezone || !this.VALID_TIMEZONES.test(preferences.timezone)) {
       errors.push('Timezone must be in format: Area/Location (e.g., America/New_York)');
     }
 
@@ -39,13 +39,42 @@ class UserPreferencesValidator {
       throw new PreferenceValidationError(`Validation failed:\n${errors.join('\n')}`);
     }
 
-    return {
-      theme: preferences.theme as 'light' | 'dark' | 'auto',
-      notifications: preferences.notifications ?? true,
-      language: preferences.language ?? 'en',
-      timezone: preferences.timezone ?? 'UTC'
-    };
+    return preferences as UserPreferences;
+  }
+
+  static validatePartial(preferences: Partial<UserPreferences>): Partial<UserPreferences> {
+    const validated: Partial<UserPreferences> = {};
+
+    if (preferences.theme) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        throw new PreferenceValidationError('Invalid theme value');
+      }
+      validated.theme = preferences.theme;
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications !== 'boolean') {
+        throw new PreferenceValidationError('Notifications must be a boolean');
+      }
+      validated.notifications = preferences.notifications;
+    }
+
+    if (preferences.language) {
+      if (!this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        throw new PreferenceValidationError('Unsupported language');
+      }
+      validated.language = preferences.language;
+    }
+
+    if (preferences.timezone) {
+      if (!this.VALID_TIMEZONES.test(preferences.timezone)) {
+        throw new PreferenceValidationError('Invalid timezone format');
+      }
+      validated.timezone = preferences.timezone;
+    }
+
+    return validated;
   }
 }
 
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
