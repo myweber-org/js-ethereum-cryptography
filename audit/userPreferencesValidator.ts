@@ -223,4 +223,54 @@ export function validateUserPreferences(input: unknown): UserPreferences {
 
 export function getDefaultPreferences(): UserPreferences {
   return UserPreferencesSchema.parse({});
+}import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  })
+}).strict();
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export class PreferenceValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return PreferenceSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.warn('Invalid preferences provided, using defaults:', error.errors);
+      }
+      return PreferenceSchema.parse({});
+    }
+  }
+
+  static mergeWithDefaults(partial: Partial<UserPreferences>): UserPreferences {
+    const current = PreferenceSchema.parse(partial);
+    const defaults = PreferenceSchema.parse({});
+    
+    return {
+      theme: current.theme ?? defaults.theme,
+      notifications: {
+        email: current.notifications?.email ?? defaults.notifications.email,
+        push: current.notifications?.push ?? defaults.notifications.push,
+        frequency: current.notifications?.frequency ?? defaults.notifications.frequency
+      },
+      privacy: {
+        profileVisibility: current.privacy?.profileVisibility ?? defaults.privacy.profileVisibility,
+        searchIndexing: current.privacy?.searchIndexing ?? defaults.privacy.searchIndexing
+      }
+    };
+  }
+
+  static isValid(prefs: unknown): prefs is UserPreferences {
+    return PreferenceSchema.safeParse(prefs).success;
+  }
 }
