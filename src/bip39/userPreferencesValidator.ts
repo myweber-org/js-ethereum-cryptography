@@ -1,151 +1,58 @@
+typescript
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  itemsPerPage: number;
+    theme: 'light' | 'dark' | 'auto';
+    notifications: boolean;
+    language: string;
+    fontSize: number;
 }
 
 class PreferenceValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
-  private static readonly MIN_ITEMS_PER_PAGE = 5;
-  private static readonly MAX_ITEMS_PER_PAGE = 100;
+    private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+    private static readonly MIN_FONT_SIZE = 8;
+    private static readonly MAX_FONT_SIZE = 72;
 
-  static validate(preferences: Partial<UserPreferences>): string[] {
-    const errors: string[] = [];
+    static validate(prefs: UserPreferences): string[] {
+        const errors: string[] = [];
 
-    if (preferences.theme !== undefined) {
-      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
-        errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
-      }
+        if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+            errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
+        }
+
+        if (typeof prefs.notifications !== 'boolean') {
+            errors.push('Notifications must be a boolean value.');
+        }
+
+        if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+            errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+        }
+
+        if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+            errors.push(`Font size ${prefs.fontSize} out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}.`);
+        }
+
+        if (!Number.isInteger(prefs.fontSize)) {
+            errors.push('Font size must be an integer.');
+        }
+
+        return errors;
     }
 
-    if (preferences.language !== undefined) {
-      if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
-        errors.push(`Unsupported language: ${preferences.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
-      }
+    static validateAndThrow(prefs: UserPreferences): void {
+        const errors = this.validate(prefs);
+        if (errors.length > 0) {
+            throw new Error(`Validation failed:\n${errors.join('\n')}`);
+        }
     }
-
-    if (preferences.itemsPerPage !== undefined) {
-      if (!Number.isInteger(preferences.itemsPerPage)) {
-        errors.push(`itemsPerPage must be an integer, got ${preferences.itemsPerPage}`);
-      } else if (preferences.itemsPerPage < PreferenceValidator.MIN_ITEMS_PER_PAGE || 
-                 preferences.itemsPerPage > PreferenceValidator.MAX_ITEMS_PER_PAGE) {
-        errors.push(`itemsPerPage must be between ${PreferenceValidator.MIN_ITEMS_PER_PAGE} and ${PreferenceValidator.MAX_ITEMS_PER_PAGE}`);
-      }
-    }
-
-    if (preferences.notifications !== undefined) {
-      if (typeof preferences.notifications !== 'boolean') {
-        errors.push(`notifications must be a boolean, got ${typeof preferences.notifications}`);
-      }
-    }
-
-    return errors;
-  }
-
-  static validateAndThrow(preferences: Partial<UserPreferences>): void {
-    const errors = this.validate(preferences);
-    if (errors.length > 0) {
-      throw new Error(`Validation failed:\n${errors.join('\n')}`);
-    }
-  }
 }
 
-export { UserPreferences, PreferenceValidator };import { z } from 'zod';
-
-export const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'system']).default('system'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    dataSharing: z.boolean().default(false)
-  }),
-  language: z.string().min(2).max(5).default('en')
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export class PreferencesValidator {
-  static validate(input: unknown): UserPreferences {
+function processUserPreferences(prefs: UserPreferences): void {
     try {
-      return UserPreferencesSchema.parse(input);
+        PreferenceValidator.validateAndThrow(prefs);
+        console.log('Preferences validated successfully:', prefs);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
-      }
-      throw error;
+        console.error('Failed to process preferences:', error.message);
     }
-  }
-
-  static getDefaults(): UserPreferences {
-    return UserPreferencesSchema.parse({});
-  }
-
-  static mergeWithDefaults(partial: Partial<UserPreferences>): UserPreferences {
-    const defaults = this.getDefaults();
-    return this.validate({ ...defaults, ...partial });
-  }
-}
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  fontSize: number;
-  language: string;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  fontSize: 14,
-  language: 'en-US'
-};
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-
-class PreferencesValidator {
-  static validate(preferences: Partial<UserPreferences>): UserPreferences {
-    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-
-    if (preferences.theme && ['light', 'dark', 'auto'].includes(preferences.theme)) {
-      validated.theme = preferences.theme;
-    }
-
-    if (typeof preferences.notifications === 'boolean') {
-      validated.notifications = preferences.notifications;
-    }
-
-    if (typeof preferences.fontSize === 'number' && preferences.fontSize >= 8 && preferences.fontSize <= 24) {
-      validated.fontSize = preferences.fontSize;
-    }
-
-    if (preferences.language && VALID_LANGUAGES.includes(preferences.language)) {
-      validated.language = preferences.language;
-    }
-
-    return validated;
-  }
-
-  static validateStrict(preferences: Partial<UserPreferences>): UserPreferences {
-    const result = this.validate(preferences);
-    
-    if (preferences.theme && !['light', 'dark', 'auto'].includes(preferences.theme)) {
-      throw new Error(`Invalid theme: ${preferences.theme}`);
-    }
-
-    if (preferences.language && !VALID_LANGUAGES.includes(preferences.language)) {
-      throw new Error(`Unsupported language: ${preferences.language}`);
-    }
-
-    if (preferences.fontSize && (preferences.fontSize < 8 || preferences.fontSize > 24)) {
-      throw new Error(`Font size must be between 8 and 24, got: ${preferences.fontSize}`);
-    }
-
-    return result;
-  }
-}
-
-export { UserPreferences, PreferencesValidator };
+export { UserPreferences, PreferenceValidator, processUserPreferences };
+```
