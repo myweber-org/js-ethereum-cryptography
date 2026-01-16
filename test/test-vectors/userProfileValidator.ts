@@ -31,4 +31,27 @@ export function validateUserProfile(data: unknown): UserProfile {
 
 export function safeValidateUserProfile(data: unknown) {
   return userProfileSchema.safeParse(data);
+}import { z } from 'zod';
+
+const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+
+export const userProfileUpdateSchema = z.object({
+  username: z.string().min(3).max(30).optional(),
+  email: z.string().email().optional(),
+  phoneNumber: z.string().regex(phoneRegex, 'Invalid phone number format').optional(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  preferences: z.object({
+    newsletter: z.boolean().optional(),
+    theme: z.enum(['light', 'dark', 'auto']).optional(),
+    language: z.string().length(2).optional()
+  }).optional()
+}).refine(
+  (data) => Object.keys(data).length > 0,
+  { message: 'At least one field must be provided for update' }
+);
+
+export type UserProfileUpdateInput = z.infer<typeof userProfileUpdateSchema>;
+
+export function validateUserProfileUpdate(input: unknown): UserProfileUpdateInput {
+  return userProfileUpdateSchema.parse(input);
 }
