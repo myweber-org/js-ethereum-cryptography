@@ -38,4 +38,64 @@ function mergePreferences(existing: UserPreferences, updates: Partial<UserPrefer
   return validatePreferences({ ...existing, ...updates });
 }
 
-export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };export type Theme = 'light' | 'dark' | 'auto';
+export type Language = 'en' | 'es' | 'fr' | 'de';
+
+export interface UserPreferences {
+  theme: Theme;
+  language: Language;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en',
+  notificationsEnabled: true,
+  fontSize: 16,
+};
+
+export class PreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem('userPreferences');
+    if (stored) {
+      try {
+        return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+      } catch {
+        return DEFAULT_PREFERENCES;
+      }
+    }
+    return DEFAULT_PREFERENCES;
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
+    this.savePreferences();
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+  }
+
+  resetToDefaults(): void {
+    this.preferences = DEFAULT_PREFERENCES;
+    this.savePreferences();
+  }
+
+  isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
+  }
+}
