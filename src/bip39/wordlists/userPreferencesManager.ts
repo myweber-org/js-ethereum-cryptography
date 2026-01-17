@@ -17,7 +17,8 @@ class UserPreferencesManager {
     const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
       } catch {
         return this.getDefaultPreferences();
       }
@@ -34,22 +35,23 @@ class UserPreferencesManager {
     };
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = { ...this.preferences, ...updates };
-    this.validatePreferences();
-    this.savePreferences();
+  private validatePreferences(data: any): UserPreferences {
+    const defaults = this.getDefaultPreferences();
+    
+    return {
+      theme: ['light', 'dark', 'auto'].includes(data.theme) ? data.theme : defaults.theme,
+      notifications: typeof data.notifications === 'boolean' ? data.notifications : defaults.notifications,
+      language: typeof data.language === 'string' && data.language.length === 2 ? data.language : defaults.language,
+      fontSize: typeof data.fontSize === 'number' && data.fontSize >= 8 && data.fontSize <= 24 ? data.fontSize : defaults.fontSize
+    };
   }
 
-  private validatePreferences(): void {
-    if (!['light', 'dark', 'auto'].includes(this.preferences.theme)) {
-      this.preferences.theme = 'auto';
-    }
-    if (typeof this.preferences.notifications !== 'boolean') {
-      this.preferences.notifications = true;
-    }
-    if (typeof this.preferences.fontSize !== 'number' || this.preferences.fontSize < 8 || this.preferences.fontSize > 32) {
-      this.preferences.fontSize = 14;
-    }
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = {
+      ...this.preferences,
+      ...this.validatePreferences(updates)
+    };
+    this.savePreferences();
   }
 
   private savePreferences(): void {
@@ -66,6 +68,13 @@ class UserPreferencesManager {
   resetToDefaults(): void {
     this.preferences = this.getDefaultPreferences();
     this.savePreferences();
+  }
+
+  isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
   }
 }
 
