@@ -416,4 +416,93 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, UserPreferences };
+export { UserPreferencesManager, UserPreferences };typescript
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: boolean;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notifications: true,
+  fontSize: 14,
+  autoSave: true
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP'];
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor(initialPreferences?: Partial<UserPreferences>) {
+    this.preferences = { ...DEFAULT_PREFERENCES, ...initialPreferences };
+    this.validateAndNormalize();
+  }
+
+  private validateAndNormalize(): void {
+    if (!['light', 'dark', 'auto'].includes(this.preferences.theme)) {
+      this.preferences.theme = DEFAULT_PREFERENCES.theme;
+    }
+
+    if (!VALID_LANGUAGES.includes(this.preferences.language)) {
+      this.preferences.language = DEFAULT_PREFERENCES.language;
+    }
+
+    if (typeof this.preferences.notifications !== 'boolean') {
+      this.preferences.notifications = DEFAULT_PREFERENCES.notifications;
+    }
+
+    if (typeof this.preferences.fontSize !== 'number' || 
+        this.preferences.fontSize < MIN_FONT_SIZE || 
+        this.preferences.fontSize > MAX_FONT_SIZE) {
+      this.preferences.fontSize = DEFAULT_PREFERENCES.fontSize;
+    }
+
+    if (typeof this.preferences.autoSave !== 'boolean') {
+      this.preferences.autoSave = DEFAULT_PREFERENCES.autoSave;
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
+    this.validateAndNormalize();
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+  }
+
+  exportAsJSON(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importFromJSON(jsonString: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonString);
+      this.updatePreferences(parsed);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  isDarkModePreferred(): boolean {
+    if (this.preferences.theme === 'dark') return true;
+    if (this.preferences.theme === 'light') return false;
+    
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
+```
