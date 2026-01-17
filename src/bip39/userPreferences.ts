@@ -1,42 +1,56 @@
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
+  theme: 'light' | 'dark';
   language: string;
   notificationsEnabled: boolean;
-  itemsPerPage: number;
+  fontSize: number;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  language: 'en-US',
-  notificationsEnabled: true,
-  itemsPerPage: 25
-};
+function validatePreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark'];
+  const minFontSize = 8;
+  const maxFontSize = 72;
 
-function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
-  
-  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = DEFAULT_PREFERENCES.theme;
+  if (!validThemes.includes(prefs.theme)) {
+    console.error('Invalid theme selected');
+    return false;
   }
-  
-  if (typeof validated.language !== 'string' || validated.language.trim() === '') {
-    validated.language = DEFAULT_PREFERENCES.language;
+
+  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
+    console.error('Language must be a non-empty string');
+    return false;
   }
-  
-  if (typeof validated.notificationsEnabled !== 'boolean') {
-    validated.notificationsEnabled = DEFAULT_PREFERENCES.notificationsEnabled;
+
+  if (typeof prefs.notificationsEnabled !== 'boolean') {
+    console.error('NotificationsEnabled must be a boolean');
+    return false;
   }
-  
-  if (!Number.isInteger(validated.itemsPerPage) || validated.itemsPerPage < 1 || validated.itemsPerPage > 100) {
-    validated.itemsPerPage = DEFAULT_PREFERENCES.itemsPerPage;
+
+  if (typeof prefs.fontSize !== 'number' || 
+      prefs.fontSize < minFontSize || 
+      prefs.fontSize > maxFontSize) {
+    console.error(`Font size must be between ${minFontSize} and ${maxFontSize}`);
+    return false;
   }
-  
-  return validated;
+
+  return true;
 }
 
-function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validatePreferences(merged);
+function updateUserPreferences(newPrefs: Partial<UserPreferences>): UserPreferences {
+  const defaultPreferences: UserPreferences = {
+    theme: 'light',
+    language: 'en',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  const mergedPreferences = { ...defaultPreferences, ...newPrefs };
+  
+  if (validatePreferences(mergedPreferences)) {
+    return mergedPreferences;
+  } else {
+    console.warn('Invalid preferences provided, returning defaults');
+    return defaultPreferences;
+  }
 }
 
-export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
+export { UserPreferences, validatePreferences, updateUserPreferences };
