@@ -114,4 +114,35 @@ function mergePreferences(
   return validatePreferences({ ...existing, ...updates });
 }
 
-export { UserPreferences, validatePreferences, mergePreferences, DEFAULT_PREFERENCES };
+export { UserPreferences, validatePreferences, mergePreferences, DEFAULT_PREFERENCES };interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+function validateUserPreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark'];
+  const maxItemsPerPage = 100;
+  const minItemsPerPage = 5;
+
+  if (!validThemes.includes(prefs.theme)) {
+    return false;
+  }
+
+  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
+    return false;
+  }
+
+  if (typeof prefs.notificationsEnabled !== 'boolean') {
+    return false;
+  }
+
+  if (!Number.isInteger(prefs.itemsPerPage) || 
+      prefs.itemsPerPage < minItemsPerPage || 
+      prefs.itemsPerPage > maxItemsPerPage) {
+    return false;
+  }
+
+  return true;
+}
