@@ -103,4 +103,61 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: string[] = [];
+  
+  if (!prefs.theme || !['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be either light, dark, or auto');
+  }
+  
+  if (prefs.notifications === undefined) {
+    errors.push('Notifications preference is required');
+  }
+  
+  if (!prefs.language || typeof prefs.language !== 'string' || prefs.language.length < 2) {
+    errors.push('Language must be a string with at least 2 characters');
+  }
+  
+  if (!prefs.timezone || !/^[A-Za-z_]+\/[A-Za-z_]+$/.test(prefs.timezone)) {
+    errors.push('Timezone must be in format Area/Location');
+  }
+  
+  if (errors.length > 0) {
+    throw new PreferenceValidationError(
+      `Invalid preferences: ${errors.join('; ')}`,
+      'user_preferences'
+    );
+  }
+  
+  return prefs as UserPreferences;
+}
+
+function saveUserPreferences(userId: string, preferences: Partial<UserPreferences>): void {
+  try {
+    const validatedPrefs = validateUserPreferences(preferences);
+    console.log(`Saving preferences for user ${userId}:`, validatedPrefs);
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.error(`Validation failed for ${error.field}:`, error.message);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+    throw error;
+  }
+}
+
+export { validateUserPreferences, saveUserPreferences, PreferenceValidationError };
