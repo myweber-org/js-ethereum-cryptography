@@ -64,4 +64,71 @@ export class UserRegistrationService {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
+}import { z } from 'zod';
+import { DatabaseClient } from './database';
+import { hashPassword, generateSalt } from './crypto';
+
+const UserSchema = z.object({
+  username: z.string().min(3).max(50),
+  email: z.string().email(),
+  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
+});
+
+export class UserRegistrationService {
+  private db: DatabaseClient;
+
+  constructor(dbClient: DatabaseClient) {
+    this.db = dbClient;
+  }
+
+  async registerUser(userData: unknown): Promise<{ success: boolean; userId?: string; errors?: string[] }> {
+    const validationResult = UserSchema.safeParse(userData);
+    
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map(err => err.message);
+      return { success: false, errors };
+    }
+
+    const { username, email, password } = validationResult.data;
+    
+    try {
+      const existingUser = await this.db.query(
+        'SELECT id FROM users WHERE email = $1 OR username = $2',
+        [email, username]
+      );
+
+      if (existingUser.rows.length > 0) {
+        return { 
+          success: false, 
+          errors: ['User with this email or username already exists'] 
+        };
+      }
+
+      const salt = generateSalt();
+      const hashedPassword = await hashPassword(password, salt);
+      
+      const result = await this.db.query(
+        `INSERT INTO users (username, email, password_hash, salt, created_at) 
+         VALUES ($1, $2, $3, $4, NOW()) 
+         RETURNING id`,
+        [username, email, hashedPassword, salt]
+      );
+
+      await this.db.query(
+        'INSERT INTO user_profiles (user_id) VALUES ($1)',
+        [result.rows[0].id]
+      );
+
+      return { 
+        success: true, 
+        userId: result.rows[0].id 
+      };
+    } catch (error) {
+      console.error('Registration failed:', error);
+      return { 
+        success: false, 
+        errors: ['Internal server error during registration'] 
+      };
+    }
+  }
 }
