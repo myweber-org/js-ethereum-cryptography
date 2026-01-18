@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const userProfileSchema = z.object({
+const UserProfileSchema = z.object({
   username: z
     .string()
     .min(3, 'Username must be at least 3 characters')
@@ -25,32 +25,31 @@ const userProfileSchema = z.object({
   
   createdAt: z
     .date()
-    .default(() => new Date())
+    .max(new Date(), 'Creation date cannot be in the future')
 });
 
-type UserProfile = z.infer<typeof userProfileSchema>;
+type UserProfile = z.infer<typeof UserProfileSchema>;
 
 export function validateUserProfile(data: unknown): UserProfile {
   try {
-    return userProfileSchema.parse(data);
+    return UserProfileSchema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      const errorMessages = error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      );
       throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
     }
     throw error;
   }
 }
 
-export function createDefaultProfile(): UserProfile {
-  return userProfileSchema.parse({
-    username: '',
-    email: '',
-    age: 18,
+export function createDefaultProfile(): Partial<UserProfile> {
+  return {
     preferences: {
       newsletter: false,
       theme: 'auto',
       language: 'en'
     }
-  });
+  };
 }
