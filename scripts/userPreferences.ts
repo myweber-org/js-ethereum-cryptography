@@ -2,72 +2,6 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  fontSize: number;
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  fontSize: 14
-};
-
-class UserPreferencesService {
-  private readonly STORAGE_KEY = 'user_preferences';
-  
-  getPreferences(): UserPreferences {
-    const stored = localStorage.getItem(this.STORAGE_KEY);
-    if (!stored) return { ...DEFAULT_PREFERENCES };
-    
-    try {
-      const parsed = JSON.parse(stored);
-      return this.validateAndMerge(parsed);
-    } catch {
-      return { ...DEFAULT_PREFERENCES };
-    }
-  }
-  
-  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
-    const current = this.getPreferences();
-    const merged = { ...current, ...updates };
-    const validated = this.validateAndMerge(merged);
-    
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(validated));
-    return validated;
-  }
-  
-  resetToDefaults(): UserPreferences {
-    localStorage.removeItem(this.STORAGE_KEY);
-    return { ...DEFAULT_PREFERENCES };
-  }
-  
-  private validateAndMerge(data: any): UserPreferences {
-    const result = { ...DEFAULT_PREFERENCES };
-    
-    if (typeof data.theme === 'string' && ['light', 'dark', 'auto'].includes(data.theme)) {
-      result.theme = data.theme;
-    }
-    
-    if (typeof data.notifications === 'boolean') {
-      result.notifications = data.notifications;
-    }
-    
-    if (typeof data.language === 'string' && data.language.length >= 2) {
-      result.language = data.language;
-    }
-    
-    if (typeof data.fontSize === 'number' && data.fontSize >= 8 && data.fontSize <= 32) {
-      result.fontSize = data.fontSize;
-    }
-    
-    return result;
-  }
-}
-
-export const userPreferencesService = new UserPreferencesService();interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
   resultsPerPage: number;
 }
 
@@ -83,66 +17,46 @@ const MIN_RESULTS_PER_PAGE = 5;
 const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
 
-  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-    validated.theme = prefs.theme;
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
   }
 
-  if (typeof prefs.notifications === 'boolean') {
-    validated.notifications = prefs.notifications;
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
   }
 
-  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
-    validated.language = prefs.language;
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
   }
 
-  if (typeof prefs.resultsPerPage === 'number') {
-    validated.resultsPerPage = Math.max(
-      MIN_RESULTS_PER_PAGE,
-      Math.min(MAX_RESULTS_PER_PAGE, prefs.resultsPerPage)
-    );
+  if (typeof validated.resultsPerPage !== 'number' ||
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE ||
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
   }
 
   return validated;
 }
 
-function mergePreferences(
-  existing: UserPreferences,
-  updates: Partial<UserPreferences>
-): UserPreferences {
-  return validatePreferences({ ...existing, ...updates });
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validated = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validated));
 }
 
-export { UserPreferences, validatePreferences, mergePreferences, DEFAULT_PREFERENCES };interface UserPreferences {
-  theme: 'light' | 'dark';
-  language: string;
-  notificationsEnabled: boolean;
-  itemsPerPage: number;
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) {
+    return DEFAULT_PREFERENCES;
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
+  }
 }
 
-function validateUserPreferences(prefs: UserPreferences): boolean {
-  const validThemes = ['light', 'dark'];
-  const maxItemsPerPage = 100;
-  const minItemsPerPage = 5;
-
-  if (!validThemes.includes(prefs.theme)) {
-    return false;
-  }
-
-  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
-    return false;
-  }
-
-  if (typeof prefs.notificationsEnabled !== 'boolean') {
-    return false;
-  }
-
-  if (!Number.isInteger(prefs.itemsPerPage) || 
-      prefs.itemsPerPage < minItemsPerPage || 
-      prefs.itemsPerPage > maxItemsPerPage) {
-    return false;
-  }
-
-  return true;
-}
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
