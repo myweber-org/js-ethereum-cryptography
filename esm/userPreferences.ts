@@ -621,4 +621,48 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+function validateUserPreferences(prefs: any): prefs is UserPreferences {
+  if (!prefs || typeof prefs !== 'object') return false;
+  
+  const validThemes = ['light', 'dark', 'auto'];
+  if (!validThemes.includes(prefs.theme)) return false;
+  
+  if (typeof prefs.notifications !== 'boolean') return false;
+  
+  if (typeof prefs.language !== 'string' || prefs.language.length < 2) return false;
+  
+  if (typeof prefs.itemsPerPage !== 'number' || 
+      prefs.itemsPerPage < 5 || 
+      prefs.itemsPerPage > 100) return false;
+  
+  return true;
+}
+
+function saveUserPreferences(prefs: UserPreferences): void {
+  localStorage.setItem('userPreferences', JSON.stringify(prefs));
+}
+
+function loadUserPreferences(): UserPreferences | null {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) return null;
+  
+  try {
+    const parsed = JSON.parse(stored);
+    if (validateUserPreferences(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  
+  return null;
+}
+
+export { UserPreferences, validateUserPreferences, saveUserPreferences, loadUserPreferences };
