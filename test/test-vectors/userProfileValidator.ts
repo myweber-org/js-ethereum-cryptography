@@ -54,4 +54,26 @@ export type UserProfileUpdateInput = z.infer<typeof userProfileUpdateSchema>;
 
 export function validateUserProfileUpdate(input: unknown): UserProfileUpdateInput {
   return userProfileUpdateSchema.parse(input);
+}import { z } from 'zod';
+
+const userProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'auto']),
+    notifications: z.boolean().default(true)
+  }).default({ theme: 'auto', notifications: true }),
+  lastActive: z.date().optional()
+});
+
+type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(input: unknown): UserProfile {
+  return userProfileSchema.parse(input);
+}
+
+export function safeValidateUserProfile(input: unknown) {
+  return userProfileSchema.safeParse(input);
 }
