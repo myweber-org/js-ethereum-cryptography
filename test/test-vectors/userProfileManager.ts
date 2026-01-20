@@ -3,7 +3,7 @@ interface UserProfile {
   id: string;
   username: string;
   email: string;
-  age?: number;
+  age: number;
   isActive: boolean;
   lastLogin: Date;
 }
@@ -11,44 +11,41 @@ interface UserProfile {
 class UserProfileManager {
   private profiles: Map<string, UserProfile> = new Map();
 
-  addProfile(profile: UserProfile): void {
+  addProfile(profile: UserProfile): boolean {
     if (this.profiles.has(profile.id)) {
-      throw new Error(`Profile with id ${profile.id} already exists`);
+      console.error(`Profile with ID ${profile.id} already exists`);
+      return false;
     }
 
-    if (!this.validateEmail(profile.email)) {
-      throw new Error(`Invalid email format: ${profile.email}`);
+    if (!this.validateProfile(profile)) {
+      return false;
     }
 
-    if (profile.age !== undefined && profile.age < 0) {
-      throw new Error(`Age cannot be negative: ${profile.age}`);
-    }
-
-    this.profiles.set(profile.id, { ...profile });
+    this.profiles.set(profile.id, profile);
+    console.log(`Profile added for user: ${profile.username}`);
+    return true;
   }
 
-  updateProfile(id: string, updates: Partial<UserProfile>): UserProfile | null {
+  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
     const existingProfile = this.profiles.get(id);
     if (!existingProfile) {
-      return null;
+      console.error(`Profile with ID ${id} not found`);
+      return false;
     }
 
     const updatedProfile = { ...existingProfile, ...updates };
-
-    if (updates.email && !this.validateEmail(updates.email)) {
-      throw new Error(`Invalid email format: ${updates.email}`);
-    }
-
-    if (updates.age !== undefined && updates.age < 0) {
-      throw new Error(`Age cannot be negative: ${updates.age}`);
+    
+    if (!this.validateProfile(updatedProfile)) {
+      return false;
     }
 
     this.profiles.set(id, updatedProfile);
-    return updatedProfile;
+    console.log(`Profile updated for user: ${updatedProfile.username}`);
+    return true;
   }
 
-  getProfile(id: string): UserProfile | null {
-    return this.profiles.get(id) || null;
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
   }
 
   deactivateProfile(id: string): boolean {
@@ -57,7 +54,9 @@ class UserProfileManager {
       return false;
     }
 
-    this.profiles.set(id, { ...profile, isActive: false });
+    profile.isActive = false;
+    this.profiles.set(id, profile);
+    console.log(`Profile deactivated for user: ${profile.username}`);
     return true;
   }
 
@@ -67,10 +66,44 @@ class UserProfileManager {
       .sort((a, b) => b.lastLogin.getTime() - a.lastLogin.getTime());
   }
 
-  private validateEmail(email: string): boolean {
+  private validateProfile(profile: UserProfile): boolean {
+    if (!profile.id || profile.id.trim().length === 0) {
+      console.error('Profile ID is required');
+      return false;
+    }
+
+    if (!profile.username || profile.username.trim().length < 3) {
+      console.error('Username must be at least 3 characters long');
+      return false;
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    if (!profile.email || !emailRegex.test(profile.email)) {
+      console.error('Invalid email format');
+      return false;
+    }
+
+    if (profile.age < 0 || profile.age > 150) {
+      console.error('Age must be between 0 and 150');
+      return false;
+    }
+
+    return true;
   }
 }
 
-export { UserProfileManager, UserProfile };
+const profileManager = new UserProfileManager();
+
+const newUser: UserProfile = {
+  id: 'user-123',
+  username: 'john_doe',
+  email: 'john@example.com',
+  age: 30,
+  isActive: true,
+  lastLogin: new Date()
+};
+
+profileManager.addProfile(newUser);
+profileManager.updateProfile('user-123', { age: 31 });
+const retrievedProfile = profileManager.getProfile('user-123');
+const activeProfiles = profileManager.getActiveProfiles();
