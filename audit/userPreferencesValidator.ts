@@ -1,53 +1,54 @@
 import { z } from 'zod';
 
-const PreferenceSchema = z.object({
+const UserPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).default('auto'),
   notifications: z.object({
     email: z.boolean().default(true),
     push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
   }),
   privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }).default({})
-}).strict();
+    profileVisible: z.boolean().default(true),
+    searchIndexed: z.boolean().default(false)
+  }),
+  language: z.string().min(2).max(5).default('en')
+});
 
-type UserPreferences = z.infer<typeof PreferenceSchema>;
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        path: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Invalid preferences: ${JSON.stringify(formattedErrors)}`);
+export class PreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor(initialData?: Partial<UserPreferences>) {
+    const parsed = UserPreferencesSchema.safeParse(initialData || {});
+    
+    if (!parsed.success) {
+      console.warn('Invalid preferences provided, using defaults:', parsed.error.errors);
+      this.preferences = UserPreferencesSchema.parse({});
+    } else {
+      this.preferences = parsed.data;
     }
-    throw error;
   }
-}
 
-export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const current = PreferenceSchema.partial().parse(existing);
-  const changes = PreferenceSchema.partial().parse(updates);
-  
-  return PreferenceSchema.parse({
-    ...current,
-    ...changes,
-    notifications: {
-      ...current.notifications,
-      ...changes.notifications
-    },
-    privacy: {
-      ...current.privacy,
-      ...changes.privacy
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const merged = { ...this.preferences, ...updates };
+    const parsed = UserPreferencesSchema.safeParse(merged);
+    
+    if (parsed.success) {
+      this.preferences = parsed.data;
+      return true;
     }
-  });
+    
+    console.error('Invalid preference update:', parsed.error.errors);
+    return false;
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return Object.freeze({ ...this.preferences });
+  }
+
+  validateExternalInput(input: unknown): UserPreferences | null {
+    const result = UserPreferencesSchema.safeParse(input);
+    return result.success ? result.data : null;
+  }
 }
