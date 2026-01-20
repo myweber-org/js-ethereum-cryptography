@@ -1,56 +1,41 @@
 interface UserPreferences {
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
   language: string;
-  notificationsEnabled: boolean;
-  fontSize: number;
+  itemsPerPage: number;
 }
 
-function validatePreferences(prefs: UserPreferences): boolean {
-  const validThemes = ['light', 'dark'];
-  const minFontSize = 8;
-  const maxFontSize = 72;
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  itemsPerPage: 25
+};
 
-  if (!validThemes.includes(prefs.theme)) {
-    console.error('Invalid theme selected');
-    return false;
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+    validated.theme = prefs.theme;
   }
 
-  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
-    console.error('Language must be a non-empty string');
-    return false;
+  if (typeof prefs.notifications === 'boolean') {
+    validated.notifications = prefs.notifications;
   }
 
-  if (typeof prefs.notificationsEnabled !== 'boolean') {
-    console.error('NotificationsEnabled must be a boolean');
-    return false;
+  if (prefs.language && typeof prefs.language === 'string') {
+    validated.language = prefs.language;
   }
 
-  if (typeof prefs.fontSize !== 'number' || 
-      prefs.fontSize < minFontSize || 
-      prefs.fontSize > maxFontSize) {
-    console.error(`Font size must be between ${minFontSize} and ${maxFontSize}`);
-    return false;
+  if (prefs.itemsPerPage && Number.isInteger(prefs.itemsPerPage) && prefs.itemsPerPage > 0) {
+    validated.itemsPerPage = prefs.itemsPerPage;
   }
 
-  return true;
+  return validated;
 }
 
-function updateUserPreferences(newPrefs: Partial<UserPreferences>): UserPreferences {
-  const defaultPreferences: UserPreferences = {
-    theme: 'light',
-    language: 'en',
-    notificationsEnabled: true,
-    fontSize: 14
-  };
-
-  const mergedPreferences = { ...defaultPreferences, ...newPrefs };
-  
-  if (validatePreferences(mergedPreferences)) {
-    return mergedPreferences;
-  } else {
-    console.warn('Invalid preferences provided, returning defaults');
-    return defaultPreferences;
-  }
+function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  return validatePreferences({ ...existing, ...updates });
 }
 
-export { UserPreferences, validatePreferences, updateUserPreferences };
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
