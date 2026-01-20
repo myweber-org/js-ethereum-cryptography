@@ -205,4 +205,100 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    notifications: boolean;
+    language: string;
+    fontSize: number;
+    autoSave: boolean;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en-US',
+    fontSize: 14,
+    autoSave: true
+};
+
+const THEMES = ['light', 'dark', 'auto'] as const;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+const SUPPORTED_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+
+class UserPreferencesManager {
+    private preferences: UserPreferences;
+
+    constructor(initialPreferences?: Partial<UserPreferences>) {
+        this.preferences = { ...DEFAULT_PREFERENCES, ...initialPreferences };
+        this.validateAndNormalize();
+    }
+
+    private validateAndNormalize(): void {
+        if (!THEMES.includes(this.preferences.theme)) {
+            this.preferences.theme = DEFAULT_PREFERENCES.theme;
+        }
+
+        if (typeof this.preferences.notifications !== 'boolean') {
+            this.preferences.notifications = DEFAULT_PREFERENCES.notifications;
+        }
+
+        if (!SUPPORTED_LANGUAGES.includes(this.preferences.language)) {
+            this.preferences.language = DEFAULT_PREFERENCES.language;
+        }
+
+        if (typeof this.preferences.fontSize !== 'number' || 
+            this.preferences.fontSize < MIN_FONT_SIZE || 
+            this.preferences.fontSize > MAX_FONT_SIZE) {
+            this.preferences.fontSize = DEFAULT_PREFERENCES.fontSize;
+        }
+
+        if (typeof this.preferences.autoSave !== 'boolean') {
+            this.preferences.autoSave = DEFAULT_PREFERENCES.autoSave;
+        }
+    }
+
+    getPreferences(): UserPreferences {
+        return { ...this.preferences };
+    }
+
+    updatePreferences(updates: Partial<UserPreferences>): void {
+        this.preferences = { ...this.preferences, ...updates };
+        this.validateAndNormalize();
+    }
+
+    resetToDefaults(): void {
+        this.preferences = { ...DEFAULT_PREFERENCES };
+    }
+
+    isDarkMode(): boolean {
+        if (this.preferences.theme === 'auto') {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        return this.preferences.theme === 'dark';
+    }
+
+    saveToStorage(): void {
+        try {
+            localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+        } catch (error) {
+            console.error('Failed to save preferences to storage:', error);
+        }
+    }
+
+    loadFromStorage(): void {
+        try {
+            const stored = localStorage.getItem('userPreferences');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                this.updatePreferences(parsed);
+            }
+        } catch (error) {
+            console.error('Failed to load preferences from storage:', error);
+        }
+    }
+}
+
 export { UserPreferencesManager, type UserPreferences };
+```
