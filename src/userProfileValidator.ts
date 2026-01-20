@@ -1,52 +1,9 @@
-interface UserProfile {
-  name: string;
-  email: string;
-  age: number;
-  isActive: boolean;
-}
-
-class UserProfileValidator {
-  private readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  private readonly MIN_AGE = 18;
-  private readonly MAX_AGE = 120;
-
-  validate(profile: UserProfile): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (!profile.name || profile.name.trim().length < 2) {
-      errors.push('Name must be at least 2 characters long');
-    }
-
-    if (!this.EMAIL_REGEX.test(profile.email)) {
-      errors.push('Email format is invalid');
-    }
-
-    if (profile.age < this.MIN_AGE || profile.age > this.MAX_AGE) {
-      errors.push(`Age must be between ${this.MIN_AGE} and ${this.MAX_AGE}`);
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  createDefaultProfile(): UserProfile {
-    return {
-      name: '',
-      email: '',
-      age: 0,
-      isActive: false
-    };
-  }
-}
-
-export { UserProfileValidator, UserProfile };import { z } from 'zod';
+import { z } from 'zod';
 
 const UserProfileSchema = z.object({
   username: z
     .string()
-    .min(3, 'Username must be at least 3 characters')
+    .min(3, 'Username must be at least 3 characters long')
     .max(20, 'Username cannot exceed 20 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   
@@ -61,14 +18,14 @@ const UserProfileSchema = z.object({
     .max(120, 'Please provide a valid age'),
   
   preferences: z.object({
-    newsletter: z.boolean(),
     theme: z.enum(['light', 'dark', 'auto']),
-    language: z.string().optional()
-  }),
+    notifications: z.boolean(),
+    language: z.string().default('en')
+  }).optional(),
   
   createdAt: z
     .date()
-    .max(new Date(), 'Creation date cannot be in the future')
+    .default(() => new Date())
 });
 
 type UserProfile = z.infer<typeof UserProfileSchema>;
@@ -87,4 +44,16 @@ function validateUserProfile(data: unknown): UserProfile {
   }
 }
 
-export { UserProfileSchema, validateUserProfile, type UserProfile };
+function createDefaultProfile(): UserProfile {
+  return UserProfileSchema.parse({
+    username: 'new_user',
+    email: 'user@example.com',
+    age: 25,
+    preferences: {
+      theme: 'auto',
+      notifications: true
+    }
+  });
+}
+
+export { UserProfileSchema, validateUserProfile, createDefaultProfile, type UserProfile };
