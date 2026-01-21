@@ -56,4 +56,24 @@ function createDefaultProfile(): UserProfile {
   });
 }
 
-export { UserProfileSchema, validateUserProfile, createDefaultProfile, type UserProfile };
+export { UserProfileSchema, validateUserProfile, createDefaultProfile, type UserProfile };import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  email: z.string().email('Invalid email format'),
+  age: z.number().int().min(18, 'Must be at least 18 years old').max(120, 'Age must be realistic'),
+  preferences: z.object({
+    newsletter: z.boolean(),
+    theme: z.enum(['light', 'dark', 'auto'])
+  }).optional()
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  return UserProfileSchema.parse(data);
+}
+
+export function safeValidateUserProfile(data: unknown) {
+  return UserProfileSchema.safeParse(data);
+}
