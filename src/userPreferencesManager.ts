@@ -394,4 +394,102 @@ class UserPreferencesManager {
   }
 }
 
+export const preferencesManager = new UserPreferencesManager();typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    language: string;
+    notificationsEnabled: boolean;
+    itemsPerPage: number;
+    lastUpdated?: Date;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    itemsPerPage: 25
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_ITEMS_PER_PAGE = 5;
+const MAX_ITEMS_PER_PAGE = 100;
+
+class UserPreferencesManager {
+    private preferences: UserPreferences;
+
+    constructor() {
+        this.preferences = this.loadPreferences();
+    }
+
+    private loadPreferences(): UserPreferences {
+        try {
+            const stored = localStorage.getItem('userPreferences');
+            if (!stored) return { ...DEFAULT_PREFERENCES };
+
+            const parsed = JSON.parse(stored);
+            return this.validateAndMerge(parsed);
+        } catch {
+            return { ...DEFAULT_PREFERENCES };
+        }
+    }
+
+    private validateAndMerge(partial: Partial<UserPreferences>): UserPreferences {
+        const merged = { ...DEFAULT_PREFERENCES, ...partial };
+
+        if (!['light', 'dark', 'auto'].includes(merged.theme)) {
+            merged.theme = DEFAULT_PREFERENCES.theme;
+        }
+
+        if (!VALID_LANGUAGES.includes(merged.language)) {
+            merged.language = DEFAULT_PREFERENCES.language;
+        }
+
+        if (typeof merged.notificationsEnabled !== 'boolean') {
+            merged.notificationsEnabled = DEFAULT_PREFERENCES.notificationsEnabled;
+        }
+
+        if (typeof merged.itemsPerPage !== 'number' || 
+            merged.itemsPerPage < MIN_ITEMS_PER_PAGE || 
+            merged.itemsPerPage > MAX_ITEMS_PER_PAGE) {
+            merged.itemsPerPage = DEFAULT_PREFERENCES.itemsPerPage;
+        }
+
+        return merged;
+    }
+
+    updatePreferences(updates: Partial<UserPreferences>): boolean {
+        try {
+            const newPreferences = this.validateAndMerge({
+                ...this.preferences,
+                ...updates,
+                lastUpdated: new Date()
+            });
+
+            this.preferences = newPreferences;
+            localStorage.setItem('userPreferences', JSON.stringify(newPreferences));
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    getPreferences(): Readonly<UserPreferences> {
+        return { ...this.preferences };
+    }
+
+    resetToDefaults(): boolean {
+        return this.updatePreferences(DEFAULT_PREFERENCES);
+    }
+
+    getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+        return this.preferences[key];
+    }
+
+    hasCustomPreferences(): boolean {
+        const stored = localStorage.getItem('userPreferences');
+        return stored !== null && stored !== JSON.stringify(DEFAULT_PREFERENCES);
+    }
+}
+
 export const preferencesManager = new UserPreferencesManager();
+```
