@@ -12,6 +12,9 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   resultsPerPage: 20
 };
 
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
+
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
   const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
 
@@ -23,11 +26,11 @@ function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
     validated.notifications = prefs.notifications;
   }
 
-  if (prefs.language && typeof prefs.language === 'string') {
+  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
     validated.language = prefs.language;
   }
 
-  if (prefs.resultsPerPage && Number.isInteger(prefs.resultsPerPage) && prefs.resultsPerPage > 0) {
+  if (prefs.resultsPerPage && VALID_RESULTS_PER_PAGE.includes(prefs.resultsPerPage)) {
     validated.resultsPerPage = prefs.resultsPerPage;
   }
 
