@@ -2,15 +2,18 @@ import { z } from 'zod';
 
 const UserPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
   language: z.string().min(2).default('en'),
-  notificationsEnabled: z.boolean().default(true),
-  fontSize: z.number().min(8).max(32).default(14),
-  autoSaveInterval: z.number().min(0).max(300).default(30)
+  resultsPerPage: z.number().min(5).max(100).default(25)
 });
 
 type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-const STORAGE_KEY = 'app_user_preferences';
+const STORAGE_KEY = 'user_preferences';
 
 class UserPreferencesManager {
   private preferences: UserPreferences;
@@ -27,7 +30,7 @@ class UserPreferencesManager {
         return UserPreferencesSchema.parse(parsed);
       }
     } catch (error) {
-      console.warn('Failed to load user preferences:', error);
+      console.warn('Failed to load preferences, using defaults:', error);
     }
     return UserPreferencesSchema.parse({});
   }
@@ -36,7 +39,7 @@ class UserPreferencesManager {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
     } catch (error) {
-      console.error('Failed to save user preferences:', error);
+      console.error('Failed to save preferences:', error);
     }
   }
 
