@@ -1,93 +1,52 @@
-
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
   language: string;
+  notificationsEnabled: boolean;
   fontSize: number;
 }
 
 class UserPreferencesManager {
   private static readonly STORAGE_KEY = 'user_preferences';
-  private static readonly DEFAULT_PREFERENCES: UserPreferences = {
-    theme: 'auto',
-    notifications: true,
-    language: 'en',
-    fontSize: 14
-  };
-
   private preferences: UserPreferences;
+  private listeners: Set<(prefs: UserPreferences) => void> = new Set();
 
-  constructor() {
-    this.preferences = this.loadPreferences();
+  constructor(defaultPreferences: UserPreferences) {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    this.preferences = stored ? JSON.parse(stored) : defaultPreferences;
   }
 
-  public updatePreferences(updates: Partial<UserPreferences>): void {
-    const validatedUpdates = this.validateUpdates(updates);
-    this.preferences = { ...this.preferences, ...validatedUpdates };
-    this.savePreferences();
-  }
-
-  public getPreferences(): Readonly<UserPreferences> {
+  getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
-  public resetToDefaults(): void {
-    this.preferences = { ...UserPreferencesManager.DEFAULT_PREFERENCES };
-    this.savePreferences();
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
+    localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(this.preferences));
+    this.notifyListeners();
   }
 
-  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> {
-    const validated: Partial<UserPreferences> = {};
-
-    if (updates.theme !== undefined) {
-      if (['light', 'dark', 'auto'].includes(updates.theme)) {
-        validated.theme = updates.theme;
-      }
-    }
-
-    if (updates.notifications !== undefined) {
-      validated.notifications = Boolean(updates.notifications);
-    }
-
-    if (updates.language !== undefined) {
-      if (typeof updates.language === 'string' && updates.language.length >= 2) {
-        validated.language = updates.language;
-      }
-    }
-
-    if (updates.fontSize !== undefined) {
-      const size = Number(updates.fontSize);
-      if (!isNaN(size) && size >= 8 && size <= 32) {
-        validated.fontSize = size;
-      }
-    }
-
-    return validated;
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = { ...defaults };
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    this.notifyListeners();
   }
 
-  private loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...UserPreferencesManager.DEFAULT_PREFERENCES, ...parsed };
-      }
-    } catch (error) {
-      console.warn('Failed to load preferences from storage:', error);
-    }
-    return { ...UserPreferencesManager.DEFAULT_PREFERENCES };
+  subscribe(listener: (prefs: UserPreferences) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
-  private savePreferences(): void {
-    try {
-      localStorage.setItem(
-        UserPreferencesManager.STORAGE_KEY,
-        JSON.stringify(this.preferences)
-      );
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
-    }
+  private notifyListeners(): void {
+    const currentPrefs = this.getPreferences();
+    this.listeners.forEach(listener => listener(currentPrefs));
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+const defaultUserPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 16
+};
+
+export const userPrefsManager = new UserPreferencesManager(defaultUserPreferences);
