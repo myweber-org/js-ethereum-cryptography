@@ -1,19 +1,12 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('light'),
-  notifications: z.boolean().default(true),
-  language: z.string().min(2).default('en'),
-  resultsPerPage: z.number().min(5).max(100).default(20),
-  autoSave: z.boolean().default(false),
-  lastUpdated: z.date().optional()
-});
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-const STORAGE_KEY = 'user_preferences_v1';
-
-class PreferencesManager {
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
   constructor() {
@@ -21,62 +14,63 @@ class PreferencesManager {
   }
 
   private loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
-        return PreferenceSchema.parse(parsed);
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return this.validatePreferences(JSON.parse(stored));
+      } catch {
+        return this.getDefaultPreferences();
       }
-    } catch (error) {
-      console.warn('Failed to load preferences, using defaults:', error);
     }
-    return PreferenceSchema.parse({});
+    return this.getDefaultPreferences();
   }
 
-  private savePreferences(): void {
-    try {
-      const data = { ...this.preferences, lastUpdated: new Date() };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
-    }
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 14
+    };
   }
 
-  getPreferences(): Readonly<UserPreferences> {
-    return { ...this.preferences };
+  private validatePreferences(data: any): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const theme = validThemes.includes(data.theme) ? data.theme : 'auto';
+    const notifications = typeof data.notifications === 'boolean' ? data.notifications : true;
+    const language = typeof data.language === 'string' ? data.language : 'en';
+    const fontSize = typeof data.fontSize === 'number' && data.fontSize >= 8 && data.fontSize <= 32 ? data.fontSize : 14;
+
+    return { theme, notifications, language, fontSize };
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    try {
-      const merged = { ...this.preferences, ...updates };
-      const validated = PreferenceSchema.parse(merged);
-      this.preferences = validated;
-      this.savePreferences();
-      return true;
-    } catch (error) {
-      console.error('Invalid preferences update:', error);
-      return false;
-    }
-  }
-
-  resetToDefaults(): void {
-    this.preferences = PreferenceSchema.parse({});
+  public updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
     this.savePreferences();
   }
 
-  hasValidPreferences(): boolean {
-    try {
-      PreferenceSchema.parse(this.preferences);
-      return true;
-    } catch {
-      return false;
-    }
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
   }
 
-  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
-    return this.preferences[key];
+  public getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  public resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
+  }
+
+  public isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
   }
 }
 
-export const preferencesManager = new PreferencesManager();
+export { UserPreferencesManager, type UserPreferences };
