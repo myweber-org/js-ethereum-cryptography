@@ -375,4 +375,70 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  language: z.string().min(2).default('en'),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    dataSharing: z.boolean().default(false)
+  })
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(initialData?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences(initialData);
+  }
+
+  private loadPreferences(initialData?: Partial<UserPreferences>): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : {};
+      const merged = { ...parsed, ...initialData };
+      return UserPreferencesSchema.parse(merged);
+    } catch {
+      return UserPreferencesSchema.parse(initialData || {});
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const current = this.preferences;
+    const merged = { ...current, ...updates };
+    this.preferences = UserPreferencesSchema.parse(merged);
+    this.persistPreferences();
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = UserPreferencesSchema.parse({});
+    this.persistPreferences();
+  }
+
+  private persistPreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  validateExternalData(data: unknown): UserPreferences {
+    return UserPreferencesSchema.parse(data);
+  }
+}
+
+export { UserPreferencesManager, UserPreferencesSchema };
+export type { UserPreferences };
