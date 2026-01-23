@@ -48,4 +48,64 @@ function safeValidateUserProfile(data: unknown) {
 }
 
 export { userProfileSchema, validateUserProfile, safeValidateUserProfile };
-export type { UserProfile };
+export type { UserProfile };interface UserProfile {
+  name: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+}
+
+class UserProfileValidator {
+  private readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private readonly MIN_AGE = 18;
+  private readonly MAX_AGE = 120;
+
+  validateEmail(email: string): boolean {
+    return this.EMAIL_REGEX.test(email);
+  }
+
+  validateAge(age: number): boolean {
+    return age >= this.MIN_AGE && age <= this.MAX_AGE;
+  }
+
+  validateProfile(profile: UserProfile): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!profile.name.trim()) {
+      errors.push('Name cannot be empty');
+    }
+
+    if (!this.validateEmail(profile.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (!this.validateAge(profile.age)) {
+      errors.push(`Age must be between ${this.MIN_AGE} and ${this.MAX_AGE}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+  }
+
+  createValidProfile(name: string, email: string, age: number): UserProfile | null {
+    const profile: UserProfile = {
+      name: name,
+      email: email,
+      age: age,
+      isActive: true
+    };
+
+    const validationResult = this.validateProfile(profile);
+    
+    if (validationResult.isValid) {
+      return profile;
+    }
+    
+    console.warn('Profile creation failed:', validationResult.errors);
+    return null;
+  }
+}
+
+export { UserProfile, UserProfileValidator };
