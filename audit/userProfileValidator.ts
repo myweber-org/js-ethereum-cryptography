@@ -53,4 +53,47 @@ export function createDefaultProfile(): Partial<UserProfile> {
     },
     createdAt: new Date()
   };
+}import { z } from 'zod';
+
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  preferences: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+  };
+}
+
+const userProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark']),
+    notifications: z.boolean()
+  })
+});
+
+export function validateUserProfile(data: unknown): UserProfile | null {
+  try {
+    const result = userProfileSchema.parse(data);
+    return result as UserProfile;
+  } catch {
+    return null;
+  }
+}
+
+export function createDefaultProfile(username: string, email: string): UserProfile {
+  return {
+    id: crypto.randomUUID(),
+    username,
+    email,
+    preferences: {
+      theme: 'light',
+      notifications: true
+    }
+  };
 }
