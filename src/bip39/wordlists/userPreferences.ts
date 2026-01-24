@@ -2,19 +2,15 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  resultsPerPage: number;
+  fontSize: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
   notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
+  language: 'en',
+  fontSize: 14
 };
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
-const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
   const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
@@ -27,15 +23,12 @@ function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
     validated.notifications = prefs.notifications;
   }
 
-  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
+  if (prefs.language && typeof prefs.language === 'string') {
     validated.language = prefs.language;
   }
 
-  if (typeof prefs.resultsPerPage === 'number') {
-    validated.resultsPerPage = Math.max(
-      MIN_RESULTS_PER_PAGE,
-      Math.min(MAX_RESULTS_PER_PAGE, prefs.resultsPerPage)
-    );
+  if (prefs.fontSize && typeof prefs.fontSize === 'number' && prefs.fontSize >= 8 && prefs.fontSize <= 24) {
+    validated.fontSize = prefs.fontSize;
   }
 
   return validated;
@@ -48,14 +41,14 @@ function savePreferences(prefs: Partial<UserPreferences>): void {
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
-  if (!stored) return DEFAULT_PREFERENCES;
-
-  try {
-    const parsed = JSON.parse(stored);
-    return validatePreferences(parsed);
-  } catch {
-    return DEFAULT_PREFERENCES;
+  if (stored) {
+    try {
+      return validatePreferences(JSON.parse(stored));
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
   }
+  return DEFAULT_PREFERENCES;
 }
 
 export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
