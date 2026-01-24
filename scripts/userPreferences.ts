@@ -90,4 +90,50 @@ class PreferencesManager {
   }
 }
 
-export const preferencesManager = new PreferencesManager();
+export const preferencesManager = new PreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (prefs.theme && !validThemes.includes(prefs.theme)) {
+    return false;
+  }
+
+  if (prefs.fontSize !== undefined && (prefs.fontSize < 12 || prefs.fontSize > 24)) {
+    return false;
+  }
+
+  if (prefs.language && typeof prefs.language !== 'string') {
+    return false;
+  }
+
+  return true;
+}
+
+function updateUserPreferences(
+  currentPrefs: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences | null {
+  if (!validateUserPreferences(updates)) {
+    return null;
+  }
+
+  return {
+    ...currentPrefs,
+    ...updates
+  };
+}
+
+const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  fontSize: 16
+};
+
+export { UserPreferences, validateUserPreferences, updateUserPreferences, defaultPreferences };
