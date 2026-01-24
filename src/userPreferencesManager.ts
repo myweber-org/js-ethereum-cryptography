@@ -162,4 +162,88 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const userPreferences = new UserPreferencesManager();import { z } from 'zod';
+
+const PreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  fontSize: z.number().min(12).max(24).default(16),
+  notificationsEnabled: z.boolean().default(true),
+  autoSaveInterval: z.number().min(5).max(300).default(30),
+  language: z.string().default('en-US')
+});
+
+type UserPreferences = z.infer<typeof PreferencesSchema>;
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  fontSize: 16,
+  notificationsEnabled: true,
+  autoSaveInterval: 30,
+  language: 'en-US'
+};
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+  private readonly storageKey: string;
+
+  constructor(userId: string) {
+    this.storageKey = `user_prefs_${userId}`;
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (!stored) return { ...DEFAULT_PREFERENCES };
+
+      const parsed = JSON.parse(stored);
+      const validated = PreferencesSchema.parse(parsed);
+      return validated;
+    } catch (error) {
+      console.warn('Failed to load preferences, using defaults:', error);
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  private savePreferences(): void {
+    try {
+      const validated = PreferencesSchema.parse(this.preferences);
+      localStorage.setItem(this.storageKey, JSON.stringify(validated));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    try {
+      const merged = { ...this.preferences, ...updates };
+      const validated = PreferencesSchema.parse(merged);
+      
+      this.preferences = validated;
+      this.savePreferences();
+      return true;
+    } catch (error) {
+      console.error('Invalid preferences update:', error);
+      return false;
+    }
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+  }
+
+  validatePreferences(prefs: unknown): UserPreferences | null {
+    try {
+      return PreferencesSchema.parse(prefs);
+    } catch {
+      return null;
+    }
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
