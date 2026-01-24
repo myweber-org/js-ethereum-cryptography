@@ -13,35 +13,43 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
-  
-  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = DEFAULT_PREFERENCES.theme;
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+    validated.theme = prefs.theme;
   }
-  
-  if (!VALID_LANGUAGES.includes(validated.language)) {
-    validated.language = DEFAULT_PREFERENCES.language;
+
+  if (typeof prefs.notifications === 'boolean') {
+    validated.notifications = prefs.notifications;
   }
-  
-  if (!VALID_RESULTS_PER_PAGE.includes(validated.resultsPerPage)) {
-    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
+
+  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
+    validated.language = prefs.language;
   }
-  
+
+  if (typeof prefs.resultsPerPage === 'number') {
+    validated.resultsPerPage = Math.max(
+      MIN_RESULTS_PER_PAGE,
+      Math.min(MAX_RESULTS_PER_PAGE, prefs.resultsPerPage)
+    );
+  }
+
   return validated;
 }
 
 function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validatedPrefs = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validatedPrefs));
+  const validated = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validated));
 }
 
 function loadPreferences(): UserPreferences {
   const stored = localStorage.getItem('userPreferences');
   if (!stored) return DEFAULT_PREFERENCES;
-  
+
   try {
     const parsed = JSON.parse(stored);
     return validatePreferences(parsed);
