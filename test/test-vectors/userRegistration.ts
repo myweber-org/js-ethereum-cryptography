@@ -1,72 +1,71 @@
-import { v4 as uuidv4 } from 'uuid';
 
-interface User {
-  id: string;
-  email: string;
+interface UserRegistrationData {
   username: string;
-  passwordHash: string;
-  createdAt: Date;
-  isActive: boolean;
+  email: string;
+  password: string;
+  confirmPassword: string;
 }
 
-class UserRegistrationService {
-  private readonly emailRegex: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  private readonly minPasswordLength: number = 8;
+class UserRegistrationValidator {
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly MIN_PASSWORD_LENGTH = 8;
 
-  validateEmail(email: string): boolean {
-    return this.emailRegex.test(email);
+  static validateRegistration(data: UserRegistrationData): string[] {
+    const errors: string[] = [];
+
+    if (!data.username.trim()) {
+      errors.push('Username is required');
+    }
+
+    if (!this.isValidEmail(data.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (!this.isStrongPassword(data.password)) {
+      errors.push(`Password must be at least ${this.MIN_PASSWORD_LENGTH} characters long and contain uppercase, lowercase, and numbers`);
+    }
+
+    if (data.password !== data.confirmPassword) {
+      errors.push('Passwords do not match');
+    }
+
+    return errors;
   }
 
-  validatePassword(password: string): boolean {
-    return password.length >= this.minPasswordLength &&
-           /[A-Z]/.test(password) &&
-           /[a-z]/.test(password) &&
-           /\d/.test(password);
+  private static isValidEmail(email: string): boolean {
+    return this.EMAIL_REGEX.test(email);
   }
 
-  async registerUser(email: string, username: string, password: string): Promise<User> {
-    if (!this.validateEmail(email)) {
-      throw new Error('Invalid email format');
-    }
-
-    if (!this.validatePassword(password)) {
-      throw new Error('Password must be at least 8 characters with uppercase, lowercase and number');
-    }
-
-    const existingUser = await this.checkUserExists(email, username);
-    if (existingUser) {
-      throw new Error('User with this email or username already exists');
-    }
-
-    const passwordHash = await this.hashPassword(password);
+  private static isStrongPassword(password: string): boolean {
+    if (password.length < this.MIN_PASSWORD_LENGTH) return false;
     
-    const newUser: User = {
-      id: uuidv4(),
-      email: email.toLowerCase().trim(),
-      username: username.trim(),
-      passwordHash,
-      createdAt: new Date(),
-      isActive: true
-    };
-
-    await this.saveUserToDatabase(newUser);
-    return newUser;
-  }
-
-  private async checkUserExists(email: string, username: string): Promise<boolean> {
-    // Database query simulation
-    return false;
-  }
-
-  private async hashPassword(password: string): Promise<string> {
-    // Password hashing simulation
-    return `hashed_${password}_${Date.now()}`;
-  }
-
-  private async saveUserToDatabase(user: User): Promise<void> {
-    // Database save operation simulation
-    console.log(`User ${user.id} saved to database`);
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    
+    return hasUpperCase && hasLowerCase && hasNumbers;
   }
 }
 
-export { UserRegistrationService, User };
+function registerUser(registrationData: UserRegistrationData): void {
+  const validationErrors = UserRegistrationValidator.validateRegistration(registrationData);
+  
+  if (validationErrors.length > 0) {
+    console.error('Registration failed:');
+    validationErrors.forEach(error => console.error(`- ${error}`));
+    return;
+  }
+
+  console.log('User registration successful!');
+  console.log(`Username: ${registrationData.username}`);
+  console.log(`Email: ${registrationData.email}`);
+}
+
+const testUser: UserRegistrationData = {
+  username: 'john_doe',
+  email: 'john@example.com',
+  password: 'SecurePass123',
+  confirmPassword: 'SecurePass123'
+};
+
+registerUser(testUser);
