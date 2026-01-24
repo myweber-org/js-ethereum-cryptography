@@ -63,4 +63,51 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, UserPreferences };
+export { UserPreferencesManager, UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'light',
+    language: 'en',
+    notificationsEnabled: true,
+    itemsPerPage: 10
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (!stored) {
+      return this.defaultPreferences;
+    }
+
+    try {
+      const parsed = JSON.parse(stored) as Partial<UserPreferences>;
+      return { ...this.defaultPreferences, ...parsed };
+    } catch {
+      return this.defaultPreferences;
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const updated = { ...current, ...updates };
+    localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(updated));
+    return updated;
+  }
+
+  resetPreferences(): UserPreferences {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    return this.defaultPreferences;
+  }
+
+  hasStoredPreferences(): boolean {
+    return localStorage.getItem(UserPreferencesManager.STORAGE_KEY) !== null;
+  }
+}
+
+export const userPreferences = new UserPreferencesManager();
