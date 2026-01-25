@@ -13,7 +13,8 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const VALID_RESULTS_PER_PAGE = [10, 20, 50, 100];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
 
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
   const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
@@ -26,7 +27,13 @@ function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
     validated.language = DEFAULT_PREFERENCES.language;
   }
   
-  if (!VALID_RESULTS_PER_PAGE.includes(validated.resultsPerPage)) {
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
+  }
+  
+  if (typeof validated.resultsPerPage !== 'number' || 
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
     validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
   }
   
