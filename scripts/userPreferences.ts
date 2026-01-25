@@ -136,4 +136,44 @@ const defaultPreferences: UserPreferences = {
   fontSize: 16
 };
 
-export { UserPreferences, validateUserPreferences, updateUserPreferences, defaultPreferences };
+export { UserPreferences, validateUserPreferences, updateUserPreferences, defaultPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  itemsPerPage: 25
+};
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = 'auto';
+  }
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = true;
+  }
+  
+  if (!validated.language || typeof validated.language !== 'string') {
+    validated.language = 'en-US';
+  }
+  
+  if (!Number.isInteger(validated.itemsPerPage) || validated.itemsPerPage < 1 || validated.itemsPerPage > 100) {
+    validated.itemsPerPage = 25;
+  }
+  
+  return validated;
+}
+
+function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  return validatePreferences({ ...existing, ...updates });
+}
+
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
