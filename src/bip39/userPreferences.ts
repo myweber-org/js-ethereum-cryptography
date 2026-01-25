@@ -1,71 +1,62 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  language: string;
   notifications: boolean;
-  fontSize: number;
+  language: string;
+  resultsPerPage: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
-  language: 'en-US',
   notifications: true,
-  fontSize: 14
+  language: 'en-US',
+  resultsPerPage: 20
 };
 
-class PreferenceManager {
-  private readonly storageKey = 'user_preferences';
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_RESULTS_PER_PAGE = 10;
+const MAX_RESULTS_PER_PAGE = 100;
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
   
-  loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return this.validatePreferences(parsed);
-      }
-    } catch (error) {
-      console.warn('Failed to load preferences:', error);
-    }
-    return { ...DEFAULT_PREFERENCES };
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
   }
-
-  savePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-    const current = this.loadPreferences();
-    const merged = { ...current, ...prefs };
-    const validated = this.validatePreferences(merged);
-    
-    localStorage.setItem(this.storageKey, JSON.stringify(validated));
-    return validated;
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
   }
-
-  resetPreferences(): UserPreferences {
-    localStorage.removeItem(this.storageKey);
-    return { ...DEFAULT_PREFERENCES };
+  
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
   }
+  
+  if (typeof validated.resultsPerPage !== 'number' || 
+      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
+  }
+  
+  return validated;
+}
 
-  private validatePreferences(prefs: any): UserPreferences {
-    const result = { ...DEFAULT_PREFERENCES };
-    
-    if (prefs && typeof prefs === 'object') {
-      if (['light', 'dark', 'auto'].includes(prefs.theme)) {
-        result.theme = prefs.theme;
-      }
-      
-      if (typeof prefs.language === 'string' && prefs.language.length >= 2) {
-        result.language = prefs.language;
-      }
-      
-      if (typeof prefs.notifications === 'boolean') {
-        result.notifications = prefs.notifications;
-      }
-      
-      if (typeof prefs.fontSize === 'number' && prefs.fontSize >= 8 && prefs.fontSize <= 32) {
-        result.fontSize = Math.round(prefs.fontSize);
-      }
-    }
-    
-    return result;
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validatedPrefs = validatePreferences(prefs);
+  localStorage.setItem('userPreferences', JSON.stringify(validatedPrefs));
+}
+
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) {
+    return DEFAULT_PREFERENCES;
+  }
+  
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
   }
 }
 
-export const preferenceManager = new PreferenceManager();
-export type { UserPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
