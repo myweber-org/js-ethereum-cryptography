@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface UserPayload {
-  id: string;
+  userId: string;
   email: string;
   role: string;
 }
@@ -37,7 +37,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   });
 };
 
-export const authorizeRole = (...allowedRoles: string[]) => {
+export const authorizeRole = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
