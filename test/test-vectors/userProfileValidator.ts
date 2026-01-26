@@ -1,27 +1,28 @@
 import { z } from 'zod';
 
-const UserProfileSchema = z.object({
-  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  age: z.number().int().min(18).max(120).optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).default('system'),
-    notifications: z.boolean().default(true)
-  }).default({}),
-  createdAt: z.date().default(() => new Date())
+const addressSchema = z.object({
+  street: z.string().min(1, 'Street is required'),
+  city: z.string().min(1, 'City is required'),
+  postalCode: z.string().regex(/^\d{5}$/, 'Invalid postal code format'),
 });
 
-type UserProfile = z.infer<typeof UserProfileSchema>;
+const userProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(20),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  isActive: z.boolean().default(true),
+  address: addressSchema,
+  tags: z.array(z.string()).max(5),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
 
-function validateUserProfile(input: unknown): UserProfile {
-  try {
-    return UserProfileSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error('Validation failed:', error.errors);
-    }
-    throw new Error('Invalid user profile data');
-  }
+type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  return userProfileSchema.parse(data);
 }
 
-export { UserProfileSchema, type UserProfile, validateUserProfile };
+export function safeValidateUserProfile(data: unknown) {
+  return userProfileSchema.safeParse(data);
+}
