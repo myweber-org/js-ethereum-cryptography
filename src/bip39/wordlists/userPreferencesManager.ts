@@ -1,80 +1,51 @@
 typescript
 interface UserPreferences {
     theme: 'light' | 'dark' | 'auto';
-    language: string;
-    notifications: boolean;
     fontSize: number;
+    notificationsEnabled: boolean;
+    language: string;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
     theme: 'auto',
-    language: 'en-US',
-    notifications: true,
-    fontSize: 14
+    fontSize: 16,
+    notificationsEnabled: true,
+    language: 'en-US'
 };
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_FONT_SIZE = 8;
-const MAX_FONT_SIZE = 32;
 
 class UserPreferencesManager {
     private preferences: UserPreferences;
-    private storageKey: string;
+    private subscribers: Set<(prefs: UserPreferences) => void>;
 
-    constructor(storageKey: string = 'user_preferences') {
-        this.storageKey = storageKey;
+    constructor() {
         this.preferences = this.loadPreferences();
+        this.subscribers = new Set();
     }
 
     private loadPreferences(): UserPreferences {
+        const stored = localStorage.getItem('userPreferences');
+        if (!stored) return { ...DEFAULT_PREFERENCES };
+
         try {
-            const stored = localStorage.getItem(this.storageKey);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                return this.validatePreferences(parsed);
-            }
-        } catch (error) {
-            console.warn('Failed to load preferences from storage:', error);
+            const parsed = JSON.parse(stored);
+            return { ...DEFAULT_PREFERENCES, ...parsed };
+        } catch {
+            return { ...DEFAULT_PREFERENCES };
         }
-        return { ...DEFAULT_PREFERENCES };
     }
 
-    private validatePreferences(prefs: any): UserPreferences {
-        const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-
-        if (typeof prefs.theme === 'string' && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-            validated.theme = prefs.theme as 'light' | 'dark' | 'auto';
-        }
-
-        if (typeof prefs.language === 'string' && VALID_LANGUAGES.includes(prefs.language)) {
-            validated.language = prefs.language;
-        }
-
-        if (typeof prefs.notifications === 'boolean') {
-            validated.notifications = prefs.notifications;
-        }
-
-        if (typeof prefs.fontSize === 'number') {
-            validated.fontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, prefs.fontSize));
-        }
-
-        return validated;
+    private savePreferences(): void {
+        localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+        this.notifySubscribers();
     }
 
-    getPreferences(): Readonly<UserPreferences> {
+    getPreferences(): UserPreferences {
         return { ...this.preferences };
     }
 
-    updatePreferences(updates: Partial<UserPreferences>): boolean {
-        const newPreferences = { ...this.preferences, ...updates };
-        const validated = this.validatePreferences(newPreferences);
-
-        if (JSON.stringify(validated) !== JSON.stringify(this.preferences)) {
-            this.preferences = validated;
-            this.savePreferences();
-            return true;
-        }
-        return false;
+    updatePreferences(updates: Partial<UserPreferences>): void {
+        this.preferences = { ...this.preferences, ...updates };
+        this.savePreferences();
     }
 
     resetToDefaults(): void {
@@ -82,21 +53,20 @@ class UserPreferencesManager {
         this.savePreferences();
     }
 
-    private savePreferences(): void {
-        try {
-            localStorage.setItem(this.storageKey, JSON.stringify(this.preferences));
-        } catch (error) {
-            console.error('Failed to save preferences:', error);
-        }
+    subscribe(callback: (prefs: UserPreferences) => void): () => void {
+        this.subscribers.add(callback);
+        callback(this.preferences);
+        
+        return () => {
+            this.subscribers.delete(callback);
+        };
     }
 
-    isDarkMode(): boolean {
-        if (this.preferences.theme === 'auto') {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
-        return this.preferences.theme === 'dark';
+    private notifySubscribers(): void {
+        const currentPrefs = this.getPreferences();
+        this.subscribers.forEach(callback => callback(currentPrefs));
     }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export const userPreferences = new UserPreferencesManager();
 ```
