@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const userPreferencesSchema = z.object({
+const PreferenceSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).default('auto'),
   notifications: z.object({
     email: z.boolean().default(true),
@@ -8,33 +8,32 @@ export const userPreferencesSchema = z.object({
     frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
   }),
   privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('public'),
-    dataSharing: z.boolean().default(false)
-  }).default({})
-}).refine((data) => {
-  return !(data.privacy.dataSharing && data.privacy.profileVisibility === 'private');
-}, {
-  message: 'Cannot share data while profile is private',
-  path: ['privacy']
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }).default({}),
+  updatedAt: z.date().optional()
 });
 
-export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+type UserPreferences = z.infer<typeof PreferenceSchema>;
 
-export function validateUserPreferences(input: unknown): UserPreferences {
+export function validatePreferences(input: unknown): UserPreferences {
   try {
-    return userPreferencesSchema.parse(input);
+    return PreferenceSchema.parse(input);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        field: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Validation failed: ${JSON.stringify(formattedErrors)}`);
+      console.error('Validation failed:', error.errors);
+      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
     }
     throw error;
   }
 }
 
-export function createDefaultPreferences(): UserPreferences {
-  return userPreferencesSchema.parse({});
+export function getDefaultPreferences(): UserPreferences {
+  return PreferenceSchema.parse({});
+}
+
+export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
+  const current = PreferenceSchema.partial().parse(existing);
+  const merged = { ...current, ...updates };
+  return validatePreferences(merged);
 }
