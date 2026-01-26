@@ -142,4 +142,91 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('light'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  resultsPerPage: z.number().min(5).max(100).default(20),
+  autoSave: z.boolean().default(false),
+  lastUpdated: z.date().optional()
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+class PreferenceManager {
+  private static STORAGE_KEY = 'app_preferences_v2';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(PreferenceManager.STORAGE_KEY);
+      if (!stored) return PreferenceSchema.parse({});
+
+      const parsed = JSON.parse(stored);
+      parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
+      
+      return PreferenceSchema.parse(parsed);
+    } catch (error) {
+      console.warn('Failed to load preferences, using defaults', error);
+      return PreferenceSchema.parse({});
+    }
+  }
+
+  private savePreferences(): void {
+    try {
+      const dataToStore = {
+        ...this.preferences,
+        lastUpdated: new Date()
+      };
+      localStorage.setItem(PreferenceManager.STORAGE_KEY, JSON.stringify(dataToStore));
+    } catch (error) {
+      console.error('Failed to save preferences', error);
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    try {
+      const validated = PreferenceSchema.partial().parse(updates);
+      this.preferences = { ...this.preferences, ...validated };
+      this.savePreferences();
+      return true;
+    } catch (error) {
+      console.error('Invalid preference update', error);
+      return false;
+    }
+  }
+
+  resetToDefaults(): void {
+    this.preferences = PreferenceSchema.parse({});
+    this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): boolean {
+    try {
+      const imported = JSON.parse(jsonString);
+      const validated = PreferenceSchema.parse(imported);
+      this.preferences = validated;
+      this.savePreferences();
+      return true;
+    } catch (error) {
+      console.error('Failed to import preferences', error);
+      return false;
+    }
+  }
+}
+
+export const preferenceManager = new PreferenceManager();
