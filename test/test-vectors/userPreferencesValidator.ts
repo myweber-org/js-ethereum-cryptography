@@ -147,4 +147,74 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 14
+  };
+
+  const validated: UserPreferences = { ...defaultPreferences };
+
+  if (prefs.theme !== undefined) {
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      throw new PreferenceError('Theme must be light, dark, or auto', 'theme');
+    }
+    validated.theme = prefs.theme;
+  }
+
+  if (prefs.notifications !== undefined) {
+    if (typeof prefs.notifications !== 'boolean') {
+      throw new PreferenceError('Notifications must be a boolean value', 'notifications');
+    }
+    validated.notifications = prefs.notifications;
+  }
+
+  if (prefs.language !== undefined) {
+    if (typeof prefs.language !== 'string' || prefs.language.length !== 2) {
+      throw new PreferenceError('Language must be a 2-character ISO code', 'language');
+    }
+    validated.language = prefs.language.toLowerCase();
+  }
+
+  if (prefs.fontSize !== undefined) {
+    if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+      throw new PreferenceError('Font size must be between 8 and 72', 'fontSize');
+    }
+    validated.fontSize = Math.round(prefs.fontSize);
+  }
+
+  return validated;
+}
+
+function mergeUserPreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  try {
+    const validatedUpdates = validateUserPreferences(updates);
+    return { ...existing, ...validatedUpdates };
+  } catch (error) {
+    if (error instanceof PreferenceError) {
+      console.error(`Validation failed for field "${error.field}": ${error.message}`);
+    }
+    throw error;
+  }
+}
+
+export { UserPreferences, PreferenceError, validateUserPreferences, mergeUserPreferences };
