@@ -215,4 +215,66 @@ function mergePreferences(userInput: Partial<UserPreferences>): UserPreferences 
   };
 }
 
-export { UserPreferences, PreferenceValidator, mergePreferences };
+export { UserPreferences, PreferenceValidator, mergePreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: UserPreferences): void => {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  const minFontSize = 12;
+  const maxFontSize = 24;
+
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Theme must be one of: ${validThemes.join(', ')}`,
+      'theme'
+    );
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError(
+      'Notifications must be a boolean value',
+      'notifications'
+    );
+  }
+
+  if (!validLanguages.includes(prefs.language)) {
+    throw new PreferenceValidationError(
+      `Language must be one of: ${validLanguages.join(', ')}`,
+      'language'
+    );
+  }
+
+  if (prefs.fontSize < minFontSize || prefs.fontSize > maxFontSize) {
+    throw new PreferenceValidationError(
+      `Font size must be between ${minFontSize} and ${maxFontSize}`,
+      'fontSize'
+    );
+  }
+};
+
+const saveUserPreferences = (prefs: UserPreferences): void => {
+  try {
+    validateUserPreferences(prefs);
+    console.log('Preferences saved successfully:', prefs);
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.error(`Validation failed for ${error.field}: ${error.message}`);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+  }
+};
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences, saveUserPreferences };
