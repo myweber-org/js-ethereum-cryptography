@@ -103,3 +103,55 @@ export function createDefaultPreferences(userId: string): UserPreferences {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   };
 }
+import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).default('en')
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const defaultPreferences = UserPreferencesSchema.parse({});
+        console.warn('Invalid preferences provided, using defaults:', error.errors);
+        return defaultPreferences;
+      }
+      throw error;
+    }
+  }
+
+  static mergeWithDefaults(partialPreferences: Partial<UserPreferences>): UserPreferences {
+    const validated = this.validate(partialPreferences);
+    return validated;
+  }
+
+  static isValid(preferences: unknown): preferences is UserPreferences {
+    return UserPreferencesSchema.safeParse(preferences).success;
+  }
+}
+
+export function sanitizePreferencesExport(preferences: UserPreferences): Record<string, unknown> {
+  const { privacy, ...rest } = preferences;
+  return {
+    ...rest,
+    privacy: {
+      profileVisibility: privacy.profileVisibility,
+      searchIndexing: false
+    }
+  };
+}
