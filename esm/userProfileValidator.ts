@@ -156,4 +156,25 @@ export function validateUserProfile(input: unknown): UserProfile {
 
 export function safeValidateUserProfile(input: unknown) {
   return userProfileSchema.safeParse(input);
+}import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'system']),
+    notifications: z.boolean().default(true),
+  }).default({ theme: 'system', notifications: true }),
+  tags: z.array(z.string()).max(10),
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export function validateUserProfile(input: unknown): UserProfile {
+  return UserProfileSchema.parse(input);
+}
+
+export function safeValidateUserProfile(input: unknown) {
+  return UserProfileSchema.safeParse(input);
 }
