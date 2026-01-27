@@ -1,104 +1,102 @@
 
 interface UserProfile {
   id: string;
+  username: string;
   email: string;
-  displayName: string;
-  age: number;
-  lastUpdated: Date;
+  age?: number;
+  preferences: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+  };
 }
 
 class UserProfileManager {
-  private profiles: Map<string, UserProfile> = new Map();
+  private profiles: Map<string, UserProfile>;
 
-  updateProfile(userId: string, updates: Partial<UserProfile>): UserProfile | null {
-    const existingProfile = this.profiles.get(userId);
-    if (!existingProfile) {
-      console.error(`Profile not found for user: ${userId}`);
-      return null;
-    }
-
-    const validatedUpdates = this.validateUpdates(updates);
-    if (!validatedUpdates) {
-      console.error(`Invalid updates for user: ${userId}`);
-      return null;
-    }
-
-    const updatedProfile: UserProfile = {
-      ...existingProfile,
-      ...validatedUpdates,
-      lastUpdated: new Date()
-    };
-
-    this.profiles.set(userId, updatedProfile);
-    this.logAudit(userId, 'PROFILE_UPDATE', validatedUpdates);
-    
-    return updatedProfile;
+  constructor() {
+    this.profiles = new Map();
   }
 
-  private validateUpdates(updates: Partial<UserProfile>): Partial<UserProfile> | null {
-    const validated: Partial<UserProfile> = {};
-
-    if (updates.email !== undefined) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(updates.email)) {
-        return null;
-      }
-      validated.email = updates.email;
+  addProfile(profile: UserProfile): boolean {
+    if (!this.validateProfile(profile)) {
+      return false;
     }
 
-    if (updates.displayName !== undefined) {
-      if (updates.displayName.trim().length < 2 || updates.displayName.trim().length > 50) {
-        return null;
-      }
-      validated.displayName = updates.displayName.trim();
+    if (this.profiles.has(profile.id)) {
+      return false;
     }
 
-    if (updates.age !== undefined) {
-      if (updates.age < 0 || updates.age > 150) {
-        return null;
-      }
-      validated.age = updates.age;
-    }
-
-    return validated;
-  }
-
-  private logAudit(userId: string, action: string, details: any): void {
-    const auditEntry = {
-      timestamp: new Date().toISOString(),
-      userId,
-      action,
-      details: JSON.stringify(details)
-    };
-    
-    console.log(`AUDIT: ${JSON.stringify(auditEntry)}`);
-  }
-
-  addProfile(profile: UserProfile): void {
     this.profiles.set(profile.id, profile);
-    this.logAudit(profile.id, 'PROFILE_CREATE', { email: profile.email });
+    return true;
   }
 
-  getProfile(userId: string): UserProfile | null {
-    return this.profiles.get(userId) || null;
+  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
+    const existingProfile = this.profiles.get(id);
+    if (!existingProfile) {
+      return false;
+    }
+
+    const updatedProfile = { ...existingProfile, ...updates };
+    if (!this.validateProfile(updatedProfile)) {
+      return false;
+    }
+
+    this.profiles.set(id, updatedProfile);
+    return true;
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
+  }
+
+  getAllProfiles(): UserProfile[] {
+    return Array.from(this.profiles.values());
+  }
+
+  removeProfile(id: string): boolean {
+    return this.profiles.delete(id);
+  }
+
+  private validateProfile(profile: UserProfile): boolean {
+    if (!profile.id || !profile.username || !profile.email) {
+      return false;
+    }
+
+    if (!this.isValidEmail(profile.email)) {
+      return false;
+    }
+
+    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  filterProfilesByAge(minAge: number, maxAge: number): UserProfile[] {
+    return this.getAllProfiles().filter(profile => {
+      return profile.age !== undefined && profile.age >= minAge && profile.age <= maxAge;
+    });
+  }
+
+  toggleNotifications(userId: string): boolean {
+    const profile = this.getProfile(userId);
+    if (!profile) {
+      return false;
+    }
+
+    return this.updateProfile(userId, {
+      preferences: {
+        ...profile.preferences,
+        notifications: !profile.preferences.notifications
+      }
+    });
   }
 }
 
-const profileManager = new UserProfileManager();
-
-profileManager.addProfile({
-  id: 'user-123',
-  email: 'john@example.com',
-  displayName: 'John Doe',
-  age: 30,
-  lastUpdated: new Date()
-});
-
-const updated = profileManager.updateProfile('user-123', {
-  displayName: 'Johnathan Doe',
-  age: 31
-});
-
-if (updated) {
-  console.log(`Profile updated: ${JSON.stringify(updated)}`);
-}
+export { UserProfileManager, UserProfile };
