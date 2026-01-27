@@ -1,21 +1,21 @@
-
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  itemsPerPage: number;
+  fontSize: number;
+  autoSave: boolean;
 }
 
 class PreferenceValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
-  private static readonly MIN_ITEMS_PER_PAGE = 5;
-  private static readonly MAX_ITEMS_PER_PAGE = 100;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MIN_FONT_SIZE = 8;
+  private static readonly MAX_FONT_SIZE = 72;
 
   static validate(prefs: UserPreferences): string[] {
     const errors: string[] = [];
 
     if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme selection: ${prefs.theme}`);
+      errors.push(`Invalid theme value: ${prefs.theme}`);
     }
 
     if (typeof prefs.notifications !== 'boolean') {
@@ -26,132 +26,24 @@ class PreferenceValidator {
       errors.push(`Unsupported language: ${prefs.language}`);
     }
 
-    if (prefs.itemsPerPage < PreferenceValidator.MIN_ITEMS_PER_PAGE) {
-      errors.push(`Items per page cannot be less than ${PreferenceValidator.MIN_ITEMS_PER_PAGE}`);
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || 
+        prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}`);
     }
 
-    if (prefs.itemsPerPage > PreferenceValidator.MAX_ITEMS_PER_PAGE) {
-      errors.push(`Items per page cannot exceed ${PreferenceValidator.MAX_ITEMS_PER_PAGE}`);
+    if (typeof prefs.autoSave !== 'boolean') {
+      errors.push('Auto-save must be a boolean value');
     }
 
     return errors;
   }
 
-  static normalizePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-    return {
-      theme: prefs.theme || 'auto',
-      notifications: prefs.notifications ?? true,
-      language: prefs.language || 'en',
-      itemsPerPage: prefs.itemsPerPage || 20,
-    };
-  }
-}
-
-export { UserPreferences, PreferenceValidator };import { z } from 'zod';
-
-const ThemeSchema = z.enum(['light', 'dark', 'system'], {
-  errorMap: () => ({ message: 'Theme must be light, dark, or system' })
-});
-
-const NotificationSettingsSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  frequency: z.enum(['immediate', 'daily', 'weekly']).optional()
-});
-
-export const UserPreferencesSchema = z.object({
-  userId: z.string().uuid({ message: 'Invalid user ID format' }),
-  theme: ThemeSchema,
-  notifications: NotificationSettingsSchema,
-  language: z.string().min(2).max(5),
-  timezone: z.string().refine(tz => {
-    try {
-      Intl.DateTimeFormat(undefined, { timeZone: tz });
-      return true;
-    } catch {
-      return false;
-    }
-  }, { message: 'Invalid timezone identifier' }),
-  createdAt: z.date().default(() => new Date())
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  const result = UserPreferencesSchema.safeParse(input);
-  
-  if (!result.success) {
-    const errors = result.error.errors.map(err => 
-      `${err.path.join('.')}: ${err.message}`
-    );
-    throw new Error(`Validation failed:\n${errors.join('\n')}`);
-  }
-  
-  return result.data;
-}
-
-export function createDefaultPreferences(userId: string): UserPreferences {
-  return {
-    userId,
-    theme: 'system',
-    notifications: {
-      email: true,
-      push: false,
-      frequency: 'daily'
-    },
-    language: 'en',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-  };
-}
-import { z } from 'zod';
-
-export const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'system']).default('system'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).default('en')
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export class PreferencesValidator {
-  static validate(input: unknown): UserPreferences {
-    try {
-      return UserPreferencesSchema.parse(input);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const defaultPreferences = UserPreferencesSchema.parse({});
-        console.warn('Invalid preferences provided, using defaults:', error.errors);
-        return defaultPreferences;
-      }
-      throw error;
+  static validateAndThrow(prefs: UserPreferences): void {
+    const errors = this.validate(prefs);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${errors.join('; ')}`);
     }
   }
-
-  static mergeWithDefaults(partialPreferences: Partial<UserPreferences>): UserPreferences {
-    const validated = this.validate(partialPreferences);
-    return validated;
-  }
-
-  static isValid(preferences: unknown): preferences is UserPreferences {
-    return UserPreferencesSchema.safeParse(preferences).success;
-  }
 }
 
-export function sanitizePreferencesExport(preferences: UserPreferences): Record<string, unknown> {
-  const { privacy, ...rest } = preferences;
-  return {
-    ...rest,
-    privacy: {
-      profileVisibility: privacy.profileVisibility,
-      searchIndexing: false
-    }
-  };
-}
+export { UserPreferences, PreferenceValidator };
