@@ -108,4 +108,37 @@ class UserProfileValidator {
   }
 }
 
-export { UserProfile, UserProfileValidator };
+export { UserProfile, UserProfileValidator };import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+    notifications: z.boolean().default(true)
+  }).default({}),
+  lastLogin: z.date().optional()
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  try {
+    return UserProfileSchema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      throw new Error(`Validation failed: ${errorMessages.join('; ')}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultProfile(username: string, email: string): UserProfile {
+  return {
+    username,
+    email,
+    preferences: {}
+  };
+}
