@@ -134,4 +134,80 @@ const verifyUserCredentials = async (email: string, password: string): Promise<U
   return isPasswordValid ? user : null;
 };
 
-export { registerUser, verifyUserCredentials, User };
+export { registerUser, verifyUserCredentials, User };import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+  createdAt: Date;
+}
+
+class UserRegistration {
+  private users: Map<string, User> = new Map();
+
+  async register(username: string, email: string, password: string): Promise<User> {
+    this.validateInput(username, email, password);
+
+    const existingUser = Array.from(this.users.values()).find(
+      user => user.email === email || user.username === username
+    );
+    if (existingUser) {
+      throw new Error('User with this email or username already exists');
+    }
+
+    const passwordHash = await this.hashPassword(password);
+    const newUser: User = {
+      id: uuidv4(),
+      username,
+      email,
+      passwordHash,
+      createdAt: new Date()
+    };
+
+    this.users.set(newUser.id, newUser);
+    return newUser;
+  }
+
+  private validateInput(username: string, email: string, password: string): void {
+    if (!username || username.length < 3) {
+      throw new Error('Username must be at least 3 characters long');
+    }
+    if (!this.isValidEmail(email)) {
+      throw new Error('Invalid email format');
+    }
+    if (!password || password.length < 8) {
+      throw new Error('Password must be at least 8 characters long');
+    }
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = 10;
+    return await bcrypt.hash(password, saltRounds);
+  }
+
+  async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return await bcrypt.compare(password, user.passwordHash);
+  }
+
+  getUserById(id: string): User | undefined {
+    return this.users.get(id);
+  }
+
+  getUserByEmail(email: string): User | undefined {
+    return Array.from(this.users.values()).find(user => user.email === email);
+  }
+}
+
+export { UserRegistration, User };
