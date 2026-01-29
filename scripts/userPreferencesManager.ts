@@ -1,66 +1,91 @@
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: string;
-  notificationsEnabled: boolean;
-  fontSize: number;
-}
+import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('light'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  fontSize: z.number().min(12).max(24).default(16),
+  autoSave: z.boolean().default(true),
+  experimentalFeatures: z.boolean().default(false),
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+const STORAGE_KEY = 'user_preferences_v1';
 
 class UserPreferencesManager {
-  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
-  constructor(defaultPreferences: UserPreferences) {
-    this.preferences = this.loadPreferences() || defaultPreferences;
+  constructor() {
+    this.preferences = this.loadPreferences();
   }
 
-  private loadPreferences(): UserPreferences | null {
+  private loadPreferences(): UserPreferences {
     try {
-      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return PreferenceSchema.parse(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences, using defaults:', error);
     }
+    return PreferenceSchema.parse({});
   }
 
   private savePreferences(): void {
-    localStorage.setItem(
-      UserPreferencesManager.STORAGE_KEY,
-      JSON.stringify(this.preferences)
-    );
-  }
-
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    
-    if (!this.validatePreferences(newPreferences)) {
-      return false;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
     }
-
-    this.preferences = newPreferences;
-    this.savePreferences();
-    return true;
-  }
-
-  private validatePreferences(prefs: UserPreferences): boolean {
-    return (
-      ['light', 'dark', 'auto'].includes(prefs.theme) &&
-      typeof prefs.language === 'string' &&
-      prefs.language.length >= 2 &&
-      typeof prefs.notificationsEnabled === 'boolean' &&
-      prefs.fontSize >= 12 &&
-      prefs.fontSize <= 24
-    );
   }
 
   getPreferences(): Readonly<UserPreferences> {
     return { ...this.preferences };
   }
 
-  resetToDefaults(defaults: UserPreferences): void {
-    this.preferences = defaults;
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    try {
+      const validated = PreferenceSchema.partial().parse(updates);
+      this.preferences = { ...this.preferences, ...validated };
+      this.savePreferences();
+    } catch (error) {
+      console.error('Invalid preference update:', error);
+      throw new Error('Invalid preference values provided');
+    }
+  }
+
+  resetToDefaults(): void {
+    this.preferences = PreferenceSchema.parse({});
     this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): void {
+    try {
+      const parsed = JSON.parse(jsonString);
+      this.preferences = PreferenceSchema.parse(parsed);
+      this.savePreferences();
+    } catch (error) {
+      console.error('Failed to import preferences:', error);
+      throw new Error('Invalid preferences data format');
+    }
+  }
+
+  hasExperimentalFeatures(): boolean {
+    return this.preferences.experimentalFeatures;
+  }
+
+  isDarkMode(): boolean {
+    if (this.preferences.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return this.preferences.theme === 'dark';
   }
 }
 
-export { UserPreferencesManager };
-export type { UserPreferences };
+export const userPreferences = new UserPreferencesManager();
