@@ -1,50 +1,33 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
   language: string;
-  notificationsEnabled: boolean;
-  fontSize: number;
+  itemsPerPage: number;
 }
 
-class PreferenceManager {
-  private static readonly STORAGE_KEY = 'user_preferences';
-  private preferences: UserPreferences;
-
-  constructor(defaultPreferences: UserPreferences) {
-    this.preferences = this.loadPreferences() || defaultPreferences;
+function validatePreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    return false;
   }
-
-  private loadPreferences(): UserPreferences | null {
-    const stored = localStorage.getItem(PreferenceManager.STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
+  
+  if (!validLanguages.includes(prefs.language)) {
+    return false;
   }
-
-  updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = { ...this.preferences, ...updates };
-    this.savePreferences();
+  
+  if (prefs.itemsPerPage < 5 || prefs.itemsPerPage > 100) {
+    return false;
   }
-
-  private savePreferences(): void {
-    localStorage.setItem(
-      PreferenceManager.STORAGE_KEY,
-      JSON.stringify(this.preferences)
-    );
-  }
-
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
-  }
-
-  resetToDefaults(defaults: UserPreferences): void {
-    this.preferences = defaults;
-    this.savePreferences();
-  }
+  
+  return true;
 }
 
-const defaultPreferences: UserPreferences = {
-  theme: 'auto',
-  language: 'en-US',
-  notificationsEnabled: true,
-  fontSize: 14
-};
-
-export const preferenceManager = new PreferenceManager(defaultPreferences);
+function updateUserPreferences(prefs: UserPreferences): void {
+  if (!validatePreferences(prefs)) {
+    throw new Error('Invalid preferences provided');
+  }
+  
+  console.log('Preferences updated successfully:', prefs);
+}
