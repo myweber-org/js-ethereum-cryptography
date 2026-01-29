@@ -51,4 +51,69 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
+export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).max(5).default('en'),
+  fontSize: z.number().min(8).max(72).default(16),
+  autoSave: z.boolean().default(false),
+  twoFactorEnabled: z.boolean().default(false),
+  emailNotifications: z.object({
+    marketing: z.boolean().default(false),
+    security: z.boolean().default(true),
+    updates: z.boolean().default(true)
+  }).default({})
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export class PreferenceValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return PreferenceSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => {
+          const field = err.path.join('.');
+          switch (err.code) {
+            case 'invalid_type':
+              return `Field '${field}' must be ${err.expected}, received ${err.received}`;
+            case 'invalid_enum_value':
+              return `Field '${field}' must be one of: ${err.options?.join(', ')}`;
+            case 'too_small':
+              return `Field '${field}' must be at least ${err.minimum} characters`;
+            case 'too_big':
+              return `Field '${field}' must be at most ${err.maximum} characters`;
+            default:
+              return `Validation error for field '${field}'`;
+          }
+        });
+        throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
+      }
+      throw error;
+    }
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return PreferenceSchema.parse({});
+  }
+
+  static mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
+    const merged = { ...existing, ...updates };
+    return this.validate(merged);
+  }
+}
+
+export function sanitizePreferences(prefs: UserPreferences): UserPreferences {
+  const { emailNotifications, ...rest } = prefs;
+  return {
+    ...rest,
+    emailNotifications: {
+      marketing: false,
+      security: emailNotifications?.security ?? true,
+      updates: emailNotifications?.updates ?? true
+    }
+  };
+}
