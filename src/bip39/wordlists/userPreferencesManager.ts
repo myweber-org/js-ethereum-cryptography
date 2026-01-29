@@ -124,4 +124,21 @@ const defaultPrefs: UserPreferences = {
   fontSize: 16
 };
 
-export const preferencesManager = new UserPreferencesManager(defaultPrefs);
+export const preferencesManager = new UserPreferencesManager(defaultPrefs);interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (
