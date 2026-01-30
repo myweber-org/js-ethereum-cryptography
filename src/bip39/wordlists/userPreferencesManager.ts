@@ -311,4 +311,99 @@ const defaultPreferences: UserPreferences = {
   fontSize: 16
 };
 
-export const userPrefsManager = new UserPreferencesManager(defaultPreferences);
+export const userPrefsManager = new UserPreferencesManager(defaultPreferences);interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences() || this.getDefaultPreferences();
+    
+    if (defaultPreferences) {
+      this.updatePreferences(defaultPreferences);
+    }
+  }
+
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      language: 'en-US',
+      notificationsEnabled: true,
+      fontSize: 14
+    };
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.validatePreferences(updates);
+    
+    this.preferences = {
+      ...this.preferences,
+      ...updates
+    };
+    
+    this.savePreferences();
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
+  }
+
+  private validatePreferences(prefs: Partial<UserPreferences>): void {
+    if (prefs.theme && !['light', 'dark', 'auto'].includes(prefs.theme)) {
+      throw new Error('Invalid theme value');
+    }
+
+    if (prefs.fontSize !== undefined) {
+      if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+        throw new Error('Font size must be between 8 and 72');
+      }
+    }
+
+    if (prefs.language !== undefined && typeof prefs.language !== 'string') {
+      throw new Error('Language must be a string');
+    }
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(json: string): void {
+    try {
+      const imported = JSON.parse(json);
+      this.validatePreferences(imported);
+      this.updatePreferences(imported);
+    } catch (error) {
+      throw new Error('Invalid preferences JSON');
+    }
+  }
+}
+
+export { UserPreferencesManager, UserPreferences };
