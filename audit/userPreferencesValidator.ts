@@ -125,4 +125,46 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    notifications: boolean;
+    language: string;
+    fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en-US',
+    fontSize: 14
+};
+
+function validatePreferences(input: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+    
+    if (input.theme && ['light', 'dark', 'auto'].includes(input.theme)) {
+        validated.theme = input.theme;
+    }
+    
+    if (typeof input.notifications === 'boolean') {
+        validated.notifications = input.notifications;
+    }
+    
+    if (input.language && typeof input.language === 'string') {
+        validated.language = input.language;
+    }
+    
+    if (typeof input.fontSize === 'number' && input.fontSize >= 8 && input.fontSize <= 32) {
+        validated.fontSize = input.fontSize;
+    }
+    
+    return validated;
+}
+
+function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+    return validatePreferences({ ...existing, ...updates });
+}
+
+export { UserPreferences, validatePreferences, mergePreferences, DEFAULT_PREFERENCES };
+```
