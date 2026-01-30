@@ -1,33 +1,33 @@
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  itemsPerPage: number;
+import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().default('en-US'),
+  timezone: z.string().optional()
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export const DEFAULT_PREFERENCES: UserPreferences = UserPreferencesSchema.parse({});
+
+export function validatePreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
 }
 
-function validatePreferences(prefs: UserPreferences): boolean {
-  const validThemes = ['light', 'dark', 'auto'];
-  const validLanguages = ['en', 'es', 'fr', 'de'];
-  
-  if (!validThemes.includes(prefs.theme)) {
-    return false;
-  }
-  
-  if (!validLanguages.includes(prefs.language)) {
-    return false;
-  }
-  
-  if (prefs.itemsPerPage < 5 || prefs.itemsPerPage > 100) {
-    return false;
-  }
-  
-  return true;
+export function mergePreferences(current: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  const merged = { ...current, ...updates };
+  return validatePreferences(merged);
 }
 
-function updateUserPreferences(prefs: UserPreferences): void {
-  if (!validatePreferences(prefs)) {
-    throw new Error('Invalid preferences provided');
-  }
-  
-  console.log('Preferences updated successfully:', prefs);
+export function isPreferenceValid(prefs: unknown): prefs is UserPreferences {
+  return UserPreferencesSchema.safeParse(prefs).success;
 }
