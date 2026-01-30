@@ -5,58 +5,42 @@ interface UserPreferences {
   fontSize: number;
 }
 
-class PreferenceValidationError extends Error {
-  constructor(message: string, public field: string) {
-    super(message);
-    this.name = 'PreferenceValidationError';
-  }
-}
-
-class UserPreferencesValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+class PreferenceValidator {
   private static readonly MIN_FONT_SIZE = 12;
   private static readonly MAX_FONT_SIZE = 24;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
 
-  static validate(preferences: Partial<UserPreferences>): UserPreferences {
-    const validated: UserPreferences = {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      fontSize: 16,
-      ...preferences
+  static validate(prefs: UserPreferences): string[] {
+    const errors: string[] = [];
+
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme: ${prefs.theme}`);
+    }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be boolean');
+    }
+
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}`);
+    }
+
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || 
+        prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}`);
+    }
+
+    return errors;
+  }
+
+  static normalize(prefs: Partial<UserPreferences>): UserPreferences {
+    return {
+      theme: prefs.theme || 'auto',
+      notifications: prefs.notifications ?? true,
+      language: prefs.language || 'en',
+      fontSize: prefs.fontSize || 16
     };
-
-    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-      throw new PreferenceValidationError(
-        'Theme must be light, dark, or auto',
-        'theme'
-      );
-    }
-
-    if (typeof validated.notifications !== 'boolean') {
-      throw new PreferenceValidationError(
-        'Notifications must be a boolean value',
-        'notifications'
-      );
-    }
-
-    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(validated.language)) {
-      throw new PreferenceValidationError(
-        `Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`,
-        'language'
-      );
-    }
-
-    if (validated.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
-        validated.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
-      throw new PreferenceValidationError(
-        `Font size must be between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`,
-        'fontSize'
-      );
-    }
-
-    return validated;
   }
 }
 
-export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+export { UserPreferences, PreferenceValidator };
