@@ -1,80 +1,62 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
-
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
-    }
-    throw error;
+class PreferenceValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
   }
 }
 
-export function getDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
-}
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
 
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validateUserPreferences(merged);
-}import { z } from 'zod';
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16,
+      ...preferences
+    };
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
-
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
+    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+      throw new PreferenceValidationError(
+        'Theme must be light, dark, or auto',
+        'theme'
       );
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
     }
-    throw error;
+
+    if (typeof validated.notifications !== 'boolean') {
+      throw new PreferenceValidationError(
+        'Notifications must be a boolean value',
+        'notifications'
+      );
+    }
+
+    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(validated.language)) {
+      throw new PreferenceValidationError(
+        `Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`,
+        'language'
+      );
+    }
+
+    if (validated.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
+        validated.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
+      throw new PreferenceValidationError(
+        `Font size must be between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`,
+        'fontSize'
+      );
+    }
+
+    return validated;
   }
 }
 
-export function getDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
-}
-
-export function mergePreferences(
-  existing: Partial<UserPreferences>,
-  updates: Partial<UserPreferences>
-): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validateUserPreferences(merged);
-}
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
