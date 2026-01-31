@@ -1,65 +1,67 @@
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: string;
-  notificationsEnabled: boolean;
+  theme: 'light' | 'dark';
   fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
 }
 
 class UserPreferencesManager {
   private static readonly STORAGE_KEY = 'user_preferences';
+  private static readonly DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'light',
+    fontSize: 14,
+    notificationsEnabled: true,
+    language: 'en'
+  };
+
   private preferences: UserPreferences;
 
-  constructor(defaultPreferences: UserPreferences) {
-    this.preferences = this.loadPreferences() || defaultPreferences;
+  constructor() {
+    this.preferences = this.loadPreferences();
   }
 
-  private loadPreferences(): UserPreferences | null {
+  private loadPreferences(): UserPreferences {
     try {
       const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...UserPreferencesManager.DEFAULT_PREFERENCES, ...parsed };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from localStorage:', error);
     }
+    return { ...UserPreferencesManager.DEFAULT_PREFERENCES };
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    
-    if (!this.validatePreferences(newPreferences)) {
-      return false;
-    }
-
-    this.preferences = newPreferences;
-    this.savePreferences();
-    return true;
-  }
-
-  private validatePreferences(prefs: UserPreferences): boolean {
-    return (
-      ['light', 'dark', 'auto'].includes(prefs.theme) &&
-      typeof prefs.language === 'string' &&
-      prefs.language.length >= 2 &&
-      typeof prefs.notificationsEnabled === 'boolean' &&
-      prefs.fontSize >= 8 &&
-      prefs.fontSize <= 32
-    );
-  }
-
-  private savePreferences(): void {
-    localStorage.setItem(
-      UserPreferencesManager.STORAGE_KEY,
-      JSON.stringify(this.preferences)
-    );
-  }
-
-  getPreferences(): Readonly<UserPreferences> {
+  getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
-  resetToDefaults(defaults: UserPreferences): void {
-    this.preferences = defaults;
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
     this.savePreferences();
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences to localStorage:', error);
+    }
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...UserPreferencesManager.DEFAULT_PREFERENCES };
+    this.savePreferences();
+  }
+
+  hasUnsavedChanges(comparison: UserPreferences): boolean {
+    return JSON.stringify(this.preferences) !== JSON.stringify(comparison);
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager };
+export type { UserPreferences };
