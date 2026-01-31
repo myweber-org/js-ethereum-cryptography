@@ -1,16 +1,18 @@
-import { UserPreferences } from './types/user';
+import { z } from 'zod';
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'light',
-  notificationsEnabled: true,
-  itemsPerPage: 25,
-  language: 'en',
-  timezone: 'UTC'
-};
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notificationsEnabled: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  resultsPerPage: z.number().min(5).max(100).default(20),
+  autoSaveInterval: z.number().min(0).max(300).default(60)
+});
 
-const STORAGE_KEY = 'app_user_preferences';
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-export class UserPreferencesManager {
+const STORAGE_KEY = 'user_preferences';
+
+class UserPreferencesManager {
   private preferences: UserPreferences;
 
   constructor() {
@@ -22,38 +24,41 @@ export class UserPreferencesManager {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        return { ...DEFAULT_PREFERENCES, ...parsed };
+        return UserPreferencesSchema.parse(parsed);
       }
     } catch (error) {
-      console.warn('Failed to load user preferences from localStorage:', error);
+      console.warn('Failed to load preferences, using defaults:', error);
     }
-    return { ...DEFAULT_PREFERENCES };
-  }
-
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
-  }
-
-  updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = { ...this.preferences, ...updates };
-    this.savePreferences();
+    return UserPreferencesSchema.parse({});
   }
 
   private savePreferences(): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
     } catch (error) {
-      console.error('Failed to save user preferences to localStorage:', error);
+      console.error('Failed to save preferences:', error);
     }
   }
 
-  resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
   }
 
-  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
-    return this.preferences[key];
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const validated = UserPreferencesSchema.partial().parse(updates);
+    this.preferences = { ...this.preferences, ...validated };
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = UserPreferencesSchema.parse({});
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  validatePreferences(preferences: unknown): UserPreferences {
+    return UserPreferencesSchema.parse(preferences);
   }
 }
 
