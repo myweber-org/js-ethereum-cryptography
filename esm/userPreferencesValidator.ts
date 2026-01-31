@@ -6,101 +6,49 @@ interface UserPreferences {
   fontSize: number;
 }
 
-class PreferenceError extends Error {
-  constructor(message: string, public field: string) {
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
     super(message);
-    this.name = 'PreferenceError';
+    this.name = 'PreferenceValidationError';
   }
 }
 
-class UserPreferencesValidator {
-  private static readonly MIN_FONT_SIZE = 8;
-  private static readonly MAX_FONT_SIZE = 72;
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+const validateTheme = (theme: unknown): theme is UserPreferences['theme'] => {
+  const validThemes = ['light', 'dark', 'auto'];
+  return typeof theme === 'string' && validThemes.includes(theme);
+};
 
-  static validate(preferences: Partial<UserPreferences>): UserPreferences {
-    const validated: UserPreferences = {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      fontSize: 16,
-      ...preferences
-    };
-
-    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-      throw new PreferenceError(
-        `Theme must be 'light', 'dark', or 'auto'`,
-        'theme'
-      );
-    }
-
-    if (typeof validated.notifications !== 'boolean') {
-      throw new PreferenceError('Notifications must be a boolean', 'notifications');
-    }
-
-    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(validated.language)) {
-      throw new PreferenceError(
-        `Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`,
-        'language'
-      );
-    }
-
-    if (!Number.isInteger(validated.fontSize) || 
-        validated.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
-        validated.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
-      throw new PreferenceError(
-        `Font size must be an integer between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`,
-        'fontSize'
-      );
-    }
-
-    return validated;
+const validatePreferences = (prefs: unknown): UserPreferences => {
+  if (typeof prefs !== 'object' || prefs === null) {
+    throw new PreferenceValidationError('Preferences must be an object');
   }
 
-  static validatePartial(preferences: Partial<UserPreferences>): Partial<UserPreferences> {
-    const result: Partial<UserPreferences> = {};
-    
-    if (preferences.theme !== undefined) {
-      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
-        throw new PreferenceError(
-          `Theme must be 'light', 'dark', or 'auto'`,
-          'theme'
-        );
-      }
-      result.theme = preferences.theme;
-    }
+  const preferences = prefs as Record<string, unknown>;
 
-    if (preferences.notifications !== undefined) {
-      if (typeof preferences.notifications !== 'boolean') {
-        throw new PreferenceError('Notifications must be a boolean', 'notifications');
-      }
-      result.notifications = preferences.notifications;
-    }
-
-    if (preferences.language !== undefined) {
-      if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
-        throw new PreferenceError(
-          `Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`,
-          'language'
-        );
-      }
-      result.language = preferences.language;
-    }
-
-    if (preferences.fontSize !== undefined) {
-      if (!Number.isInteger(preferences.fontSize) || 
-          preferences.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
-          preferences.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
-        throw new PreferenceError(
-          `Font size must be an integer between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`,
-          'fontSize'
-        );
-      }
-      result.fontSize = preferences.fontSize;
-    }
-
-    return result;
+  if (!validateTheme(preferences.theme)) {
+    throw new PreferenceValidationError(
+      'Theme must be one of: light, dark, auto'
+    );
   }
-}
 
-export { UserPreferences, UserPreferencesValidator, PreferenceError };
+  if (typeof preferences.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean');
+  }
+
+  if (typeof preferences.language !== 'string' || preferences.language.length < 2) {
+    throw new PreferenceValidationError('Language must be a string with at least 2 characters');
+  }
+
+  if (typeof preferences.fontSize !== 'number' || preferences.fontSize < 8 || preferences.fontSize > 72) {
+    throw new PreferenceValidationError('Font size must be between 8 and 72');
+  }
+
+  return {
+    theme: preferences.theme as UserPreferences['theme'],
+    notifications: preferences.notifications as boolean,
+    language: preferences.language as string,
+    fontSize: preferences.fontSize as number,
+  };
+};
+
+export { validatePreferences, PreferenceValidationError, type UserPreferences };
