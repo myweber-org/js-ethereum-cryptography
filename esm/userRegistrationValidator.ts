@@ -196,4 +196,46 @@ class RegistrationValidator {
   }
 }
 
-export { RegistrationValidator, UserRegistrationData };
+export { RegistrationValidator, UserRegistrationData };import { z } from 'zod';
+
+export const UserRegistrationSchema = z.object({
+    username: z.string()
+        .min(3, 'Username must be at least 3 characters')
+        .max(30, 'Username must not exceed 30 characters')
+        .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+    
+    email: z.string()
+        .email('Please provide a valid email address'),
+    
+    password: z.string()
+        .min(8, 'Password must be at least 8 characters')
+        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+        .regex(/[0-9]/, 'Password must contain at least one number'),
+    
+    age: z.number()
+        .int('Age must be an integer')
+        .min(18, 'You must be at least 18 years old')
+        .max(120, 'Please provide a valid age'),
+    
+    termsAccepted: z.boolean()
+        .refine(val => val === true, 'You must accept the terms and conditions')
+});
+
+export type UserRegistrationData = z.infer<typeof UserRegistrationSchema>;
+
+export function validateUserRegistration(input: unknown): UserRegistrationData {
+    return UserRegistrationSchema.parse(input);
+}
+
+export function getValidationErrors(input: unknown): string[] {
+    try {
+        UserRegistrationSchema.parse(input);
+        return [];
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return error.errors.map(err => err.message);
+        }
+        return ['An unexpected validation error occurred'];
+    }
+}
