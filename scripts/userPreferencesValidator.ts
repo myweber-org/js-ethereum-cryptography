@@ -2,45 +2,66 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  fontSize: number;
+  timezone: string;
 }
 
-class PreferenceValidator {
-  private static readonly MIN_FONT_SIZE = 12;
-  private static readonly MAX_FONT_SIZE = 24;
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
-
-  static validate(prefs: UserPreferences): string[] {
-    const errors: string[] = [];
-
-    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme: ${prefs.theme}`);
-    }
-
-    if (typeof prefs.notifications !== 'boolean') {
-      errors.push('Notifications must be boolean');
-    }
-
-    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-      errors.push(`Unsupported language: ${prefs.language}`);
-    }
-
-    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || 
-        prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
-      errors.push(`Font size must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}`);
-    }
-
-    return errors;
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
   }
+}
 
-  static normalize(prefs: Partial<UserPreferences>): UserPreferences {
-    return {
-      theme: prefs.theme || 'auto',
-      notifications: prefs.notifications ?? true,
-      language: prefs.language || 'en',
-      fontSize: prefs.fontSize || 16
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      timezone: 'UTC',
     };
+
+    if (preferences.theme) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        throw new PreferenceValidationError(
+          `Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'`
+        );
+      }
+      validated.theme = preferences.theme;
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications !== 'boolean') {
+        throw new PreferenceValidationError(
+          `Notifications must be boolean, received: ${typeof preferences.notifications}`
+        );
+      }
+      validated.notifications = preferences.notifications;
+    }
+
+    if (preferences.language) {
+      if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        throw new PreferenceValidationError(
+          `Unsupported language: ${preferences.language}. Supported: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`
+        );
+      }
+      validated.language = preferences.language;
+    }
+
+    if (preferences.timezone) {
+      if (!UserPreferencesValidator.VALID_TIMEZONES.test(preferences.timezone)) {
+        throw new PreferenceValidationError(
+          `Invalid timezone format: ${preferences.timezone}. Must be in format 'Area/Location'`
+        );
+      }
+      validated.timezone = preferences.timezone;
+    }
+
+    return validated;
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
