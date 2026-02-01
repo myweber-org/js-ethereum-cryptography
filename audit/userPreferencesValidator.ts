@@ -275,4 +275,71 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
+export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    notifications: boolean;
+    language: string;
+    timezone: string;
+}
+
+class PreferencesValidator {
+    private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+    private static readonly VALID_TIMEZONE_REGEX = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+
+    static validate(prefs: UserPreferences): string[] {
+        const errors: string[] = [];
+
+        if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+            errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
+        }
+
+        if (typeof prefs.notifications !== 'boolean') {
+            errors.push('Notifications must be a boolean value.');
+        }
+
+        if (!PreferencesValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+            errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+        }
+
+        if (!PreferencesValidator.VALID_TIMEZONE_REGEX.test(prefs.timezone)) {
+            errors.push(`Invalid timezone format: ${prefs.timezone}. Expected format: Area/Location`);
+        }
+
+        return errors;
+    }
+
+    static validateAndThrow(prefs: UserPreferences): void {
+        const errors = this.validate(prefs);
+        if (errors.length > 0) {
+            throw new Error(`Validation failed:\n${errors.join('\n')}`);
+        }
+    }
+}
+
+function updateUserPreferences(prefs: UserPreferences): void {
+    try {
+        PreferencesValidator.validateAndThrow(prefs);
+        console.log('Preferences updated successfully:', prefs);
+    } catch (error) {
+        console.error('Failed to update preferences:', error.message);
+    }
+}
+
+const validPreferences: UserPreferences = {
+    theme: 'dark',
+    notifications: true,
+    language: 'en',
+    timezone: 'America/New_York'
+};
+
+const invalidPreferences: UserPreferences = {
+    theme: 'purple',
+    notifications: 'yes',
+    language: 'xx',
+    timezone: 'InvalidZone'
+};
+
+updateUserPreferences(validPreferences);
+updateUserPreferences(invalidPreferences);
+```
