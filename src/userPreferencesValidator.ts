@@ -106,4 +106,57 @@ export class PreferencesValidator {
       timezone: 'UTC'
     };
   }
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_ITEMS_PER_PAGE = 5;
+  private static readonly MAX_ITEMS_PER_PAGE = 100;
+
+  static validate(preferences: UserPreferences): string[] {
+    const errors: string[] = [];
+
+    if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+      errors.push('Theme must be one of: light, dark, auto');
+    }
+
+    if (typeof preferences.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value');
+    }
+
+    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+      errors.push(`Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (!Number.isInteger(preferences.itemsPerPage) || 
+        preferences.itemsPerPage < UserPreferencesValidator.MIN_ITEMS_PER_PAGE ||
+        preferences.itemsPerPage > UserPreferencesValidator.MAX_ITEMS_PER_PAGE) {
+      errors.push(`Items per page must be an integer between ${UserPreferencesValidator.MIN_ITEMS_PER_PAGE} and ${UserPreferencesValidator.MAX_ITEMS_PER_PAGE}`);
+    }
+
+    return errors;
+  }
+
+  static validateAndThrow(preferences: UserPreferences): void {
+    const errors = this.validate(preferences);
+    if (errors.length > 0) {
+      throw new Error(`Invalid preferences: ${errors.join('; ')}`);
+    }
+  }
+}
+
+function saveUserPreferences(preferences: UserPreferences): boolean {
+  try {
+    UserPreferencesValidator.validateAndThrow(preferences);
+    console.log('Preferences validated successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to save preferences:', error.message);
+    return false;
+  }
 }
