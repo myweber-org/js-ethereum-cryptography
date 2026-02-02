@@ -108,4 +108,58 @@ export function createDefaultProfile(): UserProfile {
     },
     tags: []
   };
+}interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  preferences: string[];
 }
+
+class UserProfileValidator {
+  private static readonly USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly MAX_PREFERENCES = 10;
+
+  static validate(profile: Partial<UserProfile>): string[] {
+    const errors: string[] = [];
+
+    if (profile.username !== undefined) {
+      if (!this.USERNAME_REGEX.test(profile.username)) {
+        errors.push('Username must be 3-20 alphanumeric characters or underscores');
+      }
+    }
+
+    if (profile.email !== undefined) {
+      if (!this.EMAIL_REGEX.test(profile.email)) {
+        errors.push('Invalid email format');
+      }
+    }
+
+    if (profile.age !== undefined) {
+      if (profile.age < 0 || profile.age > 150) {
+        errors.push('Age must be between 0 and 150');
+      }
+    }
+
+    if (profile.preferences !== undefined) {
+      if (!Array.isArray(profile.preferences)) {
+        errors.push('Preferences must be an array');
+      } else if (profile.preferences.length > this.MAX_PREFERENCES) {
+        errors.push(`Cannot have more than ${this.MAX_PREFERENCES} preferences`);
+      }
+    }
+
+    return errors;
+  }
+
+  static validateForUpdate(profile: Partial<UserProfile>): { isValid: boolean; errors: string[] } {
+    const errors = this.validate(profile);
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+}
+
+export { UserProfile, UserProfileValidator };
