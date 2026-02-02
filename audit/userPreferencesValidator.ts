@@ -38,4 +38,39 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   const current = PreferenceSchema.partial().parse(existing);
   const merged = { ...current, ...updates };
   return validatePreferences(merged);
-}
+}import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).strict();
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export const validateUserPreferences = (data: unknown): UserPreferences => {
+  try {
+    return UserPreferencesSchema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const fieldErrors = error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+      throw new Error(`Validation failed: ${JSON.stringify(fieldErrors)}`);
+    }
+    throw error;
+  }
+};
+
+export const getDefaultPreferences = (): UserPreferences => {
+  return UserPreferencesSchema.parse({});
+};
