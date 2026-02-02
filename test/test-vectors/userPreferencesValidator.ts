@@ -227,4 +227,58 @@ export function validatePreferences(input: unknown): UserPreferences {
 
 export function getDefaultPreferences(): UserPreferences {
   return PreferenceSchema.parse({});
+}import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    dataSharing: z.boolean().default(false)
+  }).default({}),
+  updatedAt: z.date().optional()
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+      }
+      throw new Error('Failed to validate user preferences');
+    }
+  }
+
+  static sanitize(preferences: Partial<UserPreferences>): UserPreferences {
+    const defaults: UserPreferences = {
+      theme: 'system',
+      notifications: {
+        email: true,
+        push: false,
+        frequency: 'daily'
+      },
+      privacy: {
+        profileVisibility: 'friends',
+        dataSharing: false
+      }
+    };
+
+    return UserPreferencesSchema.parse({
+      ...defaults,
+      ...preferences,
+      updatedAt: new Date()
+    });
+  }
+
+  static isThemeValid(theme: string): boolean {
+    return UserPreferencesSchema.shape.theme.safeParse(theme).success;
+  }
 }
