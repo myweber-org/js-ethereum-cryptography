@@ -1,69 +1,52 @@
-typescript
+
 interface UserPreferences {
-    theme: 'light' | 'dark' | 'auto';
-    notifications: boolean;
-    language: string;
-    fontSize: number;
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
 }
 
-class PreferenceValidator {
-    private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
-    private static readonly MIN_FONT_SIZE = 12;
-    private static readonly MAX_FONT_SIZE = 24;
-
-    static validate(prefs: UserPreferences): string[] {
-        const errors: string[] = [];
-
-        if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
-            errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
-        }
-
-        if (typeof prefs.notifications !== 'boolean') {
-            errors.push('Notifications must be a boolean value.');
-        }
-
-        if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-            errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
-        }
-
-        if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
-            errors.push(`Font size ${prefs.fontSize} is out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}.`);
-        }
-
-        return errors;
-    }
-
-    static validateAndThrow(prefs: UserPreferences): void {
-        const errors = this.validate(prefs);
-        if (errors.length > 0) {
-            throw new Error(`Validation failed:\n${errors.join('\n')}`);
-        }
-    }
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
 }
 
-function processUserPreferences(prefs: UserPreferences): void {
-    try {
-        PreferenceValidator.validateAndThrow(prefs);
-        console.log('Preferences validated successfully:', prefs);
-    } catch (error) {
-        console.error('Failed to process preferences:', error.message);
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const errors: string[] = [];
+
+    if (!preferences.theme || !['light', 'dark', 'auto'].includes(preferences.theme)) {
+      errors.push('Theme must be one of: light, dark, auto');
     }
+
+    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value');
+    }
+
+    if (preferences.language && !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+      errors.push(`Language must be one of: ${this.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (preferences.timezone && !this.VALID_TIMEZONES.test(preferences.timezone)) {
+      errors.push('Timezone must be in format: Area/Location (e.g., America/New_York)');
+    }
+
+    if (errors.length > 0) {
+      throw new PreferenceValidationError(`Validation failed: ${errors.join('; ')}`);
+    }
+
+    return {
+      theme: preferences.theme || 'auto',
+      notifications: preferences.notifications ?? true,
+      language: preferences.language || 'en',
+      timezone: preferences.timezone || 'UTC',
+    };
+  }
 }
 
-const validPrefs: UserPreferences = {
-    theme: 'dark',
-    notifications: true,
-    language: 'en',
-    fontSize: 16
-};
-
-const invalidPrefs: UserPreferences = {
-    theme: 'blue',
-    notifications: 'yes',
-    language: 'zh',
-    fontSize: 8
-};
-
-processUserPreferences(validPrefs);
-processUserPreferences(invalidPrefs);
-```
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
