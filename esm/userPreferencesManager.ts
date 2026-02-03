@@ -1,48 +1,18 @@
-import { z } from 'zod';
-
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notificationsEnabled: z.boolean().default(true),
-  itemsPerPage: z.number().min(5).max(100).default(20),
-  language: z.string().min(2).default('en'),
-  lastUpdated: z.date().optional()
-});
-
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-const STORAGE_KEY = 'user_preferences';
+interface UserPreferences {
+  theme: 'light' | 'dark';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
 
 class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
+  private listeners: Set<(prefs: UserPreferences) => void> = new Set();
 
-  constructor() {
-    this.preferences = this.loadPreferences();
-  }
-
-  private loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
-        return UserPreferencesSchema.parse(parsed);
-      }
-    } catch (error) {
-      console.warn('Failed to load preferences, using defaults:', error);
-    }
-    return UserPreferencesSchema.parse({});
-  }
-
-  private savePreferences(): void {
-    try {
-      const toStore = {
-        ...this.preferences,
-        lastUpdated: new Date()
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
-    }
+  constructor(defaultPreferences: UserPreferences) {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    this.preferences = stored ? JSON.parse(stored) : defaultPreferences;
   }
 
   getPreferences(): UserPreferences {
@@ -50,20 +20,32 @@ class UserPreferencesManager {
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    const validated = UserPreferencesSchema.partial().parse(updates);
-    this.preferences = { ...this.preferences, ...validated };
-    this.savePreferences();
+    this.preferences = { ...this.preferences, ...updates };
+    localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(this.preferences));
+    this.notifyListeners();
   }
 
-  resetToDefaults(): void {
-    this.preferences = UserPreferencesSchema.parse({});
-    this.savePreferences();
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = { ...defaults };
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    this.notifyListeners();
   }
 
-  clearPreferences(): void {
-    localStorage.removeItem(STORAGE_KEY);
-    this.preferences = UserPreferencesSchema.parse({});
+  subscribe(listener: (prefs: UserPreferences) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => listener(this.getPreferences()));
   }
 }
 
-export const userPreferencesManager = new UserPreferencesManager();
+const defaultPrefs: UserPreferences = {
+  theme: 'light',
+  fontSize: 14,
+  notificationsEnabled: true,
+  language: 'en'
+};
+
+export const userPrefsManager = new UserPreferencesManager(defaultPrefs);
