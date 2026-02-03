@@ -12,49 +12,33 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   resultsPerPage: 20
 };
 
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 5;
-const MAX_RESULTS_PER_PAGE = 100;
-
 function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
-  
-  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = DEFAULT_PREFERENCES.theme;
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
+    validated.theme = prefs.theme;
   }
-  
-  if (typeof validated.notifications !== 'boolean') {
-    validated.notifications = DEFAULT_PREFERENCES.notifications;
+
+  if (typeof prefs.notifications === 'boolean') {
+    validated.notifications = prefs.notifications;
   }
-  
-  if (!VALID_LANGUAGES.includes(validated.language)) {
-    validated.language = DEFAULT_PREFERENCES.language;
+
+  if (prefs.language && typeof prefs.language === 'string') {
+    validated.language = prefs.language;
   }
-  
-  if (typeof validated.resultsPerPage !== 'number' || 
-      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
-      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
-    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
+
+  if (prefs.resultsPerPage && Number.isInteger(prefs.resultsPerPage) && prefs.resultsPerPage > 0) {
+    validated.resultsPerPage = prefs.resultsPerPage;
   }
-  
+
   return validated;
 }
 
-function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validated = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validated));
+function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  return {
+    ...existing,
+    ...validatePreferences(updates)
+  };
 }
 
-function loadPreferences(): UserPreferences {
-  const stored = localStorage.getItem('userPreferences');
-  if (!stored) return DEFAULT_PREFERENCES;
-  
-  try {
-    const parsed = JSON.parse(stored);
-    return validatePreferences(parsed);
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
-}
-
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
