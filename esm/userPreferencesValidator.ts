@@ -49,4 +49,58 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };typescript
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidator {
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+
+  static validate(prefs: Partial<UserPreferences>): string[] {
+    const errors: string[] = [];
+
+    if (prefs.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+        errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'`);
+      }
+    }
+
+    if (prefs.language !== undefined) {
+      if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+        errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+      }
+    }
+
+    if (prefs.fontSize !== undefined) {
+      if (typeof prefs.fontSize !== 'number') {
+        errors.push('Font size must be a number');
+      } else if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE) {
+        errors.push(`Font size too small: ${prefs.fontSize}. Minimum is ${PreferenceValidator.MIN_FONT_SIZE}`);
+      } else if (prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+        errors.push(`Font size too large: ${prefs.fontSize}. Maximum is ${PreferenceValidator.MAX_FONT_SIZE}`);
+      }
+    }
+
+    return errors;
+  }
+
+  static validateAndApply(prefs: UserPreferences): { success: boolean; errors?: string[] } {
+    const errors = this.validate(prefs);
+    
+    if (errors.length > 0) {
+      return { success: false, errors };
+    }
+
+    console.log('Applying preferences:', prefs);
+    return { success: true };
+  }
+}
+
+export { UserPreferences, PreferenceValidator };
+```
