@@ -408,3 +408,144 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager, type UserPreferences };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+  autoSaveInterval: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14,
+  autoSaveInterval: 30000
+};
+
+const VALID_LANGUAGES = new Set(['en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP']);
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+const MIN_AUTO_SAVE_INTERVAL = 5000;
+const MAX_AUTO_SAVE_INTERVAL = 300000;
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const validatedUpdates = this.validateUpdates(updates);
+    
+    if (Object.keys(validatedUpdates).length === 0) {
+      return false;
+    }
+
+    this.preferences = { ...this.preferences, ...validatedUpdates };
+    this.savePreferences();
+    return true;
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+  }
+
+  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const validated: Partial<UserPreferences> = {};
+
+    if (updates.theme !== undefined && ['light', 'dark', 'auto'].includes(updates.theme)) {
+      validated.theme = updates.theme;
+    }
+
+    if (updates.language !== undefined && VALID_LANGUAGES.has(updates.language)) {
+      validated.language = updates.language;
+    }
+
+    if (updates.notificationsEnabled !== undefined && typeof updates.notificationsEnabled === 'boolean') {
+      validated.notificationsEnabled = updates.notificationsEnabled;
+    }
+
+    if (updates.fontSize !== undefined) {
+      const size = Number(updates.fontSize);
+      if (!isNaN(size) && size >= MIN_FONT_SIZE && size <= MAX_FONT_SIZE) {
+        validated.fontSize = size;
+      }
+    }
+
+    if (updates.autoSaveInterval !== undefined) {
+      const interval = Number(updates.autoSaveInterval);
+      if (!isNaN(interval) && interval >= MIN_AUTO_SAVE_INTERVAL && interval <= MAX_AUTO_SAVE_INTERVAL) {
+        validated.autoSaveInterval = interval;
+      }
+    }
+
+    return validated;
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const saved = localStorage.getItem('userPreferences');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return this.validatePreferences(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  private validatePreferences(data: unknown): UserPreferences {
+    if (!data || typeof data !== 'object') {
+      return { ...DEFAULT_PREFERENCES };
+    }
+
+    const result = { ...DEFAULT_PREFERENCES };
+    const input = data as Record<string, unknown>;
+
+    if (['light', 'dark', 'auto'].includes(input.theme as string)) {
+      result.theme = input.theme as UserPreferences['theme'];
+    }
+
+    if (VALID_LANGUAGES.has(input.language as string)) {
+      result.language = input.language as string;
+    }
+
+    if (typeof input.notificationsEnabled === 'boolean') {
+      result.notificationsEnabled = input.notificationsEnabled;
+    }
+
+    if (typeof input.fontSize === 'number' && 
+        input.fontSize >= MIN_FONT_SIZE && 
+        input.fontSize <= MAX_FONT_SIZE) {
+      result.fontSize = input.fontSize;
+    }
+
+    if (typeof input.autoSaveInterval === 'number' && 
+        input.autoSaveInterval >= MIN_AUTO_SAVE_INTERVAL && 
+        input.autoSaveInterval <= MAX_AUTO_SAVE_INTERVAL) {
+      result.autoSaveInterval = input.autoSaveInterval;
+    }
+
+    return result;
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
