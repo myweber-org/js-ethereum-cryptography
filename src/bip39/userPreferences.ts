@@ -1,185 +1,40 @@
 interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
+  theme: 'light' | 'dark';
   notifications: boolean;
   language: string;
-  resultsPerPage: number;
+  itemsPerPage: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
-};
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
-const MAX_RESULTS_PER_PAGE = 100;
-
-function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
-  
-  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    validated.theme = DEFAULT_PREFERENCES.theme;
-  }
-  
-  if (typeof validated.notifications !== 'boolean') {
-    validated.notifications = DEFAULT_PREFERENCES.notifications;
-  }
-  
-  if (!VALID_LANGUAGES.includes(validated.language)) {
-    validated.language = DEFAULT_PREFERENCES.language;
-  }
-  
-  if (typeof validated.resultsPerPage !== 'number' || 
-      validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
-      validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
-    validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
-  }
-  
-  return validated;
-}
-
-function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validatedPrefs = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validatedPrefs));
-}
-
-function loadPreferences(): UserPreferences {
-  const stored = localStorage.getItem('userPreferences');
-  if (!stored) {
-    return DEFAULT_PREFERENCES;
-  }
-  
-  try {
-    const parsed = JSON.parse(stored);
-    return validatePreferences(parsed);
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
-}
-
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  resultsPerPage: number;
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
-};
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
-const MAX_RESULTS_PER_PAGE = 100;
-
-function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-
-  if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-    validated.theme = prefs.theme;
-  }
-
-  if (typeof prefs.notifications === 'boolean') {
-    validated.notifications = prefs.notifications;
-  }
-
-  if (prefs.language && VALID_LANGUAGES.includes(prefs.language)) {
-    validated.language = prefs.language;
-  }
-
-  if (typeof prefs.resultsPerPage === 'number') {
-    validated.resultsPerPage = Math.max(
-      MIN_RESULTS_PER_PAGE,
-      Math.min(MAX_RESULTS_PER_PAGE, prefs.resultsPerPage)
-    );
-  }
-
-  return validated;
-}
-
-function savePreferences(prefs: Partial<UserPreferences>): void {
-  const validated = validatePreferences(prefs);
-  localStorage.setItem('userPreferences', JSON.stringify(validated));
-  console.log('Preferences saved:', validated);
-}
-
-function loadPreferences(): UserPreferences {
-  const stored = localStorage.getItem('userPreferences');
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      return validatePreferences(parsed);
-    } catch {
-      return DEFAULT_PREFERENCES;
-    }
-  }
-  return DEFAULT_PREFERENCES;
-}interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
-
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
+  theme: 'light',
   notifications: true,
   language: 'en',
-  fontSize: 14
+  itemsPerPage: 25
 };
 
-class PreferenceManager {
-  private storageKey = 'user_preferences';
-
-  validatePreferences(prefs: Partial<UserPreferences>): boolean {
-    if (prefs.theme && !['light', 'dark', 'auto'].includes(prefs.theme)) {
-      return false;
-    }
-    if (prefs.fontSize && (prefs.fontSize < 8 || prefs.fontSize > 32)) {
-      return false;
-    }
-    return true;
-  }
-
-  loadPreferences(): UserPreferences {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return this.validatePreferences(parsed) 
-          ? { ...DEFAULT_PREFERENCES, ...parsed }
-          : DEFAULT_PREFERENCES;
-      }
-    } catch (error) {
-      console.warn('Failed to load preferences:', error);
-    }
-    return DEFAULT_PREFERENCES;
-  }
-
-  savePreferences(prefs: Partial<UserPreferences>): boolean {
-    if (!this.validatePreferences(prefs)) {
-      return false;
-    }
-    
-    try {
-      const current = this.loadPreferences();
-      const updated = { ...current, ...prefs };
-      localStorage.setItem(this.storageKey, JSON.stringify(updated));
-      return true;
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
-      return false;
-    }
-  }
-
-  resetToDefaults(): void {
-    localStorage.removeItem(this.storageKey);
-  }
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  return {
+    theme: prefs.theme && ['light', 'dark'].includes(prefs.theme) 
+      ? prefs.theme 
+      : DEFAULT_PREFERENCES.theme,
+    notifications: typeof prefs.notifications === 'boolean'
+      ? prefs.notifications
+      : DEFAULT_PREFERENCES.notifications,
+    language: typeof prefs.language === 'string' && prefs.language.length === 2
+      ? prefs.language
+      : DEFAULT_PREFERENCES.language,
+    itemsPerPage: typeof prefs.itemsPerPage === 'number' && prefs.itemsPerPage > 0
+      ? Math.min(prefs.itemsPerPage, 100)
+      : DEFAULT_PREFERENCES.itemsPerPage
+  };
 }
 
-export const preferenceManager = new PreferenceManager();
+function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = validatePreferences(updates);
+  return { ...existing, ...validatedUpdates };
+}
+
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
