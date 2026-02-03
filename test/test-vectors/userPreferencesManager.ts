@@ -417,4 +417,105 @@ class PreferencesManager {
   }
 }
 
-export const preferencesManager = new PreferencesManager();
+export const preferencesManager = new PreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences() || this.getDefaultPreferences();
+    
+    if (defaultPreferences) {
+      this.updatePreferences(defaultPreferences);
+    }
+  }
+
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      fontSize: 16,
+      notificationsEnabled: true,
+      language: 'en-US'
+    };
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const validatedUpdates = this.validateUpdates(updates);
+    
+    if (Object.keys(validatedUpdates).length === 0) {
+      return false;
+    }
+
+    this.preferences = { ...this.preferences, ...validatedUpdates };
+    this.savePreferences();
+    return true;
+  }
+
+  private validateUpdates(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const validUpdates: Partial<UserPreferences> = {};
+
+    if (updates.theme && ['light', 'dark', 'auto'].includes(updates.theme)) {
+      validUpdates.theme = updates.theme;
+    }
+
+    if (updates.fontSize && updates.fontSize >= 8 && updates.fontSize <= 32) {
+      validUpdates.fontSize = updates.fontSize;
+    }
+
+    if (typeof updates.notificationsEnabled === 'boolean') {
+      validUpdates.notificationsEnabled = updates.notificationsEnabled;
+    }
+
+    if (updates.language && /^[a-z]{2}-[A-Z]{2}$/.test(updates.language)) {
+      validUpdates.language = updates.language;
+    }
+
+    return validUpdates;
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): boolean {
+    try {
+      const imported = JSON.parse(jsonString);
+      return this.updatePreferences(imported);
+    } catch {
+      return false;
+    }
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
