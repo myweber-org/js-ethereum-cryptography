@@ -160,4 +160,67 @@ export class UserRegistrationService {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
+}import { z } from 'zod';
+
+const UserSchema = z.object({
+  username: z.string().min(3).max(50),
+  email: z.string().email(),
+  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
+  age: z.number().int().min(18).optional()
+});
+
+type User = z.infer<typeof UserSchema>;
+
+class UserRegistrationService {
+  private registeredUsers: Map<string, User> = new Map();
+
+  async register(userData: unknown): Promise<{ success: boolean; userId?: string; errors?: string[] }> {
+    try {
+      const validatedData = UserSchema.parse(userData);
+      
+      if (this.registeredUsers.has(validatedData.email)) {
+        return { 
+          success: false, 
+          errors: ['Email already registered'] 
+        };
+      }
+
+      const userId = this.generateUserId();
+      this.registeredUsers.set(validatedData.email, validatedData);
+      
+      await this.sendWelcomeEmail(validatedData.email);
+      
+      return { 
+        success: true, 
+        userId 
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return { 
+          success: false, 
+          errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+        };
+      }
+      return { 
+        success: false, 
+        errors: ['Registration failed due to server error'] 
+      };
+    }
+  }
+
+  private generateUserId(): string {
+    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private async sendWelcomeEmail(email: string): Promise<void> {
+    console.log(`Sending welcome email to ${email}`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  getRegisteredCount(): number {
+    return this.registeredUsers.size;
+  }
 }
+
+export { UserRegistrationService, UserSchema };
+export type { User };
