@@ -181,4 +181,40 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+function validateUserPreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    return false;
+  }
+  
+  if (!validLanguages.includes(prefs.language)) {
+    return false;
+  }
+  
+  if (typeof prefs.notificationsEnabled !== 'boolean') {
+    return false;
+  }
+  
+  if (!Number.isInteger(prefs.itemsPerPage) || prefs.itemsPerPage < 5 || prefs.itemsPerPage > 100) {
+    return false;
+  }
+  
+  return true;
+}
+
+function updateUserPreferences(prefs: UserPreferences): void {
+  if (!validateUserPreferences(prefs)) {
+    throw new Error('Invalid user preferences');
+  }
+  
+  console.log('User preferences updated:', prefs);
+}
