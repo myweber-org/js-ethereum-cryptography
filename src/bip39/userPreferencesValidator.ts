@@ -119,4 +119,55 @@ export function safeValidatePreferences(
     }
     throw error;
   }
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
 }
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MIN_ITEMS_PER_PAGE = 5;
+  private static readonly MAX_ITEMS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (preferences.theme !== undefined && !['light', 'dark', 'auto'].includes(preferences.theme)) {
+      errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
+    }
+
+    if (preferences.language !== undefined && !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+      errors.push(`Unsupported language: ${preferences.language}. Supported languages: ${this.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (preferences.itemsPerPage !== undefined) {
+      if (!Number.isInteger(preferences.itemsPerPage)) {
+        errors.push(`itemsPerPage must be an integer. Received: ${preferences.itemsPerPage}`);
+      } else if (preferences.itemsPerPage < this.MIN_ITEMS_PER_PAGE || preferences.itemsPerPage > this.MAX_ITEMS_PER_PAGE) {
+        errors.push(`itemsPerPage must be between ${this.MIN_ITEMS_PER_PAGE} and ${this.MAX_ITEMS_PER_PAGE}. Received: ${preferences.itemsPerPage}`);
+      }
+    }
+
+    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
+      errors.push(`notifications must be a boolean. Received: ${preferences.notifications}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      itemsPerPage: 20
+    };
+  }
+}
+
+export { UserPreferences, UserPreferencesValidator };
