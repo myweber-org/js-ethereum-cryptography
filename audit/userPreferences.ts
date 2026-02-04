@@ -155,4 +155,100 @@ function loadPreferences(): UserPreferences {
   return DEFAULT_PREFERENCES;
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  fontSize: 14
+};
+
+class PreferencesManager {
+  private readonly STORAGE_KEY = 'user_preferences';
+  
+  constructor() {
+    this.ensureDefaults();
+  }
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.STORAGE_KEY);
+    if (!stored) {
+      return { ...DEFAULT_PREFERENCES };
+    }
+    
+    try {
+      const parsed = JSON.parse(stored);
+      return this.validateAndMerge(parsed);
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const merged = { ...current, ...updates };
+    
+    if (this.validatePreferences(merged)) {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+    
+    throw new Error('Invalid preference values');
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(DEFAULT_PREFERENCES));
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private ensureDefaults(): void {
+    if (!localStorage.getItem(this.STORAGE_KEY)) {
+      this.resetToDefaults();
+    }
+  }
+
+  private validatePreferences(prefs: UserPreferences): boolean {
+    const validThemes = ['light', 'dark', 'auto'];
+    const minFontSize = 8;
+    const maxFontSize = 32;
+    
+    return (
+      validThemes.includes(prefs.theme) &&
+      typeof prefs.notifications === 'boolean' &&
+      typeof prefs.language === 'string' &&
+      prefs.language.length >= 2 &&
+      prefs.fontSize >= minFontSize &&
+      prefs.fontSize <= maxFontSize
+    );
+  }
+
+  private validateAndMerge(partial: any): UserPreferences {
+    const result = { ...DEFAULT_PREFERENCES };
+    
+    if (partial.theme && ['light', 'dark', 'auto'].includes(partial.theme)) {
+      result.theme = partial.theme;
+    }
+    
+    if (typeof partial.notifications === 'boolean') {
+      result.notifications = partial.notifications;
+    }
+    
+    if (typeof partial.language === 'string' && partial.language.length >= 2) {
+      result.language = partial.language;
+    }
+    
+    if (typeof partial.fontSize === 'number' && partial.fontSize >= 8 && partial.fontSize <= 32) {
+      result.fontSize = partial.fontSize;
+    }
+    
+    return result;
+  }
+}
+
+export const preferencesManager = new PreferencesManager();
