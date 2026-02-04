@@ -1,19 +1,16 @@
-
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
-  fontSize: number;
   language: string;
+  fontSize: number;
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'auto',
   notifications: true,
-  fontSize: 16,
-  language: 'en-US'
+  language: 'en-US',
+  fontSize: 14
 };
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
 
 class UserPreferencesManager {
   private preferences: UserPreferences;
@@ -24,56 +21,52 @@ class UserPreferencesManager {
 
   private loadPreferences(): UserPreferences {
     const stored = localStorage.getItem('userPreferences');
-    if (!stored) return { ...DEFAULT_PREFERENCES };
-
-    try {
-      const parsed = JSON.parse(stored);
-      return this.validatePreferences(parsed);
-    } catch {
-      return { ...DEFAULT_PREFERENCES };
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      } catch {
+        return { ...DEFAULT_PREFERENCES };
+      }
     }
+    return { ...DEFAULT_PREFERENCES };
   }
 
-  private validatePreferences(prefs: any): UserPreferences {
-    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
-
-    if (prefs.theme && ['light', 'dark', 'auto'].includes(prefs.theme)) {
-      validated.theme = prefs.theme;
+  private validatePreferences(data: unknown): UserPreferences {
+    if (typeof data !== 'object' || data === null) {
+      throw new Error('Invalid preferences data');
     }
 
-    if (typeof prefs.notifications === 'boolean') {
-      validated.notifications = prefs.notifications;
-    }
-
-    if (typeof prefs.fontSize === 'number' && prefs.fontSize >= 8 && prefs.fontSize <= 32) {
-      validated.fontSize = prefs.fontSize;
-    }
-
-    if (typeof prefs.language === 'string' && VALID_LANGUAGES.includes(prefs.language)) {
-      validated.language = prefs.language;
-    }
-
-    return validated;
+    const prefs = data as Partial<UserPreferences>;
+    
+    return {
+      theme: this.isValidTheme(prefs.theme) ? prefs.theme : DEFAULT_PREFERENCES.theme,
+      notifications: typeof prefs.notifications === 'boolean' ? prefs.notifications : DEFAULT_PREFERENCES.notifications,
+      language: typeof prefs.language === 'string' ? prefs.language : DEFAULT_PREFERENCES.language,
+      fontSize: typeof prefs.fontSize === 'number' && prefs.fontSize >= 8 && prefs.fontSize <= 24 
+        ? prefs.fontSize 
+        : DEFAULT_PREFERENCES.fontSize
+    };
   }
 
-  getPreferences(): UserPreferences {
-    return { ...this.preferences };
+  private isValidTheme(theme: unknown): theme is UserPreferences['theme'] {
+    return theme === 'light' || theme === 'dark' || theme === 'auto';
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    const validated = this.validatePreferences(newPreferences);
-
-    if (JSON.stringify(validated) !== JSON.stringify(this.preferences)) {
-      this.preferences = validated;
-      this.savePreferences();
-      return true;
-    }
-    return false;
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = {
+      ...this.preferences,
+      ...updates
+    };
+    this.savePreferences();
   }
 
   private savePreferences(): void {
     localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
   }
 
   resetToDefaults(): void {
@@ -81,11 +74,12 @@ class UserPreferencesManager {
     this.savePreferences();
   }
 
-  getTheme(): 'light' | 'dark' {
-    if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return this.preferences.theme;
+  applyTheme(): void {
+    const theme = this.preferences.theme === 'auto' 
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : this.preferences.theme;
+    
+    document.documentElement.setAttribute('data-theme', theme);
   }
 }
 
