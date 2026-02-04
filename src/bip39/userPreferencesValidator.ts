@@ -3,78 +3,17 @@ interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  itemsPerPage: number;
-  timezone?: string;
-}
-
-class UserPreferencesValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
-  private static readonly MIN_ITEMS_PER_PAGE = 5;
-  private static readonly MAX_ITEMS_PER_PAGE = 100;
-
-  static validate(preferences: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (preferences.theme !== undefined) {
-      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
-        errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
-      }
-    }
-
-    if (preferences.language !== undefined) {
-      if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
-        errors.push(`Unsupported language: ${preferences.language}. Supported languages: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
-      }
-    }
-
-    if (preferences.itemsPerPage !== undefined) {
-      if (!Number.isInteger(preferences.itemsPerPage)) {
-        errors.push(`itemsPerPage must be an integer, received: ${preferences.itemsPerPage}`);
-      } else if (preferences.itemsPerPage < UserPreferencesValidator.MIN_ITEMS_PER_PAGE || 
-                 preferences.itemsPerPage > UserPreferencesValidator.MAX_ITEMS_PER_PAGE) {
-        errors.push(`itemsPerPage must be between ${UserPreferencesValidator.MIN_ITEMS_PER_PAGE} and ${UserPreferencesValidator.MAX_ITEMS_PER_PAGE}, received: ${preferences.itemsPerPage}`);
-      }
-    }
-
-    if (preferences.timezone !== undefined && preferences.timezone.trim() === '') {
-      errors.push('Timezone cannot be empty if provided');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  static getDefaultPreferences(): UserPreferences {
-    return {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      itemsPerPage: 20
-    };
-  }
-}
-
-export { UserPreferences, UserPreferencesValidator };
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
   fontSize: number;
 }
 
 class PreferenceValidationError extends Error {
-  constructor(
-    public field: keyof UserPreferences,
-    message: string
-  ) {
+  constructor(message: string) {
     super(message);
     this.name = 'PreferenceValidationError';
   }
 }
 
-export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
   const defaults: UserPreferences = {
     theme: 'auto',
     notifications: true,
@@ -85,89 +24,39 @@ export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPr
   const validated: UserPreferences = { ...defaults, ...prefs };
 
   if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-    throw new PreferenceValidationError('theme', 'Theme must be light, dark, or auto');
+    throw new PreferenceValidationError(`Invalid theme: ${validated.theme}`);
   }
 
   if (typeof validated.notifications !== 'boolean') {
-    throw new PreferenceValidationError('notifications', 'Notifications must be boolean');
+    throw new PreferenceValidationError('Notifications must be boolean');
   }
 
   if (!validated.language || validated.language.trim().length === 0) {
-    throw new PreferenceValidationError('language', 'Language must be non-empty string');
+    throw new PreferenceValidationError('Language cannot be empty');
   }
 
   if (validated.fontSize < 8 || validated.fontSize > 72) {
-    throw new PreferenceValidationError('fontSize', 'Font size must be between 8 and 72');
+    throw new PreferenceValidationError(`Font size ${validated.fontSize} out of range (8-72)`);
   }
 
   if (!Number.isInteger(validated.fontSize)) {
-    throw new PreferenceValidationError('fontSize', 'Font size must be integer');
+    throw new PreferenceValidationError('Font size must be integer');
   }
 
   return validated;
 }
 
-export function safeValidatePreferences(
-  prefs: Partial<UserPreferences>
-): { success: true; data: UserPreferences } | { success: false; error: PreferenceValidationError } {
+function formatValidationResult(prefs: Partial<UserPreferences>): string {
   try {
     const validated = validateUserPreferences(prefs);
-    return { success: true, data: validated };
+    return `Valid preferences: ${JSON.stringify(validated)}`;
   } catch (error) {
     if (error instanceof PreferenceValidationError) {
-      return { success: false, error };
+      return `Validation failed: ${error.message}`;
     }
-    throw error;
-  }
-}interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  itemsPerPage: number;
-}
-
-class UserPreferencesValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
-  private static readonly MIN_ITEMS_PER_PAGE = 5;
-  private static readonly MAX_ITEMS_PER_PAGE = 100;
-
-  static validate(preferences: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (preferences.theme !== undefined && !['light', 'dark', 'auto'].includes(preferences.theme)) {
-      errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
-    }
-
-    if (preferences.language !== undefined && !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
-      errors.push(`Unsupported language: ${preferences.language}. Supported languages: ${this.SUPPORTED_LANGUAGES.join(', ')}`);
-    }
-
-    if (preferences.itemsPerPage !== undefined) {
-      if (!Number.isInteger(preferences.itemsPerPage)) {
-        errors.push(`itemsPerPage must be an integer. Received: ${preferences.itemsPerPage}`);
-      } else if (preferences.itemsPerPage < this.MIN_ITEMS_PER_PAGE || preferences.itemsPerPage > this.MAX_ITEMS_PER_PAGE) {
-        errors.push(`itemsPerPage must be between ${this.MIN_ITEMS_PER_PAGE} and ${this.MAX_ITEMS_PER_PAGE}. Received: ${preferences.itemsPerPage}`);
-      }
-    }
-
-    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
-      errors.push(`notifications must be a boolean. Received: ${preferences.notifications}`);
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  static getDefaultPreferences(): UserPreferences {
-    return {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      itemsPerPage: 20
-    };
+    return `Unexpected error: ${error}`;
   }
 }
 
-export { UserPreferences, UserPreferencesValidator };
+export { validateUserPreferences, formatValidationResult, PreferenceValidationError };
+export type { UserPreferences };
