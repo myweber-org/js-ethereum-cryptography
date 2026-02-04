@@ -1026,4 +1026,69 @@ const defaultPreferences: UserPreferences = {
   fontSize: 14
 };
 
+export const userPrefs = new UserPreferencesManager(defaultPreferences);interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.preferences = { ...this.preferences, ...updates };
+    this.validatePreferences();
+    this.savePreferences();
+  }
+
+  private validatePreferences(): void {
+    if (this.preferences.fontSize < 12 || this.preferences.fontSize > 24) {
+      this.preferences.fontSize = 16;
+    }
+
+    const validThemes: Array<UserPreferences['theme']> = ['light', 'dark', 'auto'];
+    if (!validThemes.includes(this.preferences.theme)) {
+      this.preferences.theme = 'auto';
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = { ...defaults };
+    this.savePreferences();
+  }
+}
+
+const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 16
+};
+
 export const userPrefs = new UserPreferencesManager(defaultPreferences);
