@@ -103,4 +103,51 @@ class PreferenceValidator {
 }
 
 export { UserPreferences, PreferenceValidator };
-```
+```import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'auto']);
+const LanguageSchema = z.enum(['en', 'es', 'fr', 'de']);
+const NotificationSettingsSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+  frequency: z.enum(['immediate', 'daily', 'weekly']).optional(),
+});
+
+export const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('auto'),
+  language: LanguageSchema.default('en'),
+  notifications: NotificationSettingsSchema.default({
+    email: true,
+    push: false,
+  }),
+  fontSize: z.number().min(12).max(24).default(16),
+  autoSave: z.boolean().default(true),
+  twoFactorEnabled: z.boolean().default(false),
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
+}
+
+export function sanitizePreferences(
+  partialPrefs: Partial<UserPreferences>
+): Partial<UserPreferences> {
+  const result: Partial<UserPreferences> = {};
+  
+  if (partialPrefs.fontSize !== undefined) {
+    result.fontSize = Math.min(24, Math.max(12, partialPrefs.fontSize));
+  }
+  
+  if (partialPrefs.theme !== undefined && ThemeSchema.safeParse(partialPrefs.theme).success) {
+    result.theme = partialPrefs.theme;
+  }
+  
+  if (partialPrefs.language !== undefined && LanguageSchema.safeParse(partialPrefs.language).success) {
+    result.language = partialPrefs.language;
+  }
+  
+  return result;
+}
