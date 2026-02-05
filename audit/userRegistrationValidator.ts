@@ -241,4 +241,60 @@ export function validateUserRegistration(data: unknown): UserRegistrationData {
 
 export function safeValidateUserRegistration(data: unknown) {
   return userRegistrationSchema.safeParse(data);
+}import { z } from 'zod';
+
+export const UserRegistrationSchema = z.object({
+  username: z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(50, 'Username cannot exceed 50 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  
+  email: z.string()
+    .email('Please provide a valid email address')
+    .max(100, 'Email cannot exceed 100 characters'),
+  
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(100, 'Password cannot exceed 100 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  
+  birthDate: z.string()
+    .refine((date) => {
+      const parsedDate = new Date(date);
+      const currentDate = new Date();
+      const minAgeDate = new Date();
+      minAgeDate.setFullYear(currentDate.getFullYear() - 13);
+      return parsedDate <= minAgeDate;
+    }, 'You must be at least 13 years old to register'),
+  
+  termsAccepted: z.boolean()
+    .refine(val => val === true, 'You must accept the terms and conditions')
+});
+
+export type UserRegistrationData = z.infer<typeof UserRegistrationSchema>;
+
+export function validateUserRegistration(input: unknown): UserRegistrationData {
+  return UserRegistrationSchema.parse(input);
+}
+
+export function getValidationErrors(input: unknown): Record<string, string[]> {
+  try {
+    UserRegistrationSchema.parse(input);
+    return {};
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errors: Record<string, string[]> = {};
+      error.errors.forEach((err) => {
+        const path = err.path.join('.');
+        if (!errors[path]) {
+          errors[path] = [];
+        }
+        errors[path].push(err.message);
+      });
+      return errors;
+    }
+    throw error;
+  }
 }
