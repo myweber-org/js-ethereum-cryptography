@@ -1,40 +1,44 @@
-import { z } from 'zod';
-
-export interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  itemsPerPage: number;
+typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    notifications: boolean;
+    language: string;
+    timezone: string;
 }
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']),
-  notifications: z.boolean(),
-  language: z.string().min(2),
-  itemsPerPage: z.number().int().min(5).max(100),
-});
+class PreferencesValidator {
+    private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+    private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
 
-export const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en',
-  itemsPerPage: 20,
-};
+    static validate(prefs: UserPreferences): string[] {
+        const errors: string[] = [];
 
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    const parsed = UserPreferencesSchema.parse(input);
-    return { ...DEFAULT_PREFERENCES, ...parsed };
-  } catch (error) {
-    console.warn('Invalid preferences provided, using defaults:', error);
-    return DEFAULT_PREFERENCES;
-  }
+        if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+            errors.push('Theme must be one of: light, dark, auto');
+        }
+
+        if (typeof prefs.notifications !== 'boolean') {
+            errors.push('Notifications must be a boolean value');
+        }
+
+        if (!PreferencesValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+            errors.push(`Language must be one of: ${PreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+        }
+
+        if (!PreferencesValidator.VALID_TIMEZONES.test(prefs.timezone)) {
+            errors.push('Timezone must be in format: Area/Location (e.g., America/New_York)');
+        }
+
+        return errors;
+    }
+
+    static validateAndThrow(prefs: UserPreferences): void {
+        const errors = this.validate(prefs);
+        if (errors.length > 0) {
+            throw new Error(`Invalid preferences: ${errors.join('; ')}`);
+        }
+    }
 }
 
-export function mergePreferences(
-  existing: Partial<UserPreferences>,
-  updates: Partial<UserPreferences>
-): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validatePreferences(merged);
-}
+export { UserPreferences, PreferencesValidator };
+```
