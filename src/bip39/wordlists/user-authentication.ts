@@ -110,4 +110,75 @@ export class AuthenticationService {
   getUserRole(username: string): string | undefined {
     return this.users.get(username)?.role;
   }
+}import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY = '7d';
+
+interface UserPayload {
+  userId: string;
+  email: string;
+  role: string;
+}
+
+export function generateAccessToken(user: UserPayload): string {
+  return jwt.sign(
+    {
+      sub: user.userId,
+      email: user.email,
+      role: user.role,
+      type: 'access'
+    },
+    JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
+  );
+}
+
+export function generateRefreshToken(userId: string): string {
+  return jwt.sign(
+    {
+      sub: userId,
+      type: 'refresh'
+    },
+    JWT_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+}
+
+export function verifyToken(token: string): UserPayload | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+    
+    if (decoded.type !== 'access') {
+      return null;
+    }
+
+    return {
+      userId: decoded.sub as string,
+      email: decoded.email as string,
+      role: decoded.role as string
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+export function refreshAccessToken(refreshToken: string): string | null {
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_SECRET) as jwt.JwtPayload;
+    
+    if (decoded.type !== 'refresh') {
+      return null;
+    }
+
+    return generateAccessToken({
+      userId: decoded.sub as string,
+      email: '',
+      role: 'user'
+    });
+  } catch (error) {
+    return null;
+  }
 }
