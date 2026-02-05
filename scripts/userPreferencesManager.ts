@@ -1,79 +1,73 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
   language: string;
-  resultsPerPage: number;
+  notificationsEnabled: boolean;
+  fontSize: number;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  theme: 'auto',
-  notifications: true,
-  language: 'en-US',
-  resultsPerPage: 20
-};
-
-const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
-const MIN_RESULTS_PER_PAGE = 10;
-const MAX_RESULTS_PER_PAGE = 100;
-
 class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
   private preferences: UserPreferences;
 
-  constructor(initialPreferences?: Partial<UserPreferences>) {
-    this.preferences = this.validatePreferences({
-      ...DEFAULT_PREFERENCES,
-      ...initialPreferences
-    });
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
   }
 
-  private validatePreferences(prefs: UserPreferences): UserPreferences {
-    const validated: UserPreferences = { ...prefs };
-
-    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
-      validated.theme = DEFAULT_PREFERENCES.theme;
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
     }
-
-    if (!VALID_LANGUAGES.includes(validated.language)) {
-      validated.language = DEFAULT_PREFERENCES.language;
-    }
-
-    if (typeof validated.notifications !== 'boolean') {
-      validated.notifications = DEFAULT_PREFERENCES.notifications;
-    }
-
-    if (typeof validated.resultsPerPage !== 'number' || 
-        validated.resultsPerPage < MIN_RESULTS_PER_PAGE || 
-        validated.resultsPerPage > MAX_RESULTS_PER_PAGE) {
-      validated.resultsPerPage = DEFAULT_PREFERENCES.resultsPerPage;
-    }
-
-    return validated;
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
-    this.preferences = this.validatePreferences({
-      ...this.preferences,
-      ...updates
-    });
-    return this.getPreferences();
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    if (!this.validatePreferences(newPreferences)) {
+      return false;
+    }
+
+    this.preferences = newPreferences;
+    this.savePreferences();
+    return true;
   }
 
-  getPreferences(): UserPreferences {
+  private validatePreferences(prefs: UserPreferences): boolean {
+    return (
+      ['light', 'dark', 'auto'].includes(prefs.theme) &&
+      typeof prefs.language === 'string' &&
+      prefs.language.length >= 2 &&
+      typeof prefs.notificationsEnabled === 'boolean' &&
+      prefs.fontSize >= 8 &&
+      prefs.fontSize <= 72
+    );
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
     return { ...this.preferences };
   }
 
-  resetToDefaults(): UserPreferences {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    return this.getPreferences();
-  }
-
-  isDarkMode(): boolean {
-    if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return this.preferences.theme === 'dark';
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = defaults;
+    this.savePreferences();
   }
 }
 
-export { UserPreferencesManager, DEFAULT_PREFERENCES };
+const defaultUserPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en',
+  notificationsEnabled: true,
+  fontSize: 16
+};
+
+export { UserPreferencesManager, defaultUserPreferences };
 export type { UserPreferences };
