@@ -35,9 +35,7 @@ class UserPreferencesValidator {
     }
 
     if (theme !== 'light' && theme !== 'dark' && theme !== 'auto') {
-      throw new PreferenceValidationError(
-        `Invalid theme: ${theme}. Must be 'light', 'dark', or 'auto'`
-      );
+      throw new PreferenceValidationError(`Invalid theme: ${theme}. Must be 'light', 'dark', or 'auto'`);
     }
 
     return theme;
@@ -84,4 +82,4 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, UserPreferences, PreferenceValidationError };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
