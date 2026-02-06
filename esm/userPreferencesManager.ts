@@ -387,4 +387,90 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences?: Partial<UserPreferences>) {
+    this.preferences = this.loadPreferences() || this.getDefaultPreferences();
+    if (defaultPreferences) {
+      this.updatePreferences(defaultPreferences);
+    }
+  }
+
+  private getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      language: 'en-US',
+      notificationsEnabled: true,
+      fontSize: 16
+    };
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const oldPreferences = { ...this.preferences };
+    
+    if (updates.theme && !['light', 'dark', 'auto'].includes(updates.theme)) {
+      return false;
+    }
+
+    if (updates.fontSize && (updates.fontSize < 8 || updates.fontSize > 32)) {
+      return false;
+    }
+
+    this.preferences = { ...this.preferences, ...updates };
+    
+    try {
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY, 
+        JSON.stringify(this.preferences)
+      );
+      this.notifyPreferencesChange(oldPreferences, this.preferences);
+      return true;
+    } catch {
+      this.preferences = oldPreferences;
+      return false;
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = this.getDefaultPreferences();
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+  }
+
+  private notifyPreferencesChange(
+    oldPrefs: UserPreferences, 
+    newPrefs: UserPreferences
+  ): void {
+    const event = new CustomEvent('preferenceschanged', {
+      detail: { old: oldPrefs, new: newPrefs }
+    });
+    window.dispatchEvent(event);
+  }
+
+  static isPreferencesSupported(): boolean {
+    return typeof localStorage !== 'undefined';
+  }
+}
+
 export { UserPreferencesManager, type UserPreferences };
