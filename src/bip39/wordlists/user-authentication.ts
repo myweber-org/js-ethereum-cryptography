@@ -181,4 +181,60 @@ export function refreshAccessToken(refreshToken: string): string | null {
   } catch (error) {
     return null;
   }
+}import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+
+const SECRET_KEY = process.env.JWT_SECRET || 'your-secret-key';
+
+interface UserPayload {
+    userId: string;
+    email: string;
+}
+
+export class AuthService {
+    private users = new Map<string, { email: string; passwordHash: string }>();
+
+    async register(email: string, password: string): Promise<string> {
+        const existingUser = Array.from(this.users.values()).find(u => u.email === email);
+        if (existingUser) {
+            throw new Error('User already exists');
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const userId = `user_${Date.now()}`;
+        
+        this.users.set(userId, { email, passwordHash });
+        
+        return this.generateToken({ userId, email });
+    }
+
+    async login(email: string, password: string): Promise<string> {
+        const userEntry = Array.from(this.users.entries())
+            .find(([_, user]) => user.email === email);
+
+        if (!userEntry) {
+            throw new Error('Invalid credentials');
+        }
+
+        const [userId, user] = userEntry;
+        const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+        
+        if (!isValidPassword) {
+            throw new Error('Invalid credentials');
+        }
+
+        return this.generateToken({ userId, email });
+    }
+
+    validateToken(token: string): UserPayload | null {
+        try {
+            return jwt.verify(token, SECRET_KEY) as UserPayload;
+        } catch {
+            return null;
+        }
+    }
+
+    private generateToken(payload: UserPayload): string {
+        return jwt.sign(payload, SECRET_KEY, { expiresIn: '24h' });
+    }
 }
