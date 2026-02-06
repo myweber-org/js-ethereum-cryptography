@@ -41,4 +41,57 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: UserPreferences): void => {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  const maxResultsPerPage = 100;
+
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme '${prefs.theme}'. Must be one of: ${validThemes.join(', ')}`
+    );
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
+  }
+
+  if (!validLanguages.includes(prefs.language)) {
+    throw new PreferenceValidationError(
+      `Unsupported language '${prefs.language}'. Supported languages: ${validLanguages.join(', ')}`
+    );
+  }
+
+  if (prefs.resultsPerPage < 1 || prefs.resultsPerPage > maxResultsPerPage) {
+    throw new PreferenceValidationError(
+      `Results per page must be between 1 and ${maxResultsPerPage}`
+    );
+  }
+};
+
+const sanitizePreferences = (prefs: Partial<UserPreferences>): UserPreferences => {
+  const defaults: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    resultsPerPage: 20
+  };
+
+  return { ...defaults, ...prefs };
+};
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences, sanitizePreferences };
