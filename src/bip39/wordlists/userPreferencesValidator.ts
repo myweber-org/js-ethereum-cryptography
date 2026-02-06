@@ -101,4 +101,41 @@ const testPreferences: UserPreferences = {
 };
 
 processUserPreferences(testPreferences);
-```
+```import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).max(5).default('en'),
+  itemsPerPage: z.number().int().min(5).max(100).default(20),
+  twoFactorEnabled: z.boolean().default(false),
+  timezone: z.string().optional()
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    return PreferenceSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      );
+      throw new Error(`Invalid preferences: ${errorMessages.join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return PreferenceSchema.parse({});
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validatePreferences(merged);
+}
