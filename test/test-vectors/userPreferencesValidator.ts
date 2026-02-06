@@ -46,4 +46,38 @@ function formatValidationResult(prefs: UserPreferences): string {
   return `Validated preferences: ${prefs.theme} theme, ${prefs.language} language, ${prefs.fontSize}px font, notifications ${prefs.notifications ? 'enabled' : 'disabled'}`;
 }
 
-export { validateUserPreferences, formatValidationResult, PreferenceValidationError, UserPreferences };
+export { validateUserPreferences, formatValidationResult, PreferenceValidationError, UserPreferences };import { z } from "zod";
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(["light", "dark", "auto"]).default("auto"),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(["immediate", "daily", "weekly"]).default("daily")
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(["public", "private", "friends"]).default("public"),
+    searchIndexing: z.boolean().default(true)
+  })
+}).strict();
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formattedErrors = error.errors.map(err => ({
+        path: err.path.join("."),
+        message: err.message
+      }));
+      throw new Error(`Invalid preferences: ${JSON.stringify(formattedErrors)}`);
+    }
+    throw error;
+  }
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return UserPreferencesSchema.parse({});
+}
