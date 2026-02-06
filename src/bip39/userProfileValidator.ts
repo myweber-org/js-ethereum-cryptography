@@ -40,4 +40,26 @@ class UserProfileValidator {
   }
 }
 
-export { UserProfile, UserProfileValidator };
+export { UserProfile, UserProfileValidator };import { z } from 'zod';
+
+const userProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'system']),
+    notifications: z.boolean().default(true),
+  }).default({ theme: 'system', notifications: true }),
+  createdAt: z.date().default(() => new Date()),
+});
+
+type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(input: unknown): UserProfile {
+  return userProfileSchema.parse(input);
+}
+
+export function safeValidateUserProfile(input: unknown) {
+  return userProfileSchema.safeParse(input);
+}
