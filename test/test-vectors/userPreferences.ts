@@ -48,4 +48,64 @@ function updateUserPreferences(newPrefs: Partial<UserPreferences>): UserPreferen
   return mergedPreferences;
 }
 
-export { UserPreferences, validateUserPreferences, updateUserPreferences };
+export { UserPreferences, validateUserPreferences, updateUserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+function validatePreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  const minFontSize = 8;
+  const maxFontSize = 72;
+
+  if (!validThemes.includes(prefs.theme)) {
+    console.error('Invalid theme selected');
+    return false;
+  }
+
+  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
+    console.error('Language must be a non-empty string');
+    return false;
+  }
+
+  if (typeof prefs.notificationsEnabled !== 'boolean') {
+    console.error('NotificationsEnabled must be a boolean');
+    return false;
+  }
+
+  if (typeof prefs.fontSize !== 'number' || 
+      prefs.fontSize < minFontSize || 
+      prefs.fontSize > maxFontSize) {
+    console.error(`Font size must be between ${minFontSize} and ${maxFontSize}`);
+    return false;
+  }
+
+  return true;
+}
+
+function savePreferences(prefs: UserPreferences): void {
+  if (!validatePreferences(prefs)) {
+    throw new Error('Invalid preferences provided');
+  }
+  
+  localStorage.setItem('userPreferences', JSON.stringify(prefs));
+  console.log('Preferences saved successfully');
+}
+
+function loadPreferences(): UserPreferences | null {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) return null;
+
+  try {
+    const prefs = JSON.parse(stored) as UserPreferences;
+    if (validatePreferences(prefs)) {
+      return prefs;
+    }
+  } catch (error) {
+    console.error('Failed to load preferences:', error);
+  }
+  
+  return null;
+}
