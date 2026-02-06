@@ -256,4 +256,58 @@ function mergePreferences(existing: UserPreferences, updates: Partial<UserPrefer
   return validatePreferences({ ...existing, ...updates });
 }
 
-export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en',
+  notificationsEnabled: true,
+  fontSize: 14,
+  autoSave: true
+};
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = 'auto';
+  }
+  
+  if (typeof validated.language !== 'string' || validated.language.trim() === '') {
+    validated.language = 'en';
+  }
+  
+  if (typeof validated.notificationsEnabled !== 'boolean') {
+    validated.notificationsEnabled = true;
+  }
+  
+  if (typeof validated.fontSize !== 'number' || validated.fontSize < 8 || validated.fontSize > 72) {
+    validated.fontSize = 14;
+  }
+  
+  if (typeof validated.autoSave !== 'boolean') {
+    validated.autoSave = true;
+  }
+  
+  return validated;
+}
+
+function savePreferences(prefs: Partial<UserPreferences>): void {
+  const validatedPrefs = validatePreferences(prefs);
+  console.log('Saving preferences:', validatedPrefs);
+  // In a real application, this would save to localStorage or a backend
+}
+
+function loadPreferences(): UserPreferences {
+  // In a real application, this would load from localStorage or a backend
+  console.log('Loading preferences');
+  return { ...DEFAULT_PREFERENCES };
+}
+
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
