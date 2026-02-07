@@ -3,7 +3,7 @@ import { z } from 'zod';
 const UserProfileSchema = z.object({
   username: z
     .string()
-    .min(3, 'Username must be at least 3 characters long')
+    .min(3, 'Username must be at least 3 characters')
     .max(20, 'Username cannot exceed 20 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   
@@ -18,8 +18,8 @@ const UserProfileSchema = z.object({
     .max(120, 'Please provide a valid age'),
   
   preferences: z.object({
-    newsletter: z.boolean(),
     theme: z.enum(['light', 'dark', 'auto']),
+    notifications: z.boolean(),
     language: z.string().default('en')
   }).optional(),
   
@@ -44,44 +44,15 @@ export function validateUserProfile(data: unknown): UserProfile {
   }
 }
 
-export function createDefaultProfile(): UserProfile {
-  return UserProfileSchema.parse({
-    username: '',
-    email: '',
+export function createDefaultProfile(username: string, email: string): UserProfile {
+  return {
+    username,
+    email,
     age: 18,
     preferences: {
-      newsletter: false,
       theme: 'auto',
+      notifications: true,
       language: 'en'
     }
-  });
-}import { z } from 'zod';
-
-const userProfileSchema = z.object({
-  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
-  email: z.string().email(),
-  age: z.number().int().min(18).max(120).optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).default('system'),
-    notifications: z.boolean().default(true)
-  }).default({}),
-  createdAt: z.date().default(() => new Date())
-});
-
-type UserProfile = z.infer<typeof userProfileSchema>;
-
-function validateUserProfile(data: unknown): UserProfile | null {
-  const result = userProfileSchema.safeParse(data);
-  return result.success ? result.data : null;
+  };
 }
-
-function formatValidationErrors(data: unknown): string[] {
-  const result = userProfileSchema.safeParse(data);
-  if (result.success) return [];
-  
-  return result.error.errors.map(err => 
-    `${err.path.join('.')}: ${err.message}`
-  );
-}
-
-export { userProfileSchema, validateUserProfile, formatValidationErrors, type UserProfile };
