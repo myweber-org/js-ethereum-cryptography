@@ -138,4 +138,64 @@ export function mergePreferences(
 ): UserPreferences {
   const merged = { ...existing, ...updates };
   return validatePreferences(merged);
+}import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationPreferenceSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+  sms: z.boolean(),
+});
+
+export const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  notifications: NotificationPreferenceSchema.default({
+    email: true,
+    push: false,
+    sms: false,
+  }),
+  language: z.string().min(2).max(5).default('en'),
+  timezone: z.string().default('UTC'),
+  twoFactorEnabled: z.boolean().default(false),
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
+}
+
+export function sanitizeUserPreferences(
+  preferences: Partial<UserPreferences>
+): Partial<UserPreferences> {
+  const result: Partial<UserPreferences> = {};
+  
+  if (preferences.theme !== undefined && ThemeSchema.safeParse(preferences.theme).success) {
+    result.theme = preferences.theme;
+  }
+  
+  if (preferences.notifications !== undefined) {
+    const parsed = NotificationPreferenceSchema.safeParse(preferences.notifications);
+    if (parsed.success) {
+      result.notifications = parsed.data;
+    }
+  }
+  
+  if (preferences.language !== undefined) {
+    const lang = preferences.language.trim();
+    if (lang.length >= 2 && lang.length <= 5) {
+      result.language = lang;
+    }
+  }
+  
+  if (preferences.timezone !== undefined && preferences.timezone.trim().length > 0) {
+    result.timezone = preferences.timezone.trim();
+  }
+  
+  if (preferences.twoFactorEnabled !== undefined && typeof preferences.twoFactorEnabled === 'boolean') {
+    result.twoFactorEnabled = preferences.twoFactorEnabled;
+  }
+  
+  return result;
 }
