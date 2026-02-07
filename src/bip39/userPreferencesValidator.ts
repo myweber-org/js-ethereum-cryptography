@@ -77,4 +77,69 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  resultsPerPage: 20
+};
+
+const VALID_LANGUAGES = new Set(['en-US', 'es-ES', 'fr-FR', 'de-DE']);
+const MIN_RESULTS_PER_PAGE = 5;
+const MAX_RESULTS_PER_PAGE = 100;
+
+class PreferencesValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferencesValidationError';
+  }
+}
+
+function validateUserPreferences(input: unknown): UserPreferences {
+  if (typeof input !== 'object' || input === null) {
+    throw new PreferencesValidationError('Preferences must be an object');
+  }
+
+  const prefs = { ...DEFAULT_PREFERENCES, ...input } as Record<string, unknown>;
+  
+  if (!['light', 'dark', 'auto'].includes(prefs.theme as string)) {
+    throw new PreferencesValidationError('Theme must be light, dark, or auto');
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferencesValidationError('Notifications must be a boolean');
+  }
+
+  if (!VALID_LANGUAGES.has(prefs.language as string)) {
+    throw new PreferencesValidationError(`Language must be one of: ${Array.from(VALID_LANGUAGES).join(', ')}`);
+  }
+
+  if (typeof prefs.resultsPerPage !== 'number' || 
+      prefs.resultsPerPage < MIN_RESULTS_PER_PAGE || 
+      prefs.resultsPerPage > MAX_RESULTS_PER_PAGE) {
+    throw new PreferencesValidationError(`Results per page must be between ${MIN_RESULTS_PER_PAGE} and ${MAX_RESULTS_PER_PAGE}`);
+  }
+
+  return prefs as UserPreferences;
+}
+
+function sanitizePreferences(preferences: Partial<UserPreferences>): UserPreferences {
+  try {
+    return validateUserPreferences(preferences);
+  } catch (error) {
+    if (error instanceof PreferencesValidationError) {
+      console.warn(`Invalid preference detected: ${error.message}. Using defaults.`);
+      return DEFAULT_PREFERENCES;
+    }
+    throw error;
+  }
+}
+
+export { UserPreferences, validateUserPreferences, sanitizePreferences, PreferencesValidationError };
