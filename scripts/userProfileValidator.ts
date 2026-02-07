@@ -23,9 +23,10 @@ const userProfileSchema = z.object({
     language: z.string().default('en')
   }).optional(),
   
-  createdAt: z
-    .date()
-    .default(() => new Date())
+  tags: z
+    .array(z.string())
+    .max(5, 'Cannot have more than 5 tags')
+    .optional()
 });
 
 type UserProfile = z.infer<typeof userProfileSchema>;
@@ -35,23 +36,20 @@ export function validateUserProfile(data: unknown): UserProfile {
     return userProfileSchema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      );
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
       throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
     }
     throw error;
   }
 }
 
-export function createDefaultProfile(username: string, email: string): Partial<UserProfile> {
+export function createDefaultProfile(): Partial<UserProfile> {
   return {
-    username,
-    email,
     preferences: {
       newsletter: false,
       theme: 'auto',
       language: 'en'
-    }
+    },
+    tags: []
   };
 }
