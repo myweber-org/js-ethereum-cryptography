@@ -51,4 +51,26 @@ export function createDefaultProfile(): UserProfile {
     },
     createdAt: new Date()
   };
+}import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(20),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'auto']),
+    notifications: z.boolean().default(true)
+  }).default({ theme: 'auto', notifications: true }),
+  lastLogin: z.date().optional()
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export function validateUserProfile(input: unknown): UserProfile {
+  return UserProfileSchema.parse(input);
+}
+
+export function safeValidateUserProfile(input: unknown) {
+  return UserProfileSchema.safeParse(input);
 }
