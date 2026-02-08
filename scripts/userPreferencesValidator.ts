@@ -86,4 +86,41 @@ export function getDefaultPreferences(): UserPreferences {
 export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
+}import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).optional()
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']),
+    dataSharing: z.boolean().default(false)
+  })
+}).refine(
+  (data) => !(data.notifications.email && !data.privacy.dataSharing),
+  {
+    message: 'Email notifications require data sharing consent',
+    path: ['notifications', 'email']
+  }
+);
+
+export function validateUserPreferences(input: unknown) {
+  try {
+    const validated = PreferenceSchema.parse(input);
+    return { success: true, data: validated };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formattedErrors = error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+      return { success: false, errors: formattedErrors };
+    }
+    throw error;
+  }
 }
+
+export type UserPreferences = z.infer<typeof PreferenceSchema>;
