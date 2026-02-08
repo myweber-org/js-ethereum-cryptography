@@ -50,4 +50,44 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationPreferenceSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+  sms: z.boolean(),
+});
+
+const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  notifications: NotificationPreferenceSchema.default({
+    email: true,
+    push: false,
+    sms: false,
+  }),
+  language: z.string().min(2).max(5).default('en'),
+  timezone: z.string().optional(),
+  createdAt: z.date().default(() => new Date()),
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+function createDefaultPreferences(userId: string): UserPreferences {
+  return UserPreferencesSchema.parse({ userId });
+}
+
+export { validateUserPreferences, createDefaultPreferences, UserPreferencesSchema };
+export type { UserPreferences };
