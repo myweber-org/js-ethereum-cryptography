@@ -1,10 +1,10 @@
-
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface UserPayload {
   userId: string;
   email: string;
+  role: string;
 }
 
 declare global {
@@ -20,7 +20,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    res.status(401).json({ error: 'Authentication token required' });
+    res.status(401).json({ error: 'Access token required' });
     return;
   }
 
@@ -34,118 +34,20 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Invalid or expired token' });
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Token expired' });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      res.status(403).json({ error: 'Invalid token' });
+    } else {
+      res.status(500).json({ error: 'Authentication failed' });
+    }
   }
 };
 
-export const generateToken = (payload: UserPayload): string => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT secret not configured');
-  }
-
-  return jwt.sign(payload, secret, { expiresIn: '24h' });
-};
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-interface UserPayload {
-  id: string;
-  email: string;
-  role: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      currentUser?: UserPayload;
-    }
-  }
-}
-
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
-
-export const authenticateUser = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authentication token required' });
-    return;
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const payload = jwt.verify(token, JWT_SECRET) as UserPayload;
-    req.currentUser = payload;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired token' });
-  }
-};
-
-export const requireRole = (requiredRole: string) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.currentUser) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    if (req.currentUser.role !== requiredRole) {
-      res.status(403).json({ error: 'Insufficient permissions' });
-      return;
-    }
-
-    next();
-  };
-};
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-interface UserPayload {
-  userId: string;
-  email: string;
-  role: string;
-}
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: UserPayload;
-    }
-  }
-}
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    res.status(401).json({ error: 'Authentication token required' });
-    return;
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      res.status(403).json({ error: 'Invalid or expired token' });
-      return;
-    }
-
-    req.user = decoded as UserPayload;
-    next();
-  });
-};
-
-export const authorizeRole = (allowedRoles: string[]) => {
+export const authorizeRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({ error: 'User not authenticated' });
+      res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
@@ -156,8 +58,4 @@ export const authorizeRole = (allowedRoles: string[]) => {
 
     next();
   };
-};
-
-export const generateToken = (userData: UserPayload): string => {
-  return jwt.sign(userData, JWT_SECRET, { expiresIn: '24h' });
 };
