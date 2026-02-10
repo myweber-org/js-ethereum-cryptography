@@ -87,4 +87,61 @@ class UserPreferencesManager {
   }
 }
 
+export { UserPreferencesManager, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        return { ...this.defaultPreferences, ...JSON.parse(stored) };
+      } catch {
+        return this.defaultPreferences;
+      }
+    }
+    return this.defaultPreferences;
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const updated = { ...current, ...updates };
+    localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(updated));
+    return updated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+    return this.defaultPreferences;
+  }
+
+  validatePreferences(prefs: unknown): prefs is UserPreferences {
+    if (!prefs || typeof prefs !== 'object') return false;
+    const p = prefs as Record<string, unknown>;
+    
+    const validThemes = ['light', 'dark', 'auto'];
+    if (!p.theme || !validThemes.includes(p.theme as string)) return false;
+    
+    if (!p.language || typeof p.language !== 'string') return false;
+    
+    if (typeof p.notificationsEnabled !== 'boolean') return false;
+    
+    if (typeof p.fontSize !== 'number' || p.fontSize < 8 || p.fontSize > 32) return false;
+    
+    return true;
+  }
+}
+
 export { UserPreferencesManager, type UserPreferences };
