@@ -1,128 +1,46 @@
 
 interface UserProfile {
   id: string;
+  username: string;
   email: string;
-  displayName: string;
   age: number;
-  lastUpdated: Date;
+  isActive: boolean;
+  lastLogin: Date;
 }
 
 class UserProfileManager {
   private profiles: Map<string, UserProfile> = new Map();
 
-  updateProfile(userId: string, updates: Partial<UserProfile>): UserProfile | null {
-    const existingProfile = this.profiles.get(userId);
-    if (!existingProfile) {
-      console.error(`User ${userId} not found`);
-      return null;
-    }
-
-    if (updates.email && !this.validateEmail(updates.email)) {
-      throw new Error('Invalid email format');
-    }
-
-    if (updates.age !== undefined && (updates.age < 0 || updates.age > 150)) {
-      throw new Error('Age must be between 0 and 150');
-    }
-
-    const updatedProfile: UserProfile = {
-      ...existingProfile,
-      ...updates,
-      lastUpdated: new Date()
-    };
-
-    this.profiles.set(userId, updatedProfile);
-    this.auditLog('PROFILE_UPDATE', userId, updates);
-    
-    return updatedProfile;
-  }
-
-  private validateEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  private auditLog(action: string, userId: string, details: object): void {
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      action,
-      userId,
-      details
-    };
-    console.log('AUDIT_LOG:', JSON.stringify(logEntry));
-  }
-
-  addProfile(profile: UserProfile): void {
-    if (this.profiles.has(profile.id)) {
-      throw new Error(`Profile with id ${profile.id} already exists`);
-    }
-    this.profiles.set(profile.id, profile);
-  }
-
-  getProfile(userId: string): UserProfile | null {
-    return this.profiles.get(userId) || null;
-  }
-}
-
-const profileManager = new UserProfileManager();
-
-profileManager.addProfile({
-  id: 'user-123',
-  email: 'john@example.com',
-  displayName: 'John Doe',
-  age: 30,
-  lastUpdated: new Date()
-});
-
-try {
-  const updated = profileManager.updateProfile('user-123', {
-    displayName: 'John Smith',
-    age: 31
-  });
-  console.log('Updated profile:', updated);
-} catch (error) {
-  console.error('Update failed:', error.message);
-}
-interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  age?: number;
-  isActive: boolean;
-}
-
-class UserProfileManager {
-  private profiles: Map<string, UserProfile>;
-
-  constructor() {
-    this.profiles = new Map();
-  }
-
   addProfile(profile: UserProfile): boolean {
+    if (this.profiles.has(profile.id)) {
+      console.error(`Profile with ID ${profile.id} already exists`);
+      return false;
+    }
+
     if (!this.validateProfile(profile)) {
       return false;
     }
-    
-    if (this.profiles.has(profile.id)) {
-      return false;
-    }
 
     this.profiles.set(profile.id, profile);
+    console.log(`Profile added for user: ${profile.username}`);
     return true;
   }
 
   updateProfile(id: string, updates: Partial<UserProfile>): boolean {
     const existingProfile = this.profiles.get(id);
     if (!existingProfile) {
+      console.error(`Profile with ID ${id} not found`);
       return false;
     }
 
     const updatedProfile = { ...existingProfile, ...updates };
+    
     if (!this.validateProfile(updatedProfile)) {
       return false;
     }
 
     this.profiles.set(id, updatedProfile);
+    console.log(`Profile updated for user: ${updatedProfile.username}`);
     return true;
   }
 
@@ -131,19 +49,40 @@ class UserProfileManager {
   }
 
   deactivateProfile(id: string): boolean {
-    return this.updateProfile(id, { isActive: false });
+    const profile = this.profiles.get(id);
+    if (!profile) {
+      return false;
+    }
+
+    profile.isActive = false;
+    profile.lastLogin = new Date();
+    return true;
+  }
+
+  listActiveProfiles(): UserProfile[] {
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive)
+      .sort((a, b) => a.username.localeCompare(b.username));
   }
 
   private validateProfile(profile: UserProfile): boolean {
-    if (!profile.id || !profile.username || !profile.email) {
+    if (!profile.id || profile.id.trim() === '') {
+      console.error('Profile ID is required');
       return false;
     }
 
-    if (!this.isValidEmail(profile.email)) {
+    if (!profile.username || profile.username.trim() === '') {
+      console.error('Username is required');
       return false;
     }
 
-    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+    if (!profile.email || !this.isValidEmail(profile.email)) {
+      console.error('Valid email is required');
+      return false;
+    }
+
+    if (profile.age < 0 || profile.age > 150) {
+      console.error('Age must be between 0 and 150');
       return false;
     }
 
@@ -154,15 +93,26 @@ class UserProfileManager {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
-
-  getActiveProfiles(): UserProfile[] {
-    return Array.from(this.profiles.values())
-      .filter(profile => profile.isActive);
-  }
-
-  getProfileCount(): number {
-    return this.profiles.size;
-  }
 }
 
-export { UserProfileManager, UserProfile };
+const profileManager = new UserProfileManager();
+
+const sampleProfile: UserProfile = {
+  id: 'user-001',
+  username: 'john_doe',
+  email: 'john@example.com',
+  age: 30,
+  isActive: true,
+  lastLogin: new Date()
+};
+
+profileManager.addProfile(sampleProfile);
+
+const updated = profileManager.updateProfile('user-001', { age: 31 });
+if (updated) {
+  const profile = profileManager.getProfile('user-001');
+  console.log(`Updated age: ${profile?.age}`);
+}
+
+const activeProfiles = profileManager.listActiveProfiles();
+console.log(`Active users: ${activeProfiles.length}`);
