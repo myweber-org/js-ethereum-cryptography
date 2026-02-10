@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-const UserProfileSchema = z.object({
+const userProfileSchema = z.object({
   username: z
     .string()
-    .min(3, 'Username must be at least 3 characters')
+    .min(3, 'Username must be at least 3 characters long')
     .max(20, 'Username cannot exceed 20 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   
@@ -14,25 +14,26 @@ const UserProfileSchema = z.object({
   age: z
     .number()
     .int('Age must be an integer')
-    .min(18, 'You must be at least 18 years old')
+    .min(18, 'User must be at least 18 years old')
     .max(120, 'Please provide a valid age'),
   
   preferences: z.object({
+    newsletter: z.boolean(),
     theme: z.enum(['light', 'dark', 'auto']),
-    notifications: z.boolean(),
-    language: z.string().default('en')
-  }).optional(),
+    language: z.string().optional()
+  }).strict(),
   
-  createdAt: z
-    .date()
-    .default(() => new Date())
+  tags: z
+    .array(z.string())
+    .max(10, 'Cannot have more than 10 tags')
+    .optional()
 });
 
-type UserProfile = z.infer<typeof UserProfileSchema>;
+type UserProfile = z.infer<typeof userProfileSchema>;
 
-export function validateUserProfile(input: unknown): UserProfile {
+export function validateUserProfile(data: unknown): UserProfile {
   try {
-    return UserProfileSchema.parse(input);
+    return userProfileSchema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errorMessages = error.errors.map(err => 
@@ -44,14 +45,16 @@ export function validateUserProfile(input: unknown): UserProfile {
   }
 }
 
-export function createDefaultProfile(username: string, email: string): UserProfile {
-  return UserProfileSchema.parse({
-    username,
-    email,
+export function createDefaultProfile(): UserProfile {
+  return {
+    username: '',
+    email: '',
     age: 18,
     preferences: {
+      newsletter: false,
       theme: 'auto',
-      notifications: true
-    }
-  });
+      language: undefined
+    },
+    tags: []
+  };
 }
