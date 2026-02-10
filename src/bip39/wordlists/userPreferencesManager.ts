@@ -662,4 +662,77 @@ const defaultUserPreferences: UserPreferences = {
 };
 
 export { UserPreferencesManager, defaultUserPreferences };
-export type { UserPreferences };
+export type { UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 16
+  };
+
+  getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return this.validatePreferences(parsed);
+      } catch {
+        return this.defaultPreferences;
+      }
+    }
+    return this.defaultPreferences;
+  }
+
+  savePreferences(preferences: Partial<UserPreferences>): boolean {
+    try {
+      const current = this.getPreferences();
+      const updated = { ...current, ...preferences };
+      const validated = this.validatePreferences(updated);
+      
+      localStorage.setItem(
+        UserPreferencesManager.STORAGE_KEY, 
+        JSON.stringify(validated)
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  resetToDefaults(): void {
+    localStorage.removeItem(UserPreferencesManager.STORAGE_KEY);
+  }
+
+  private validatePreferences(prefs: any): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const theme = validThemes.includes(prefs.theme) 
+      ? prefs.theme 
+      : this.defaultPreferences.theme;
+
+    const language = typeof prefs.language === 'string' 
+      ? prefs.language 
+      : this.defaultPreferences.language;
+
+    const notificationsEnabled = typeof prefs.notificationsEnabled === 'boolean'
+      ? prefs.notificationsEnabled
+      : this.defaultPreferences.notificationsEnabled;
+
+    const fontSize = typeof prefs.fontSize === 'number' 
+      && prefs.fontSize >= 12 
+      && prefs.fontSize <= 24
+      ? prefs.fontSize
+      : this.defaultPreferences.fontSize;
+
+    return { theme, language, notificationsEnabled, fontSize };
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
