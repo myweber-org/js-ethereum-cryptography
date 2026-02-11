@@ -41,4 +41,60 @@ export function mergePreferences(
 ): UserPreferences {
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
+}import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.number().min(1).max(24)
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'contacts-only']),
+    dataSharing: z.boolean()
+  }).optional()
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export class PreferenceValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return PreferenceSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const issues = error.issues.map(issue => ({
+          path: issue.path.join('.'),
+          message: issue.message
+        }));
+        throw new PreferenceValidationError('Invalid preferences format', issues);
+      }
+      throw error;
+    }
+  }
+
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    return PreferenceSchema.partial().parse(updates);
+  }
+}
+
+export class PreferenceValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly issues: Array<{ path: string; message: string }>
+  ) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+export function sanitizePreferences(prefs: UserPreferences): UserPreferences {
+  return {
+    ...prefs,
+    notifications: {
+      ...prefs.notifications,
+      frequency: Math.min(Math.max(prefs.notifications.frequency, 1), 24)
+    }
+  };
 }
