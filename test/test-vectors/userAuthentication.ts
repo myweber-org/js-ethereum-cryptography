@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface DecodedToken {
+interface UserPayload {
   userId: string;
   email: string;
   role: string;
@@ -10,7 +10,7 @@ interface DecodedToken {
 declare global {
   namespace Express {
     interface Request {
-      user?: DecodedToken;
+      user?: UserPayload;
     }
   }
 }
@@ -24,7 +24,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const secretKey = process.env.JWT_SECRET_KEY;
+  const secretKey = process.env.JWT_SECRET;
   if (!secretKey) {
     res.status(500).json({ error: 'Server configuration error' });
     return;
@@ -36,12 +36,12 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    req.user = decoded as DecodedToken;
+    req.user = decoded as UserPayload;
     next();
   });
 };
 
-export const authorizeRole = (...allowedRoles: string[]) => {
+export const authorizeRole = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
