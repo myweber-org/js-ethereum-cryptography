@@ -57,4 +57,71 @@ export function createDefaultProfile(): UserProfile {
     },
     tags: []
   };
+}interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  age?: number;
+  isActive: boolean;
 }
+
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+const validateUsername = (username: string): string | null => {
+  if (username.length < 3) {
+    return 'Username must be at least 3 characters long';
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return 'Username can only contain letters, numbers, and underscores';
+  }
+  return null;
+};
+
+const validateEmail = (email: string): string | null => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return 'Invalid email format';
+  }
+  return null;
+};
+
+const validateAge = (age: number | undefined): string | null => {
+  if (age !== undefined && (age < 0 || age > 150)) {
+    return 'Age must be between 0 and 150';
+  }
+  return null;
+};
+
+export const validateUserProfile = (profile: UserProfile): ValidationResult => {
+  const errors: string[] = [];
+
+  const usernameError = validateUsername(profile.username);
+  if (usernameError) errors.push(usernameError);
+
+  const emailError = validateEmail(profile.email);
+  if (emailError) errors.push(emailError);
+
+  const ageError = validateAge(profile.age);
+  if (ageError) errors.push(ageError);
+
+  if (typeof profile.isActive !== 'boolean') {
+    errors.push('isActive must be a boolean value');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+export const createDefaultProfile = (): UserProfile => {
+  return {
+    id: Date.now(),
+    username: '',
+    email: '',
+    isActive: false
+  };
+};
