@@ -508,4 +508,76 @@ class UserPreferencesManager {
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  fontSize: 14
+};
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor(initialPreferences?: Partial<UserPreferences>) {
+    this.preferences = { ...DEFAULT_PREFERENCES, ...initialPreferences };
+    this.validatePreferences();
+  }
+
+  private validatePreferences(): void {
+    if (!['light', 'dark', 'auto'].includes(this.preferences.theme)) {
+      throw new Error('Invalid theme value');
+    }
+    if (typeof this.preferences.notifications !== 'boolean') {
+      throw new Error('Notifications must be boolean');
+    }
+    if (this.preferences.fontSize < 8 || this.preferences.fontSize > 32) {
+      throw new Error('Font size must be between 8 and 32');
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const newPreferences = { ...this.preferences, ...updates };
+    this.preferences = newPreferences;
+    this.validatePreferences();
+    this.saveToStorage();
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.saveToStorage();
+  }
+
+  private saveToStorage(): void {
+    try {
+      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+    } catch (error) {
+      console.error('Failed to save preferences to storage:', error);
+    }
+  }
+
+  static loadFromStorage(): UserPreferencesManager {
+    try {
+      const stored = localStorage.getItem('userPreferences');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new UserPreferencesManager(parsed);
+      }
+    } catch (error) {
+      console.error('Failed to load preferences from storage:', error);
+    }
+    return new UserPreferencesManager();
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
