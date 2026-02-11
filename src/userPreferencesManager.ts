@@ -752,4 +752,75 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager };
-export type { UserPreferences };
+export type { UserPreferences };import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notificationsEnabled: z.boolean().default(true),
+  fontSize: z.number().min(12).max(24).default(16),
+  language: z.string().min(2).default('en'),
+  autoSave: z.boolean().default(true),
+  lastUpdated: z.date().optional()
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+const STORAGE_KEY = 'user_preferences';
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return UserPreferencesSchema.parse({});
+
+      const parsed = JSON.parse(stored);
+      parsed.lastUpdated = parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined;
+      
+      return UserPreferencesSchema.parse(parsed);
+    } catch {
+      return UserPreferencesSchema.parse({});
+    }
+  }
+
+  private savePreferences(): void {
+    const dataToStore = {
+      ...this.preferences,
+      lastUpdated: new Date()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const validatedUpdates = UserPreferencesSchema.partial().parse(updates);
+    
+    this.preferences = {
+      ...this.preferences,
+      ...validatedUpdates
+    };
+    
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = UserPreferencesSchema.parse({});
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  validatePreferences(prefs: unknown): UserPreferences {
+    return UserPreferencesSchema.parse(prefs);
+  }
+}
+
+export const userPreferencesManager = new UserPreferencesManager();
