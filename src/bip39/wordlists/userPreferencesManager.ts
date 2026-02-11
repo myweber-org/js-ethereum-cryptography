@@ -1,3 +1,4 @@
+
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
@@ -39,42 +40,47 @@ class UserPreferencesManager {
       return { ...DEFAULT_PREFERENCES };
     }
 
-    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+    const prefs = data as Record<string, unknown>;
+    
+    return {
+      theme: this.isValidTheme(prefs.theme) ? prefs.theme : DEFAULT_PREFERENCES.theme,
+      notifications: typeof prefs.notifications === 'boolean' ? prefs.notifications : DEFAULT_PREFERENCES.notifications,
+      language: typeof prefs.language === 'string' ? prefs.language : DEFAULT_PREFERENCES.language,
+      fontSize: typeof prefs.fontSize === 'number' && prefs.fontSize >= 8 && prefs.fontSize <= 32 
+        ? prefs.fontSize 
+        : DEFAULT_PREFERENCES.fontSize
+    };
+  }
 
-    if ('theme' in data && ['light', 'dark', 'auto'].includes(data.theme as string)) {
-      validated.theme = data.theme as UserPreferences['theme'];
-    }
-
-    if ('notifications' in data && typeof data.notifications === 'boolean') {
-      validated.notifications = data.notifications;
-    }
-
-    if ('language' in data && typeof data.language === 'string') {
-      validated.language = data.language;
-    }
-
-    if ('fontSize' in data && typeof data.fontSize === 'number' && data.fontSize >= 8 && data.fontSize <= 32) {
-      validated.fontSize = data.fontSize;
-    }
-
-    return validated;
+  private isValidTheme(theme: unknown): theme is UserPreferences['theme'] {
+    return theme === 'light' || theme === 'dark' || theme === 'auto';
   }
 
   getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): void {
-    this.preferences = {
-      ...this.preferences,
-      ...updates
-    };
-    this.savePreferences();
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    if (this.hasValidChanges(newPreferences)) {
+      this.preferences = newPreferences;
+      this.savePreferences();
+      return true;
+    }
+    
+    return false;
   }
 
-  resetToDefaults(): void {
-    this.preferences = { ...DEFAULT_PREFERENCES };
-    this.savePreferences();
+  private hasValidChanges(newPrefs: UserPreferences): boolean {
+    return (
+      this.isValidTheme(newPrefs.theme) &&
+      typeof newPrefs.notifications === 'boolean' &&
+      typeof newPrefs.language === 'string' &&
+      typeof newPrefs.fontSize === 'number' &&
+      newPrefs.fontSize >= 8 &&
+      newPrefs.fontSize <= 32
+    );
   }
 
   private savePreferences(): void {
@@ -85,84 +91,18 @@ class UserPreferencesManager {
     }
   }
 
-  isDarkMode(): boolean {
-    if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return this.preferences.theme === 'dark';
-  }
-}
-
-export const userPreferences = new UserPreferencesManager();interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: string;
-  notificationsEnabled: boolean;
-  fontSize: number;
-}
-
-class UserPreferencesManager {
-  private static readonly STORAGE_KEY = 'user_preferences';
-  private preferences: UserPreferences;
-
-  constructor(defaultPreferences: UserPreferences) {
-    this.preferences = this.loadPreferences() || defaultPreferences;
-  }
-
-  private loadPreferences(): UserPreferences | null {
-    try {
-      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    
-    if (!this.validatePreferences(newPreferences)) {
-      return false;
-    }
-
-    this.preferences = newPreferences;
-    this.savePreferences();
-    return true;
-  }
-
-  private validatePreferences(prefs: UserPreferences): boolean {
-    return (
-      ['light', 'dark', 'auto'].includes(prefs.theme) &&
-      typeof prefs.language === 'string' &&
-      prefs.language.length >= 2 &&
-      typeof prefs.notificationsEnabled === 'boolean' &&
-      prefs.fontSize >= 8 &&
-      prefs.fontSize <= 72
-    );
-  }
-
-  private savePreferences(): void {
-    localStorage.setItem(
-      UserPreferencesManager.STORAGE_KEY,
-      JSON.stringify(this.preferences)
-    );
-  }
-
-  getPreferences(): Readonly<UserPreferences> {
-    return { ...this.preferences };
-  }
-
-  resetToDefaults(defaults: UserPreferences): void {
-    this.preferences = defaults;
+  resetToDefaults(): void {
+    this.preferences = { ...DEFAULT_PREFERENCES };
     this.savePreferences();
   }
+
+  getTheme(): UserPreferences['theme'] {
+    return this.preferences.theme;
+  }
+
+  toggleNotifications(): void {
+    this.updatePreferences({ notifications: !this.preferences.notifications });
+  }
 }
 
-const defaultUserPreferences: UserPreferences = {
-  theme: 'auto',
-  language: 'en',
-  notificationsEnabled: true,
-  fontSize: 16
-};
-
-export { UserPreferencesManager, defaultUserPreferences };
-export type { UserPreferences };
+export const userPreferences = new UserPreferencesManager();
