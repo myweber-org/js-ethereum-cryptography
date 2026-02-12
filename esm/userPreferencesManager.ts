@@ -72,4 +72,76 @@ const defaultUserPreferences: UserPreferences = {
 };
 
 export { UserPreferencesManager, defaultUserPreferences };
-export type { UserPreferences };
+export type { UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  private validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = { ...this.defaultPreferences, ...prefs };
+    
+    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+      validated.theme = 'auto';
+    }
+    
+    if (typeof validated.language !== 'string' || validated.language.length === 0) {
+      validated.language = 'en';
+    }
+    
+    if (typeof validated.notificationsEnabled !== 'boolean') {
+      validated.notificationsEnabled = true;
+    }
+    
+    if (typeof validated.fontSize !== 'number' || validated.fontSize < 8 || validated.fontSize > 32) {
+      validated.fontSize = 14;
+    }
+    
+    return validated;
+  }
+
+  savePreferences(preferences: Partial<UserPreferences>): void {
+    const validated = this.validatePreferences(preferences);
+    try {
+      localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(validated));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        return this.validatePreferences(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+    }
+    return { ...this.defaultPreferences };
+  }
+
+  resetToDefaults(): void {
+    this.savePreferences(this.defaultPreferences);
+  }
+
+  getCurrentTheme(): string {
+    const prefs = this.loadPreferences();
+    if (prefs.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return prefs.theme;
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
