@@ -1,178 +1,99 @@
+
 interface UserProfile {
   id: string;
   username: string;
   email: string;
   age?: number;
-  preferences: {
-    theme: 'light' | 'dark';
-    notifications: boolean;
-  };
+  isActive: boolean;
+  lastLogin: Date;
 }
 
 class UserProfileManager {
   private profiles: Map<string, UserProfile> = new Map();
 
-  validateProfile(profile: Partial<UserProfile>): string[] {
-    const errors: string[] = [];
-
-    if (profile.username && profile.username.length < 3) {
-      errors.push('Username must be at least 3 characters long');
-    }
-
-    if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      errors.push('Invalid email format');
-    }
-
-    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
-      errors.push('Age must be between 0 and 150');
-    }
-
-    if (profile.preferences?.theme && !['light', 'dark'].includes(profile.preferences.theme)) {
-      errors.push('Theme must be either light or dark');
-    }
-
-    return errors;
-  }
-
-  addProfile(profile: UserProfile): boolean {
+  addProfile(profile: UserProfile): void {
     if (this.profiles.has(profile.id)) {
-      return false;
+      throw new Error(`Profile with id ${profile.id} already exists`);
     }
 
-    const validationErrors = this.validateProfile(profile);
-    if (validationErrors.length > 0) {
-      console.warn('Profile validation failed:', validationErrors);
-      return false;
+    if (!this.isValidEmail(profile.email)) {
+      throw new Error(`Invalid email format: ${profile.email}`);
     }
 
-    this.profiles.set(profile.id, profile);
-    return true;
+    if (profile.age !== undefined && profile.age < 0) {
+      throw new Error(`Age cannot be negative: ${profile.age}`);
+    }
+
+    this.profiles.set(profile.id, { ...profile });
   }
 
-  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
+  updateProfile(id: string, updates: Partial<UserProfile>): void {
     const existingProfile = this.profiles.get(id);
     if (!existingProfile) {
-      return false;
+      throw new Error(`Profile with id ${id} not found`);
     }
 
-    const validationErrors = this.validateProfile(updates);
-    if (validationErrors.length > 0) {
-      console.warn('Update validation failed:', validationErrors);
-      return false;
+    if (updates.email && !this.isValidEmail(updates.email)) {
+      throw new Error(`Invalid email format: ${updates.email}`);
     }
 
-    const updatedProfile: UserProfile = {
-      ...existingProfile,
-      ...updates,
-      preferences: {
-        ...existingProfile.preferences,
-        ...updates.preferences,
-      },
-    };
+    if (updates.age !== undefined && updates.age < 0) {
+      throw new Error(`Age cannot be negative: ${updates.age}`);
+    }
 
-    this.profiles.set(id, updatedProfile);
-    return true;
+    this.profiles.set(id, { ...existingProfile, ...updates });
   }
 
   getProfile(id: string): UserProfile | undefined {
     return this.profiles.get(id);
   }
 
-  getAllProfiles(): UserProfile[] {
-    return Array.from(this.profiles.values());
+  getActiveUsers(): UserProfile[] {
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive)
+      .sort((a, b) => b.lastLogin.getTime() - a.lastLogin.getTime());
   }
 
   removeProfile(id: string): boolean {
     return this.profiles.delete(id);
   }
-}
 
-export { UserProfileManager, type UserProfile };
-interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  age?: number;
-  preferences: {
-    theme: 'light' | 'dark';
-    notifications: boolean;
-  };
-}
-
-class UserProfileManager {
-  private profiles: Map<string, UserProfile> = new Map();
-
-  validateProfile(profile: Partial<UserProfile>): string[] {
-    const errors: string[] = [];
-
-    if (profile.username && profile.username.length < 3) {
-      errors.push('Username must be at least 3 characters long');
-    }
-
-    if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      errors.push('Invalid email format');
-    }
-
-    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
-      errors.push('Age must be between 0 and 150');
-    }
-
-    if (profile.preferences?.theme && !['light', 'dark'].includes(profile.preferences.theme)) {
-      errors.push('Theme must be either light or dark');
-    }
-
-    return errors;
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 
-  addProfile(profile: UserProfile): boolean {
-    const errors = this.validateProfile(profile);
-    if (errors.length > 0) {
-      console.error('Profile validation failed:', errors);
-      return false;
-    }
-
-    if (this.profiles.has(profile.id)) {
-      console.error(`Profile with id ${profile.id} already exists`);
-      return false;
-    }
-
-    this.profiles.set(profile.id, profile);
-    return true;
-  }
-
-  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
-    const existingProfile = this.profiles.get(id);
-    if (!existingProfile) {
-      console.error(`Profile with id ${id} not found`);
-      return false;
-    }
-
-    const errors = this.validateProfile(updates);
-    if (errors.length > 0) {
-      console.error('Profile update validation failed:', errors);
-      return false;
-    }
-
-    const updatedProfile: UserProfile = {
-      ...existingProfile,
-      ...updates,
-      preferences: {
-        ...existingProfile.preferences,
-        ...updates.preferences,
-      },
-    };
-
-    this.profiles.set(id, updatedProfile);
-    return true;
-  }
-
-  getProfile(id: string): UserProfile | undefined {
-    return this.profiles.get(id);
-  }
-
-  getAllProfiles(): UserProfile[] {
-    return Array.from(this.profiles.values());
+  getProfileCount(): number {
+    return this.profiles.size;
   }
 }
 
-export { UserProfileManager, type UserProfile };
+const profileManager = new UserProfileManager();
+
+try {
+  profileManager.addProfile({
+    id: 'user-001',
+    username: 'john_doe',
+    email: 'john@example.com',
+    age: 30,
+    isActive: true,
+    lastLogin: new Date()
+  });
+
+  profileManager.addProfile({
+    id: 'user-002',
+    username: 'jane_smith',
+    email: 'jane@example.org',
+    isActive: false,
+    lastLogin: new Date('2024-01-15')
+  });
+
+  profileManager.updateProfile('user-001', { age: 31, isActive: false });
+  
+  const activeUsers = profileManager.getActiveUsers();
+  console.log(`Active users: ${activeUsers.length}`);
+  console.log(`Total profiles: ${profileManager.getProfileCount()}`);
+
+} catch (error) {
+  console.error('Profile operation failed:', error.message);
+}
