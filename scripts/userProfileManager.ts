@@ -99,3 +99,70 @@ try {
 } catch (error) {
   console.error('Profile operation failed:', error.message);
 }
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  preferences: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+  };
+}
+
+class UserProfileManager {
+  private profiles: Map<string, UserProfile>;
+
+  constructor() {
+    this.profiles = new Map();
+  }
+
+  validateProfile(profile: Partial<UserProfile>): profile is UserProfile {
+    return (
+      typeof profile.id === 'string' &&
+      typeof profile.username === 'string' &&
+      typeof profile.email === 'string' &&
+      this.isValidEmail(profile.email) &&
+      typeof profile.preferences?.theme === 'string' &&
+      ['light', 'dark'].includes(profile.preferences.theme) &&
+      typeof profile.preferences?.notifications === 'boolean'
+    );
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  addProfile(profile: UserProfile): void {
+    if (!this.validateProfile(profile)) {
+      throw new Error('Invalid profile data');
+    }
+    this.profiles.set(profile.id, profile);
+  }
+
+  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
+    const existingProfile = this.profiles.get(id);
+    if (!existingProfile) return false;
+
+    const updatedProfile = { ...existingProfile, ...updates };
+    if (!this.validateProfile(updatedProfile)) {
+      return false;
+    }
+
+    this.profiles.set(id, updatedProfile);
+    return true;
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
+  }
+
+  getProfilesByPreference(preference: 'light' | 'dark'): UserProfile[] {
+    return Array.from(this.profiles.values()).filter(
+      profile => profile.preferences.theme === preference
+    );
+  }
+}
+
+export { UserProfileManager, type UserProfile };
