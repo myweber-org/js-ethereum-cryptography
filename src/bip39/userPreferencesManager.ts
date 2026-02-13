@@ -1,7 +1,7 @@
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
   language: string;
-  notificationsEnabled: boolean;
   fontSize: number;
 }
 
@@ -29,31 +29,23 @@ class UserPreferencesManager {
     );
   }
 
-  updatePreferences(updates: Partial<UserPreferences>): boolean {
-    const newPreferences = { ...this.preferences, ...updates };
-    
-    if (!this.validatePreferences(newPreferences)) {
-      return false;
-    }
-
-    this.preferences = newPreferences;
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    this.validatePreferences(updates);
+    this.preferences = { ...this.preferences, ...updates };
     this.savePreferences();
-    return true;
   }
 
-  private validatePreferences(prefs: UserPreferences): boolean {
-    const validThemes = ['light', 'dark', 'auto'];
-    return (
-      validThemes.includes(prefs.theme) &&
-      typeof prefs.language === 'string' &&
-      prefs.language.length >= 2 &&
-      typeof prefs.notificationsEnabled === 'boolean' &&
-      prefs.fontSize >= 8 &&
-      prefs.fontSize <= 32
-    );
+  private validatePreferences(prefs: Partial<UserPreferences>): void {
+    if (prefs.theme && !['light', 'dark', 'auto'].includes(prefs.theme)) {
+      throw new Error('Invalid theme value');
+    }
+    
+    if (prefs.fontSize && (prefs.fontSize < 12 || prefs.fontSize > 24)) {
+      throw new Error('Font size must be between 12 and 24');
+    }
   }
 
-  getPreferences(): Readonly<UserPreferences> {
+  getPreferences(): UserPreferences {
     return { ...this.preferences };
   }
 
@@ -63,4 +55,11 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  fontSize: 16
+};
+
+export const preferencesManager = new UserPreferencesManager(defaultPreferences);
