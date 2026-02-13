@@ -91,4 +91,43 @@ class PreferenceManager {
   }
 }
 
-export const preferenceManager = new PreferenceManager();
+export const preferenceManager = new PreferenceManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
+
+function validateUserPreferences(prefs: UserPreferences): boolean {
+  const validThemes = ['light', 'dark', 'auto'];
+  const validLanguages = ['en', 'es', 'fr', 'de'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    return false;
+  }
+  
+  if (typeof prefs.notifications !== 'boolean') {
+    return false;
+  }
+  
+  if (!validLanguages.includes(prefs.language)) {
+    return false;
+  }
+  
+  if (!/^[A-Za-z_]+\/[A-Za-z_]+$/.test(prefs.timezone)) {
+    return false;
+  }
+  
+  return true;
+}
+
+function getDefaultPreferences(): UserPreferences {
+  return {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    timezone: 'America/New_York'
+  };
+}
+
+export { UserPreferences, validateUserPreferences, getDefaultPreferences };
