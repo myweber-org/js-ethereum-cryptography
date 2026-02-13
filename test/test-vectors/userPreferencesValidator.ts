@@ -122,3 +122,66 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
 }
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+type ValidationResult = {
+  isValid: boolean;
+  errors: string[];
+};
+
+class UserPreferencesValidator {
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+
+  static validate(preferences: Partial<UserPreferences>): ValidationResult {
+    const errors: string[] = [];
+
+    if (preferences.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        errors.push(`Invalid theme: ${preferences.theme}`);
+      }
+    }
+
+    if (preferences.language !== undefined) {
+      if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        errors.push(`Unsupported language: ${preferences.language}`);
+      }
+    }
+
+    if (preferences.fontSize !== undefined) {
+      if (preferences.fontSize < UserPreferencesValidator.MIN_FONT_SIZE) {
+        errors.push(`Font size too small: ${preferences.fontSize}`);
+      }
+      if (preferences.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
+        errors.push(`Font size too large: ${preferences.fontSize}`);
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  static validateStrict(preferences: UserPreferences): ValidationResult {
+    const requiredFields: (keyof UserPreferences)[] = ['theme', 'notifications', 'language', 'fontSize'];
+    const missingFields = requiredFields.filter(field => preferences[field] === undefined);
+
+    if (missingFields.length > 0) {
+      return {
+        isValid: false,
+        errors: [`Missing required fields: ${missingFields.join(', ')}`]
+      };
+    }
+
+    return this.validate(preferences);
+  }
+}
+
+export { UserPreferencesValidator, type UserPreferences, type ValidationResult };
