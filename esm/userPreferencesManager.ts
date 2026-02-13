@@ -149,4 +149,80 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };import { EventEmitter } from 'events';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+export class PreferencesManager extends EventEmitter {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences: UserPreferences) {
+    super();
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const oldPreferences = { ...this.preferences };
+    this.preferences = { ...this.preferences, ...updates };
+    
+    this.savePreferences();
+    this.emitPreferencesChange(oldPreferences, this.preferences);
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.updatePreferences(defaults);
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        PreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  private emitPreferencesChange(oldPrefs: UserPreferences, newPrefs: UserPreferences): void {
+    const changedKeys = Object.keys(newPrefs).filter(
+      key => oldPrefs[key as keyof UserPreferences] !== newPrefs[key as keyof UserPreferences]
+    );
+
+    if (changedKeys.length > 0) {
+      this.emit('preferencesChanged', {
+        oldPreferences: oldPrefs,
+        newPreferences: newPrefs,
+        changedKeys
+      });
+    }
+  }
+}
+
+export const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14,
+  autoSave: true
+};
