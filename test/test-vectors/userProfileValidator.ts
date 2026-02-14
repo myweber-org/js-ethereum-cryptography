@@ -275,4 +275,59 @@ function createDefaultProfile(username: string, email: string): UserProfile {
   });
 }
 
-export { UserProfileSchema, type UserProfile, validateUserProfile, createDefaultProfile };
+export { UserProfileSchema, type UserProfile, validateUserProfile, createDefaultProfile };import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters long')
+    .max(30, 'Username cannot exceed 30 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  
+  email: z
+    .string()
+    .email('Please provide a valid email address'),
+  
+  age: z
+    .number()
+    .int('Age must be an integer')
+    .min(18, 'You must be at least 18 years old')
+    .max(120, 'Please provide a valid age'),
+  
+  preferences: z.object({
+    newsletter: z.boolean(),
+    theme: z.enum(['light', 'dark', 'auto']),
+    language: z.string().optional()
+  }).strict(),
+  
+  createdAt: z
+    .date()
+    .max(new Date(), 'Creation date cannot be in the future')
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  try {
+    return UserProfileSchema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formattedErrors = error.errors.map(err => ({
+        path: err.path.join('.'),
+        message: err.message
+      }));
+      throw new Error(`Validation failed: ${JSON.stringify(formattedErrors, null, 2)}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultProfile(): Partial<UserProfile> {
+  return {
+    preferences: {
+      newsletter: false,
+      theme: 'auto',
+      language: 'en'
+    }
+  };
+}
