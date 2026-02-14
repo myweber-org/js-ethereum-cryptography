@@ -202,4 +202,59 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager, type UserPreferences };
-```
+```import { BehaviorSubject } from 'rxjs';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  itemsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'light',
+  language: 'en-US',
+  notificationsEnabled: true,
+  itemsPerPage: 25
+};
+
+const STORAGE_KEY = 'app_user_preferences';
+
+export class UserPreferencesManager {
+  private preferencesSubject = new BehaviorSubject<UserPreferences>(this.loadPreferences());
+  public preferences$ = this.preferencesSubject.asObservable();
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from localStorage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const current = this.preferencesSubject.value;
+    const updated = { ...current, ...updates };
+    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      this.preferencesSubject.next(updated);
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  resetToDefaults(): void {
+    this.updatePreferences(DEFAULT_PREFERENCES);
+  }
+
+  getCurrentPreferences(): UserPreferences {
+    return this.preferencesSubject.value;
+  }
+}
+
+export const userPreferencesManager = new UserPreferencesManager();
