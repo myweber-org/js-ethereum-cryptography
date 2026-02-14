@@ -411,4 +411,63 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: UserPreferences): void => {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme '${prefs.theme}'. Must be one of: ${validThemes.join(', ')}`
+    );
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
+  }
+
+  if (!prefs.language || prefs.language.trim().length === 0) {
+    throw new PreferenceValidationError('Language must be specified');
+  }
+
+  if (prefs.fontSize < 12 || prefs.fontSize > 24) {
+    throw new PreferenceValidationError('Font size must be between 12 and 24');
+  }
+};
+
+const validatePreferencesWithFallback = (prefs: Partial<UserPreferences>): UserPreferences => {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 16
+  };
+
+  const mergedPrefs = { ...defaultPreferences, ...prefs };
+
+  try {
+    validateUserPreferences(mergedPrefs);
+    return mergedPrefs;
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.warn(`Validation failed: ${error.message}. Using default preferences.`);
+      return defaultPreferences;
+    }
+    throw error;
+  }
+};
+
+export { validateUserPreferences, validatePreferencesWithFallback, PreferenceValidationError };
+export type { UserPreferences };
