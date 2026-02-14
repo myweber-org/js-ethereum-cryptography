@@ -113,4 +113,77 @@ export function validatePreferences(input: unknown): UserPreferences {
 
 export function getDefaultPreferences(): UserPreferences {
   return PreferenceSchema.parse({});
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+function validateUserPreferences(prefs: UserPreferences): void {
+  const validLanguages = ['en', 'es', 'fr', 'de', 'ja'];
+  
+  if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme '${prefs.theme}'. Must be 'light', 'dark', or 'auto'.`
+    );
+  }
+  
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError(
+      `Notifications must be boolean, received ${typeof prefs.notifications}.`
+    );
+  }
+  
+  if (!validLanguages.includes(prefs.language)) {
+    throw new PreferenceValidationError(
+      `Unsupported language '${prefs.language}'. Supported: ${validLanguages.join(', ')}.`
+    );
+  }
+  
+  if (prefs.resultsPerPage < 5 || prefs.resultsPerPage > 100) {
+    throw new PreferenceValidationError(
+      `Results per page must be between 5 and 100, received ${prefs.resultsPerPage}.`
+    );
+  }
+  
+  if (!Number.isInteger(prefs.resultsPerPage)) {
+    throw new PreferenceValidationError(
+      `Results per page must be an integer, received ${prefs.resultsPerPage}.`
+    );
+  }
+}
+
+function testValidation() {
+  const testCases: UserPreferences[] = [
+    { theme: 'dark', notifications: true, language: 'en', resultsPerPage: 20 },
+    { theme: 'blue', notifications: true, language: 'en', resultsPerPage: 20 },
+    { theme: 'light', notifications: 'yes', language: 'en', resultsPerPage: 20 },
+    { theme: 'auto', notifications: false, language: 'zh', resultsPerPage: 50 },
+    { theme: 'dark', notifications: true, language: 'fr', resultsPerPage: 150 },
+    { theme: 'light', notifications: false, language: 'de', resultsPerPage: 25.5 }
+  ];
+  
+  testCases.forEach((prefs, index) => {
+    console.log(`Test case ${index + 1}:`);
+    try {
+      validateUserPreferences(prefs);
+      console.log('  ✓ Valid preferences');
+    } catch (error) {
+      if (error instanceof PreferenceValidationError) {
+        console.log(`  ✗ ${error.message}`);
+      } else {
+        console.log(`  ✗ Unexpected error: ${error}`);
+      }
+    }
+  });
+}
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences };
