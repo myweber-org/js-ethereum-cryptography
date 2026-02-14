@@ -1,3 +1,4 @@
+typescript
 interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   language: string;
@@ -42,13 +43,17 @@ class UserPreferencesManager {
   }
 
   private validatePreferences(prefs: UserPreferences): boolean {
+    const validThemes = ['light', 'dark', 'auto'];
+    const minFontSize = 8;
+    const maxFontSize = 72;
+
     return (
-      ['light', 'dark', 'auto'].includes(prefs.theme) &&
+      validThemes.includes(prefs.theme) &&
       typeof prefs.language === 'string' &&
       prefs.language.length >= 2 &&
       typeof prefs.notificationsEnabled === 'boolean' &&
-      prefs.fontSize >= 8 &&
-      prefs.fontSize <= 72
+      prefs.fontSize >= minFontSize &&
+      prefs.fontSize <= maxFontSize
     );
   }
 
@@ -62,4 +67,12 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en',
+  notificationsEnabled: true,
+  fontSize: 16
+};
+
+export const preferencesManager = new UserPreferencesManager(defaultPreferences);
+```
