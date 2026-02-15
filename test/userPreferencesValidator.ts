@@ -95,4 +95,54 @@ export class PreferencesValidationError extends Error {
       details: this.details
     };
   }
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  fontSize: z.number().min(8).max(72),
+  autoSave: z.boolean(),
+});
+
+export function validateUserPreferences(data: unknown): UserPreferences {
+  const result = UserPreferencesSchema.safeParse(data);
+  
+  if (!result.success) {
+    const errorMessages = result.error.errors
+      .map(err => `${err.path.join('.')}: ${err.message}`)
+      .join(', ');
+    
+    throw new Error(`Invalid user preferences: ${errorMessages}`);
+  }
+  
+  return result.data;
+}
+
+export function createDefaultPreferences(): UserPreferences {
+  return {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 14,
+    autoSave: true,
+  };
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const defaultPrefs = createDefaultPreferences();
+  const merged = { ...defaultPrefs, ...existing, ...updates };
+  
+  return validateUserPreferences(merged);
 }
