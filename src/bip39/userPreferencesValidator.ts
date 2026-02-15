@@ -329,4 +329,42 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferences, UserPreferencesValidator };
+export { UserPreferences, UserPreferencesValidator };import { z } from "zod";
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(["light", "dark", "system"]).default("system"),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).max(5).default("en"),
+  timezone: z.string().regex(/^[A-Za-z_]+\/[A-Za-z_]+$/).optional(),
+  itemsPerPage: z.number().min(5).max(100).default(20),
+  autoSave: z.boolean().default(false),
+  twoFactorEnabled: z.boolean().default(false),
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      );
+      throw new Error(`Validation failed: ${errorMessages.join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultPreferences(): UserPreferences {
+  return UserPreferencesSchema.parse({});
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validateUserPreferences(merged);
+}
