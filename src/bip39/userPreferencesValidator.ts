@@ -194,4 +194,83 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  fontSize: 14,
+  autoSave: true
+};
+
+const VALID_LANGUAGES = ['en-US', 'es-ES', 'fr-FR', 'de-DE'];
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+
+class PreferencesValidator {
+  static validate(preferences: Partial<UserPreferences>): { isValid: boolean; errors: string[]; validated: UserPreferences } {
+    const errors: string[] = [];
+    const validated = { ...DEFAULT_PREFERENCES };
+
+    if (preferences.theme !== undefined) {
+      if (['light', 'dark', 'auto'].includes(preferences.theme)) {
+        validated.theme = preferences.theme;
+      } else {
+        errors.push(`Invalid theme: ${preferences.theme}`);
+      }
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications === 'boolean') {
+        validated.notifications = preferences.notifications;
+      } else {
+        errors.push('Notifications must be boolean');
+      }
+    }
+
+    if (preferences.language !== undefined) {
+      if (VALID_LANGUAGES.includes(preferences.language)) {
+        validated.language = preferences.language;
+      } else {
+        errors.push(`Unsupported language: ${preferences.language}`);
+      }
+    }
+
+    if (preferences.fontSize !== undefined) {
+      if (typeof preferences.fontSize === 'number' && 
+          preferences.fontSize >= MIN_FONT_SIZE && 
+          preferences.fontSize <= MAX_FONT_SIZE) {
+        validated.fontSize = Math.round(preferences.fontSize);
+      } else {
+        errors.push(`Font size must be between ${MIN_FONT_SIZE} and ${MAX_FONT_SIZE}`);
+      }
+    }
+
+    if (preferences.autoSave !== undefined) {
+      if (typeof preferences.autoSave === 'boolean') {
+        validated.autoSave = preferences.autoSave;
+      } else {
+        errors.push('Auto-save must be boolean');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      validated
+    };
+  }
+
+  static mergeWithDefaults(preferences: Partial<UserPreferences>): UserPreferences {
+    return { ...DEFAULT_PREFERENCES, ...preferences };
+  }
+}
+
+export { UserPreferences, PreferencesValidator };
