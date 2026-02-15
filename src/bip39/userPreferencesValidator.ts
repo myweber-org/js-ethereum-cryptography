@@ -273,4 +273,60 @@ class PreferencesValidator {
   }
 }
 
-export { UserPreferences, PreferencesValidator };
+export { UserPreferences, PreferencesValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_ITEMS_PER_PAGE = 5;
+  private static readonly MAX_ITEMS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): string[] {
+    const errors: string[] = [];
+
+    if (preferences.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
+      }
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications !== 'boolean') {
+        errors.push('Notifications must be a boolean value.');
+      }
+    }
+
+    if (preferences.language !== undefined) {
+      if (typeof preferences.language !== 'string') {
+        errors.push('Language must be a string.');
+      } else if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        errors.push(`Unsupported language: ${preferences.language}. Supported: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+      }
+    }
+
+    if (preferences.itemsPerPage !== undefined) {
+      if (typeof preferences.itemsPerPage !== 'number') {
+        errors.push('Items per page must be a number.');
+      } else if (preferences.itemsPerPage < UserPreferencesValidator.MIN_ITEMS_PER_PAGE) {
+        errors.push(`Items per page must be at least ${UserPreferencesValidator.MIN_ITEMS_PER_PAGE}.`);
+      } else if (preferences.itemsPerPage > UserPreferencesValidator.MAX_ITEMS_PER_PAGE) {
+        errors.push(`Items per page cannot exceed ${UserPreferencesValidator.MAX_ITEMS_PER_PAGE}.`);
+      }
+    }
+
+    return errors;
+  }
+
+  static validateAndThrow(preferences: Partial<UserPreferences>): void {
+    const errors = this.validate(preferences);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed:\n${errors.join('\n')}`);
+    }
+  }
+}
+
+export { UserPreferences, UserPreferencesValidator };
