@@ -167,4 +167,56 @@ const sanitizePreferences = (prefs: Partial<UserPreferences>): UserPreferences =
   };
 };
 
+export { UserPreferences, PreferenceValidationError, validateUserPreferences, sanitizePreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: UserPreferences): void => {
+  const validThemes = ['light', 'dark', 'auto'];
+  
+  if (!validThemes.includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme: ${prefs.theme}. Must be one of: ${validThemes.join(', ')}`
+    );
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
+  }
+
+  if (typeof prefs.language !== 'string' || prefs.language.trim().length === 0) {
+    throw new PreferenceValidationError('Language must be a non-empty string');
+  }
+
+  if (!Number.isInteger(prefs.resultsPerPage) || prefs.resultsPerPage < 5 || prefs.resultsPerPage > 100) {
+    throw new PreferenceValidationError('Results per page must be an integer between 5 and 100');
+  }
+};
+
+const sanitizePreferences = (prefs: Partial<UserPreferences>): UserPreferences => {
+  const defaults: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    resultsPerPage: 20
+  };
+
+  return {
+    theme: prefs.theme ?? defaults.theme,
+    notifications: prefs.notifications ?? defaults.notifications,
+    language: (prefs.language || defaults.language).trim(),
+    resultsPerPage: prefs.resultsPerPage ?? defaults.resultsPerPage
+  };
+};
+
 export { UserPreferences, PreferenceValidationError, validateUserPreferences, sanitizePreferences };
