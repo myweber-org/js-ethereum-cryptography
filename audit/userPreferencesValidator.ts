@@ -4,22 +4,20 @@ export interface UserPreferences {
   theme: 'light' | 'dark' | 'auto';
   notifications: boolean;
   language: string;
-  fontSize: number;
-  autoSave: boolean;
+  timezone: string;
 }
 
-const preferencesSchema = z.object({
+const userPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']),
   notifications: z.boolean(),
   language: z.string().min(2).max(5),
-  fontSize: z.number().int().min(12).max(24),
-  autoSave: z.boolean()
+  timezone: z.string().regex(/^[A-Za-z_]+\/[A-Za-z_]+$/)
 });
 
 export class PreferencesValidator {
   static validate(input: unknown): UserPreferences {
     try {
-      return preferencesSchema.parse(input) as UserPreferences;
+      return userPreferencesSchema.parse(input) as UserPreferences;
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errorMessages = error.errors.map(err => 
@@ -27,8 +25,13 @@ export class PreferencesValidator {
         );
         throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
       }
-      throw new Error('Invalid preferences data');
+      throw error;
     }
+  }
+
+  static validatePartial(input: Partial<unknown>): Partial<UserPreferences> {
+    const partialSchema = userPreferencesSchema.partial();
+    return partialSchema.parse(input) as Partial<UserPreferences>;
   }
 
   static getDefaultPreferences(): UserPreferences {
@@ -36,53 +39,7 @@ export class PreferencesValidator {
       theme: 'auto',
       notifications: true,
       language: 'en',
-      fontSize: 16,
-      autoSave: true
+      timezone: 'UTC'
     };
   }
-
-  static mergePreferences(
-    existing: Partial<UserPreferences>,
-    updates: Partial<UserPreferences>
-  ): UserPreferences {
-    const merged = { ...this.getDefaultPreferences(), ...existing, ...updates };
-    return this.validate(merged);
-  }
-}import { z } from 'zod';
-
-const ThemeSchema = z.enum(['light', 'dark', 'system']);
-const NotificationPreferenceSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  sms: z.boolean(),
-});
-
-const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default('system'),
-  notifications: NotificationPreferenceSchema.default({
-    email: true,
-    push: false,
-    sms: false,
-  }),
-  language: z.string().min(2).max(5).default('en'),
-  timezone: z.string().optional(),
-  createdAt: z.date().default(() => new Date()),
-});
-
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
-    }
-    throw error;
-  }
-}
-
-export function createDefaultPreferences(userId: string): UserPreferences {
-  return UserPreferencesSchema.parse({ userId });
 }
