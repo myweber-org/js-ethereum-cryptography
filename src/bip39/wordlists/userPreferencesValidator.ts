@@ -211,4 +211,78 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   const current = PreferenceSchema.partial().parse(existing);
   const merged = { ...current, ...updates };
   return validatePreferences(merged);
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: {
+    email: boolean;
+    push: boolean;
+    frequency: 'instant' | 'daily' | 'weekly';
+  };
+  privacy: {
+    profileVisibility: 'public' | 'private' | 'friends-only';
+    searchIndexing: boolean;
+  };
+}
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['instant', 'daily', 'weekly'])
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends-only']),
+    searchIndexing: z.boolean()
+  })
+});
+
+export class PreferencesValidator {
+  static validate(preferences: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(preferences) as UserPreferences;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Invalid preferences: ${errorMessages.join(', ')}`);
+      }
+      throw new Error('Unexpected validation error');
+    }
+  }
+
+  static sanitize(preferences: Partial<UserPreferences>): UserPreferences {
+    const defaults: UserPreferences = {
+      theme: 'auto',
+      notifications: {
+        email: true,
+        push: false,
+        frequency: 'daily'
+      },
+      privacy: {
+        profileVisibility: 'friends-only',
+        searchIndexing: true
+      }
+    };
+
+    return {
+      theme: preferences.theme ?? defaults.theme,
+      notifications: {
+        email: preferences.notifications?.email ?? defaults.notifications.email,
+        push: preferences.notifications?.push ?? defaults.notifications.push,
+        frequency: preferences.notifications?.frequency ?? defaults.notifications.frequency
+      },
+      privacy: {
+        profileVisibility: preferences.privacy?.profileVisibility ?? defaults.privacy.profileVisibility,
+        searchIndexing: preferences.privacy?.searchIndexing ?? defaults.privacy.searchIndexing
+      }
+    };
+  }
+
+  static isThemeValid(theme: string): theme is UserPreferences['theme'] {
+    return ['light', 'dark', 'auto'].includes(theme);
+  }
 }
