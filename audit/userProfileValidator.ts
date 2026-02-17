@@ -103,4 +103,25 @@ export function createDefaultProfile(username: string, email: string): UserProfi
       theme: 'auto'
     }
   });
+}import { z } from 'zod';
+
+const userProfileSchema = z.object({
+  username: z.string().min(3).max(20),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  preferences: z.object({
+    newsletter: z.boolean().default(false),
+    theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  }).default({}),
+  tags: z.array(z.string()).max(5),
+});
+
+type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(input: unknown): UserProfile {
+  return userProfileSchema.parse(input);
+}
+
+export function safeValidateUserProfile(input: unknown) {
+  return userProfileSchema.safeParse(input);
 }
