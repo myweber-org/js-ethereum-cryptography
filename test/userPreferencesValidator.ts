@@ -291,4 +291,65 @@ export function mergeWithDefaults(partial: Partial<UserPreferences>): UserPrefer
       ...partial.privacy
     }
   });
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+function validateUserPreferences(prefs: UserPreferences): void {
+  const validLanguages = ['en', 'es', 'fr', 'de', 'ja'];
+  
+  if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'`
+    );
+  }
+  
+  if (typeof prefs.notifications !== 'boolean') {
+    throw new PreferenceValidationError(
+      `Notifications must be boolean, received: ${typeof prefs.notifications}`
+    );
+  }
+  
+  if (!validLanguages.includes(prefs.language)) {
+    throw new PreferenceValidationError(
+      `Unsupported language: ${prefs.language}. Supported: ${validLanguages.join(', ')}`
+    );
+  }
+  
+  if (prefs.resultsPerPage < 5 || prefs.resultsPerPage > 100) {
+    throw new PreferenceValidationError(
+      `Results per page must be between 5 and 100, received: ${prefs.resultsPerPage}`
+    );
+  }
+  
+  if (!Number.isInteger(prefs.resultsPerPage)) {
+    throw new PreferenceValidationError(
+      `Results per page must be an integer, received: ${prefs.resultsPerPage}`
+    );
+  }
+}
+
+function sanitizeUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaults: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    resultsPerPage: 20
+  };
+  
+  const merged = { ...defaults, ...prefs };
+  validateUserPreferences(merged);
+  return merged;
+}
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences, sanitizeUserPreferences };
