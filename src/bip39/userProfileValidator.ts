@@ -158,4 +158,58 @@ export function createDefaultProfile(): UserProfile {
     },
     createdAt: new Date()
   };
+}interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  age?: number;
+  isActive: boolean;
 }
+
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validateUsername = (username: string): boolean => {
+  return username.length >= 3 && username.length <= 20 && /^[a-zA-Z0-9_]+$/.test(username);
+};
+
+const validateAge = (age: number | undefined): boolean => {
+  if (age === undefined) return true;
+  return age >= 0 && age <= 150;
+};
+
+export const validateUserProfile = (profile: UserProfile): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  if (!validateUsername(profile.username)) {
+    errors.push('Username must be 3-20 characters and contain only letters, numbers, and underscores');
+  }
+
+  if (!validateEmail(profile.email)) {
+    errors.push('Invalid email format');
+  }
+
+  if (!validateAge(profile.age)) {
+    errors.push('Age must be between 0 and 150 if provided');
+  }
+
+  if (typeof profile.isActive !== 'boolean') {
+    errors.push('isActive must be a boolean value');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+export const createDefaultProfile = (): UserProfile => {
+  return {
+    id: Date.now(),
+    username: '',
+    email: '',
+    isActive: false
+  };
+};
