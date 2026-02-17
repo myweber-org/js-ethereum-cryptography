@@ -1,75 +1,87 @@
-import { z } from 'zod';
 
-export const userPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-export type UserPreferences = z.infer<typeof userPreferencesSchema>;
-
-export class PreferencesValidator {
-  static validate(input: unknown): UserPreferences {
-    try {
-      return userPreferencesSchema.parse(input);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const fieldErrors = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: this.getCustomMessage(err.path, err.code)
-        }));
-        throw new ValidationError('Invalid preferences configuration', fieldErrors);
-      }
-      throw error;
-    }
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
   }
+}
 
-  private static getCustomMessage(path: string[], code: string): string {
-    const field = path[path.length - 1];
-    
-    const messages: Record<string, string> = {
-      invalid_enum_value: `The ${field} must be one of the allowed values`,
-      invalid_type: `The ${field} must be of correct data type`,
-      too_small: `The ${field} is too short`,
-      too_big: `The ${field} is too long`
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MIN_FONT_SIZE = 8;
+  private static readonly MAX_FONT_SIZE = 72;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: this.validateTheme(preferences.theme),
+      notifications: this.validateNotifications(preferences.notifications),
+      language: this.validateLanguage(preferences.language),
+      fontSize: this.validateFontSize(preferences.fontSize)
     };
 
-    return messages[code] || `Validation failed for ${field}`;
+    return validated;
+  }
+
+  private static validateTheme(theme?: string): UserPreferences['theme'] {
+    if (!theme) {
+      throw new PreferenceValidationError('Theme preference is required');
+    }
+
+    if (theme !== 'light' && theme !== 'dark' && theme !== 'auto') {
+      throw new PreferenceValidationError(
+        `Theme must be one of: light, dark, auto. Received: ${theme}`
+      );
+    }
+
+    return theme as UserPreferences['theme'];
+  }
+
+  private static validateNotifications(notifications?: boolean): boolean {
+    if (notifications === undefined || notifications === null) {
+      throw new PreferenceValidationError('Notifications preference is required');
+    }
+
+    return notifications;
+  }
+
+  private static validateLanguage(language?: string): string {
+    if (!language) {
+      throw new PreferenceValidationError('Language preference is required');
+    }
+
+    if (!this.SUPPORTED_LANGUAGES.includes(language)) {
+      throw new PreferenceValidationError(
+        `Language must be one of: ${this.SUPPORTED_LANGUAGES.join(', ')}. Received: ${language}`
+      );
+    }
+
+    return language;
+  }
+
+  private static validateFontSize(fontSize?: number): number {
+    if (fontSize === undefined || fontSize === null) {
+      throw new PreferenceValidationError('Font size preference is required');
+    }
+
+    if (!Number.isInteger(fontSize)) {
+      throw new PreferenceValidationError('Font size must be an integer');
+    }
+
+    if (fontSize < this.MIN_FONT_SIZE || fontSize > this.MAX_FONT_SIZE) {
+      throw new PreferenceValidationError(
+        `Font size must be between ${this.MIN_FONT_SIZE} and ${this.MAX_FONT_SIZE}. Received: ${fontSize}`
+      );
+    }
+
+    return fontSize;
   }
 }
 
-export class ValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly details: Array<{ field: string; message: string }>
-  ) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
-export function sanitizePreferences(prefs: Partial<UserPreferences>): UserPreferences {
-  const defaults: UserPreferences = {
-    theme: 'auto',
-    notifications: {
-      email: true,
-      push: false,
-      frequency: 'daily'
-    },
-    privacy: {
-      profileVisibility: 'friends',
-      searchIndexing: true
-    },
-    language: 'en'
-  };
-
-  return PreferencesValidator.validate({ ...defaults, ...prefs });
-}
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
