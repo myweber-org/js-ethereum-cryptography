@@ -255,4 +255,62 @@ export function validateUserPreferences(input: unknown): UserPreferences {
 
 export function createDefaultPreferences(): UserPreferences {
   return UserPreferencesSchema.parse({});
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
+
+export const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  timezone: z.string().regex(/^[A-Za-z_]+\/[A-Za-z_]+$/),
+});
+
+export class UserPreferencesValidator {
+  static validate(data: unknown): UserPreferences {
+    try {
+      return userPreferencesSchema.parse(data) as UserPreferences;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new ValidationError('Invalid user preferences', errorMessages);
+      }
+      throw error;
+    }
+  }
+
+  static validatePartial(data: Partial<unknown>): Partial<UserPreferences> {
+    try {
+      return userPreferencesSchema.partial().parse(data) as Partial<UserPreferences>;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new ValidationError('Invalid partial user preferences', errorMessages);
+      }
+      throw error;
+    }
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: string[]
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export function formatValidationError(error: ValidationError): string {
+  return `Validation failed:\n${error.details.map(detail => `  - ${detail}`).join('\n')}`;
 }
