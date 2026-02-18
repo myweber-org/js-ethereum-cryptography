@@ -84,4 +84,45 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
+export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationPreferenceSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+  inApp: z.boolean(),
+});
+
+const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  notifications: NotificationPreferenceSchema.default({
+    email: true,
+    push: false,
+    inApp: true,
+  }),
+  language: z.string().min(2).max(5).default('en'),
+  timezone: z.string().optional(),
+  createdAt: z.date().default(() => new Date()),
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+function updateUserPreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validateUserPreferences(merged);
+}
+
+export { UserPreferencesSchema, validateUserPreferences, updateUserPreferences };
+export type { UserPreferences };
