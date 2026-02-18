@@ -379,4 +379,52 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceError, UserPreferences };
+export { UserPreferencesValidator, PreferenceError, UserPreferences };import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  fontSize: number;
+  language: string;
+}
+
+export const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  fontSize: 16,
+  language: 'en-US',
+};
+
+const preferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  fontSize: z.number().min(12).max(24),
+  language: z.string().regex(/^[a-z]{2}-[A-Z]{2}$/),
+});
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      const parsed = preferencesSchema.parse(input);
+      return { ...defaultPreferences, ...parsed };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.warn('Invalid preferences provided, using defaults:', error.errors);
+      }
+      return defaultPreferences;
+    }
+  }
+
+  static createCustomValidator<T extends Partial<UserPreferences>>(
+    overrides: z.ZodObject<Partial<Record<keyof T, z.ZodType>>>
+  ) {
+    return preferencesSchema.merge(overrides);
+  }
+}
+
+export function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  return PreferencesValidator.validate({ ...existing, ...updates });
+}
