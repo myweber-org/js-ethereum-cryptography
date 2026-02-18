@@ -124,4 +124,32 @@ export function validateUserProfile(input: unknown): UserProfile {
 
 export function safeValidateUserProfile(input: unknown) {
   return userProfileSchema.safeParse(input);
+}import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(20),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark']),
+    notifications: z.boolean()
+  }).optional(),
+  createdAt: z.date()
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+function validateUserProfile(data: unknown): UserProfile | null {
+  const result = UserProfileSchema.safeParse(data);
+  
+  if (!result.success) {
+    console.error('Validation failed:', result.error.errors);
+    return null;
+  }
+  
+  return result.data;
 }
+
+export { UserProfileSchema, validateUserProfile };
+export type { UserProfile };
