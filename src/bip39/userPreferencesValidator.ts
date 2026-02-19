@@ -125,4 +125,36 @@ function updateUserPreferences(existing: UserPreferences, updates: Partial<UserP
 }
 
 export { UserPreferencesSchema, validateUserPreferences, updateUserPreferences };
-export type { UserPreferences };
+export type { UserPreferences };import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notificationsEnabled: z.boolean().default(true),
+  itemsPerPage: z.number().int().min(5).max(100).default(25),
+  language: z.string().min(2).max(5).default('en'),
+  autoSaveInterval: z.number().int().min(0).max(300).default(60)
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.warn('Invalid preferences provided, using defaults:', error.errors);
+      }
+      return UserPreferencesSchema.parse({});
+    }
+  }
+
+  static mergeWithDefaults(partialPrefs: Partial<UserPreferences>): UserPreferences {
+    const validated = this.validate(partialPrefs);
+    return { ...UserPreferencesSchema.parse({}), ...validated };
+  }
+
+  static isValid(prefs: unknown): prefs is UserPreferences {
+    return UserPreferencesSchema.safeParse(prefs).success;
+  }
+}
