@@ -38,4 +38,47 @@ export function validateUserPreferences(input: unknown): UserPreferences {
 
 export function createDefaultPreferences(userId: string): UserPreferences {
   return UserPreferencesSchema.parse({ userId });
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaults: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    resultsPerPage: 10
+  };
+
+  const validated: UserPreferences = { ...defaults, ...prefs };
+
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    throw new PreferenceValidationError('Theme must be light, dark, or auto');
+  }
+
+  if (typeof validated.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
+  }
+
+  if (!validated.language || validated.language.trim().length === 0) {
+    throw new PreferenceValidationError('Language must be a non-empty string');
+  }
+
+  if (!Number.isInteger(validated.resultsPerPage) || validated.resultsPerPage < 1 || validated.resultsPerPage > 100) {
+    throw new PreferenceValidationError('Results per page must be an integer between 1 and 100');
+  }
+
+  return validated;
+}
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences };
