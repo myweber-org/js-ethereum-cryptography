@@ -239,4 +239,34 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+const preferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).refine(
+  (data) => !(data.privacy.profileVisibility === 'public' && data.privacy.searchIndexing === false),
+  {
+    message: 'Public profiles must be searchable',
+    path: ['privacy', 'searchIndexing']
+  }
+);
+
+export type UserPreferences = z.infer<typeof preferenceSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  return preferenceSchema.parse(input);
+}
+
+export function validatePreferencesPartial(input: unknown): Partial<UserPreferences> {
+  return preferenceSchema.partial().parse(input);
+}
