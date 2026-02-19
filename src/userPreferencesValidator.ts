@@ -188,4 +188,45 @@ export function mergePreferences(existing: UserPreferences, updates: Partial<Use
 
 export function getDefaultPreferences(): UserPreferences {
   return PreferenceSchema.parse({});
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
 }
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  fontSize: 14
+};
+
+function validatePreferences(input: Partial<UserPreferences>): UserPreferences {
+  const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+  if (input.theme && ['light', 'dark', 'auto'].includes(input.theme)) {
+    validated.theme = input.theme;
+  }
+
+  if (typeof input.notifications === 'boolean') {
+    validated.notifications = input.notifications;
+  }
+
+  if (input.language && typeof input.language === 'string' && input.language.length >= 2) {
+    validated.language = input.language;
+  }
+
+  if (typeof input.fontSize === 'number' && input.fontSize >= 8 && input.fontSize <= 32) {
+    validated.fontSize = Math.round(input.fontSize);
+  }
+
+  return validated;
+}
+
+function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  const validatedUpdates = validatePreferences(updates);
+  return { ...existing, ...validatedUpdates };
+}
+
+export { UserPreferences, validatePreferences, mergePreferences, DEFAULT_PREFERENCES };
