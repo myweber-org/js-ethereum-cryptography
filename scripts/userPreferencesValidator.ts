@@ -1,57 +1,41 @@
+import { z } from 'zod';
 
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  fontSize: number;
-}
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationPreferenceSchema = z.object({
+  email: z.boolean(),
+  push: z.boolean(),
+  inApp: z.boolean(),
+});
 
-class PreferencesValidator {
-  private static readonly MIN_FONT_SIZE = 12;
-  private static readonly MAX_FONT_SIZE = 24;
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  language: z.string().min(2).max(5).default('en'),
+  notifications: NotificationPreferenceSchema.default({
+    email: true,
+    push: false,
+    inApp: true,
+  }),
+  twoFactorEnabled: z.boolean().default(false),
+  createdAt: z.date().default(() => new Date()),
+});
 
-  static validate(preferences: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-    if (preferences.theme !== undefined && !['light', 'dark', 'auto'].includes(preferences.theme)) {
-      errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      );
+      throw new Error(`Validation failed: ${errorMessages.join(', ')}`);
     }
-
-    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
-      errors.push('Notifications must be a boolean value.');
-    }
-
-    if (preferences.language !== undefined) {
-      if (typeof preferences.language !== 'string') {
-        errors.push('Language must be a string.');
-      } else if (!PreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
-        errors.push(`Unsupported language: ${preferences.language}. Supported: ${PreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
-      }
-    }
-
-    if (preferences.fontSize !== undefined) {
-      if (typeof preferences.fontSize !== 'number') {
-        errors.push('Font size must be a number.');
-      } else if (preferences.fontSize < PreferencesValidator.MIN_FONT_SIZE || preferences.fontSize > PreferencesValidator.MAX_FONT_SIZE) {
-        errors.push(`Font size must be between ${PreferencesValidator.MIN_FONT_SIZE} and ${PreferencesValidator.MAX_FONT_SIZE}.`);
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  static createDefaultPreferences(): UserPreferences {
-    return {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      fontSize: 16
-    };
+    throw error;
   }
 }
 
-export { UserPreferences, PreferencesValidator };
+export function createDefaultPreferences(userId: string): UserPreferences {
+  return UserPreferencesSchema.parse({ userId });
+}
