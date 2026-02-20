@@ -330,4 +330,36 @@ export function createDefaultProfile(): Partial<UserProfile> {
       language: 'en'
     }
   };
+}import { z } from 'zod';
+
+const userProfileSchema = z.object({
+  username: z.string().min(3).max(50),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'system']),
+    notifications: z.boolean()
+  }).optional()
+});
+
+type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile | null {
+  try {
+    return userProfileSchema.parse(data);
+  } catch {
+    return null;
+  }
+}
+
+export function createDefaultProfile(): UserProfile {
+  return {
+    username: 'new_user',
+    email: 'user@example.com',
+    age: 18,
+    preferences: {
+      theme: 'system',
+      notifications: true
+    }
+  };
 }
