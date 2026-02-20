@@ -217,4 +217,51 @@ export const authorizeRole = (...allowedRoles: string[]) => {
 
     next();
   };
-};
+};import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY = '7d';
+
+interface TokenPayload {
+  userId: string;
+  email: string;
+  role: string;
+}
+
+export function generateAccessToken(payload: TokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY, jwtid: uuidv4() });
+}
+
+export function generateRefreshToken(payload: TokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY, jwtid: uuidv4() });
+}
+
+export function verifyToken(token: string): TokenPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return null;
+  }
+}
+
+export function decodeToken(token: string): TokenPayload | null {
+  try {
+    return jwt.decode(token) as TokenPayload;
+  } catch (error) {
+    console.error('Token decoding failed:', error);
+    return null;
+  }
+}
+
+export function isTokenExpired(token: string): boolean {
+  const decoded = decodeToken(token);
+  if (!decoded) return true;
+  
+  const currentTime = Math.floor(Date.now() / 1000);
+  const exp = (decoded as any).exp;
+  
+  return exp ? exp < currentTime : true;
+}
