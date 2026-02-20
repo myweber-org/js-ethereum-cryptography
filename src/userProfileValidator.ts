@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 const UserProfileSchema = z.object({
@@ -18,14 +19,12 @@ const UserProfileSchema = z.object({
     .max(120, 'Please provide a valid age'),
   
   preferences: z.object({
+    newsletter: z.boolean(),
     theme: z.enum(['light', 'dark', 'auto']),
-    notifications: z.boolean(),
     language: z.string().default('en')
   }).optional(),
   
-  createdAt: z
-    .date()
-    .default(() => new Date())
+  createdAt: z.date().default(() => new Date())
 });
 
 type UserProfile = z.infer<typeof UserProfileSchema>;
@@ -35,24 +34,23 @@ export function validateUserProfile(data: unknown): UserProfile {
     return UserProfileSchema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      );
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
       throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
     }
     throw error;
   }
 }
 
-export function createDefaultProfile(username: string, email: string): UserProfile {
+export function createDefaultProfile(): UserProfile {
   return {
-    username,
-    email,
+    username: '',
+    email: '',
     age: 18,
     preferences: {
+      newsletter: false,
       theme: 'auto',
-      notifications: true,
       language: 'en'
-    }
+    },
+    createdAt: new Date()
   };
 }
