@@ -221,3 +221,82 @@ class UserPreferencesManager {
 }
 
 export const userPreferencesManager = new UserPreferencesManager();
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  fontSize: 16,
+  notificationsEnabled: true,
+  language: 'en-US'
+};
+
+class UserPreferencesManager {
+  private readonly storageKey = 'app_user_preferences';
+  
+  getPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validateAndMerge(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load user preferences:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+  
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const merged = { ...current, ...updates };
+    const validated = this.validateAndMerge(merged);
+    
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(validated));
+    } catch (error) {
+      console.warn('Failed to save user preferences:', error);
+    }
+    
+    return validated;
+  }
+  
+  resetToDefaults(): UserPreferences {
+    try {
+      localStorage.removeItem(this.storageKey);
+    } catch (error) {
+      console.warn('Failed to reset user preferences:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+  
+  private validateAndMerge(prefs: any): UserPreferences {
+    const result = { ...DEFAULT_PREFERENCES };
+    
+    if (prefs && typeof prefs === 'object') {
+      if (['light', 'dark', 'auto'].includes(prefs.theme)) {
+        result.theme = prefs.theme;
+      }
+      
+      if (typeof prefs.fontSize === 'number' && prefs.fontSize >= 12 && prefs.fontSize <= 24) {
+        result.fontSize = prefs.fontSize;
+      }
+      
+      if (typeof prefs.notificationsEnabled === 'boolean') {
+        result.notificationsEnabled = prefs.notificationsEnabled;
+      }
+      
+      if (typeof prefs.language === 'string' && prefs.language.length >= 2) {
+        result.language = prefs.language;
+      }
+    }
+    
+    return result;
+  }
+}
+
+export const userPreferences = new UserPreferencesManager();
