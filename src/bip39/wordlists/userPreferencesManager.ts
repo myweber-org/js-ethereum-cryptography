@@ -174,4 +174,49 @@ class UserPreferencesManager {
   }
 }
 
+export const preferencesManager = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'light',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14
+};
+
+class UserPreferencesManager {
+  private readonly storageKey = 'user_preferences';
+
+  savePreferences(preferences: Partial<UserPreferences>): void {
+    const current = this.loadPreferences();
+    const updated = { ...current, ...preferences };
+    localStorage.setItem(this.storageKey, JSON.stringify(updated));
+  }
+
+  loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.storageKey);
+    if (!stored) return { ...DEFAULT_PREFERENCES };
+
+    try {
+      const parsed = JSON.parse(stored);
+      return { ...DEFAULT_PREFERENCES, ...parsed };
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  resetToDefaults(): void {
+    localStorage.removeItem(this.storageKey);
+  }
+
+  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+    const prefs = this.loadPreferences();
+    return prefs[key];
+  }
+}
+
 export const preferencesManager = new UserPreferencesManager();
