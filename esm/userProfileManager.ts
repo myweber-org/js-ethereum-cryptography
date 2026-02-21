@@ -194,3 +194,104 @@ class UserProfileManager {
 }
 
 export { UserProfileManager, UserProfile };
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  isActive: boolean;
+  lastLogin: Date;
+}
+
+class UserProfileManager {
+  private profiles: Map<string, UserProfile> = new Map();
+
+  validateProfile(profile: Partial<UserProfile>): string[] {
+    const errors: string[] = [];
+
+    if (profile.username && profile.username.length < 3) {
+      errors.push('Username must be at least 3 characters long');
+    }
+
+    if (profile.email && !this.isValidEmail(profile.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+      errors.push('Age must be between 0 and 150');
+    }
+
+    return errors;
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  addProfile(profile: UserProfile): boolean {
+    const errors = this.validateProfile(profile);
+    if (errors.length > 0) {
+      console.error('Profile validation failed:', errors);
+      return false;
+    }
+
+    if (this.profiles.has(profile.id)) {
+      console.error('Profile with this ID already exists');
+      return false;
+    }
+
+    this.profiles.set(profile.id, profile);
+    return true;
+  }
+
+  updateProfile(id: string, updates: Partial<UserProfile>): boolean {
+    const existingProfile = this.profiles.get(id);
+    if (!existingProfile) {
+      console.error('Profile not found');
+      return false;
+    }
+
+    const updatedProfile = { ...existingProfile, ...updates };
+    const errors = this.validateProfile(updatedProfile);
+    if (errors.length > 0) {
+      console.error('Update validation failed:', errors);
+      return false;
+    }
+
+    this.profiles.set(id, updatedProfile);
+    return true;
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
+  }
+
+  getActiveUsers(): UserProfile[] {
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive)
+      .sort((a, b) => b.lastLogin.getTime() - a.lastLogin.getTime());
+  }
+
+  deactivateInactiveUsers(maxInactiveDays: number): string[] {
+    const now = new Date();
+    const deactivatedIds: string[] = [];
+
+    this.profiles.forEach((profile, id) => {
+      if (profile.isActive) {
+        const daysSinceLogin = Math.floor(
+          (now.getTime() - profile.lastLogin.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (daysSinceLogin > maxInactiveDays) {
+          profile.isActive = false;
+          deactivatedIds.push(id);
+        }
+      }
+    });
+
+    return deactivatedIds;
+  }
+}
+
+export { UserProfileManager, UserProfile };
