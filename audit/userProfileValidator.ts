@@ -1,37 +1,46 @@
-import { z } from 'zod';
+interface UserProfile {
+  email: string;
+  age: number;
+  username: string;
+}
 
-const UserProfileSchema = z.object({
-  id: z.string().uuid(),
-  username: z.string().min(3).max(30),
-  email: z.string().email(),
-  age: z.number().int().min(18).optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).default('system'),
-    notifications: z.boolean().default(true)
-  }).default({}),
-  createdAt: z.date().default(() => new Date())
-});
+class ProfileValidator {
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly MIN_AGE = 13;
+  private static readonly MAX_AGE = 120;
 
-type UserProfile = z.infer<typeof UserProfileSchema>;
+  static validateEmail(email: string): boolean {
+    return this.EMAIL_REGEX.test(email);
+  }
 
-function validateUserProfile(data: unknown): UserProfile {
-  try {
-    return UserProfileSchema.parse(data);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      console.error('Validation failed:', error.errors);
+  static validateAge(age: number): boolean {
+    return age >= this.MIN_AGE && age <= this.MAX_AGE;
+  }
+
+  static validateUsername(username: string): boolean {
+    return username.length >= 3 && username.length <= 30;
+  }
+
+  static validateProfile(profile: UserProfile): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!this.validateEmail(profile.email)) {
+      errors.push('Invalid email format');
     }
-    throw new Error('Invalid user profile data');
+
+    if (!this.validateAge(profile.age)) {
+      errors.push(`Age must be between ${this.MIN_AGE} and ${this.MAX_AGE}`);
+    }
+
+    if (!this.validateUsername(profile.username)) {
+      errors.push('Username must be 3-30 characters long');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 }
 
-function createDefaultProfile(username: string, email: string): UserProfile {
-  const profileData = {
-    username,
-    email,
-    id: crypto.randomUUID()
-  };
-  return validateUserProfile(profileData);
-}
-
-export { UserProfileSchema, validateUserProfile, createDefaultProfile, type UserProfile };
+export { UserProfile, ProfileValidator };
