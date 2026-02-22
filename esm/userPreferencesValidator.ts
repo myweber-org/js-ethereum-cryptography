@@ -572,4 +572,41 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+const preferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  })
+}).refine(
+  (data) => !(data.privacy.profileVisibility === 'private' && data.privacy.searchIndexing),
+  {
+    message: 'Search indexing must be disabled for private profiles',
+    path: ['privacy', 'searchIndexing']
+  }
+);
+
+export function validateUserPreferences(input: unknown) {
+  try {
+    const validated = preferenceSchema.parse(input);
+    return { success: true, data: validated };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formattedErrors = error.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+      return { success: false, errors: formattedErrors };
+    }
+    throw error;
+  }
+}
+
+export type UserPreferences = z.infer<typeof preferenceSchema>;
