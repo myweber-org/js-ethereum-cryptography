@@ -644,4 +644,108 @@ export function getDefaultPreferences(): UserPreferences {
 export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  autoSave: boolean;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MIN_FONT_SIZE = 8;
+  private static readonly MAX_FONT_SIZE = 72;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: this.validateTheme(preferences.theme),
+      notifications: this.validateBoolean(preferences.notifications, 'notifications'),
+      language: this.validateLanguage(preferences.language),
+      fontSize: this.validateFontSize(preferences.fontSize),
+      autoSave: this.validateBoolean(preferences.autoSave, 'autoSave')
+    };
+
+    return validated;
+  }
+
+  private static validateTheme(theme?: string): 'light' | 'dark' | 'auto' {
+    if (!theme) {
+      return 'auto';
+    }
+
+    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
+      return theme;
+    }
+
+    throw new PreferenceValidationError(
+      `Invalid theme: '${theme}'. Must be 'light', 'dark', or 'auto'.`
+    );
+  }
+
+  private static validateBoolean(value: unknown, fieldName: string): boolean {
+    if (value === undefined || value === null) {
+      return false;
+    }
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase();
+      if (lowerValue === 'true') return true;
+      if (lowerValue === 'false') return false;
+    }
+
+    throw new PreferenceValidationError(
+      `Invalid value for ${fieldName}: '${value}'. Must be a boolean.`
+    );
+  }
+
+  private static validateLanguage(language?: string): string {
+    if (!language) {
+      return 'en';
+    }
+
+    if (this.SUPPORTED_LANGUAGES.includes(language)) {
+      return language;
+    }
+
+    throw new PreferenceValidationError(
+      `Unsupported language: '${language}'. Supported languages: ${this.SUPPORTED_LANGUAGES.join(', ')}`
+    );
+  }
+
+  private static validateFontSize(size?: number): number {
+    if (size === undefined || size === null) {
+      return 16;
+    }
+
+    if (typeof size !== 'number' || isNaN(size)) {
+      throw new PreferenceValidationError(
+        `Invalid font size: '${size}'. Must be a number.`
+      );
+    }
+
+    const clampedSize = Math.max(
+      this.MIN_FONT_SIZE,
+      Math.min(this.MAX_FONT_SIZE, Math.round(size))
+    );
+
+    if (clampedSize !== size) {
+      console.warn(`Font size ${size} clamped to ${clampedSize}`);
+    }
+
+    return clampedSize;
+  }
+}
+
+export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
