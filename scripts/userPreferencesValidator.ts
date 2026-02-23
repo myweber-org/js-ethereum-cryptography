@@ -80,4 +80,67 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   const current = PreferenceSchema.partial().parse(existing);
   const merged = { ...current, ...updates };
   return validatePreferences(merged);
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: {
+    email: boolean;
+    push: boolean;
+    frequency: 'instant' | 'daily' | 'weekly';
+  };
+  language: string;
+  timezone: string;
+}
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['instant', 'daily', 'weekly'])
+  }),
+  language: z.string().min(2).max(10),
+  timezone: z.string().regex(/^[A-Za-z_]+\/[A-Za-z_]+$/)
+});
+
+export function validateUserPreferences(data: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => 
+        `${err.path.join('.')}: ${err.message}`
+      );
+      throw new Error(`Invalid preferences: ${errorMessages.join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultPreferences(): UserPreferences {
+  return {
+    theme: 'auto',
+    notifications: {
+      email: true,
+      push: false,
+      frequency: 'daily'
+    },
+    language: 'en',
+    timezone: 'UTC'
+  };
+}
+
+export function mergePreferences(
+  base: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  return {
+    ...base,
+    ...updates,
+    notifications: {
+      ...base.notifications,
+      ...updates.notifications
+    }
+  };
 }
