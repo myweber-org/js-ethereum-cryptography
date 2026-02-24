@@ -930,4 +930,85 @@ const defaultPreferences: UserPreferences = {
 };
 
 export const userPrefs = new UserPreferencesManager(defaultPreferences);
-```
+```import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2),
+  fontSize: z.number().min(8).max(32),
+  autoSave: z.boolean(),
+});
+
+export class PreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
+      if (!stored) return null;
+
+      const parsed = JSON.parse(stored);
+      const validation = UserPreferencesSchema.safeParse(parsed);
+      
+      return validation.success ? validation.data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      PreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    const newPreferences = { ...this.preferences, ...updates };
+    const validation = UserPreferencesSchema.safeParse(newPreferences);
+
+    if (!validation.success) {
+      console.error('Invalid preferences:', validation.error);
+      return false;
+    }
+
+    this.preferences = validation.data;
+    this.savePreferences();
+    return true;
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = defaults;
+    this.savePreferences();
+  }
+
+  hasValidPreferences(): boolean {
+    return UserPreferencesSchema.safeParse(this.preferences).success;
+  }
+}
+
+export const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  fontSize: 14,
+  autoSave: true,
+};
