@@ -821,4 +821,113 @@ class UserPreferencesManager {
   }
 }
 
-export { UserPreferencesManager, type UserPreferences };
+export { UserPreferencesManager, type UserPreferences };typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    language: string;
+    notificationsEnabled: boolean;
+    fontSize: number;
+}
+
+type PreferenceChangeCallback = (key: keyof UserPreferences, value: any) => void;
+
+class UserPreferencesManager {
+    private static readonly STORAGE_KEY = 'user_preferences';
+    private preferences: UserPreferences;
+    private changeCallbacks: PreferenceChangeCallback[] = [];
+
+    constructor(defaultPreferences: UserPreferences) {
+        const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+        this.preferences = stored ? JSON.parse(stored) : defaultPreferences;
+    }
+
+    get<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+        return this.preferences[key];
+    }
+
+    set<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): void {
+        const oldValue = this.preferences[key];
+        if (oldValue !== value) {
+            this.preferences[key] = value;
+            this.saveToStorage();
+            this.notifyChange(key, value);
+        }
+    }
+
+    setMultiple(changes: Partial<UserPreferences>): void {
+        let hasChanges = false;
+        
+        for (const [key, value] of Object.entries(changes)) {
+            const prefKey = key as keyof UserPreferences;
+            if (this.preferences[prefKey] !== value) {
+                this.preferences[prefKey] = value as UserPreferences[keyof UserPreferences];
+                hasChanges = true;
+                this.notifyChange(prefKey, value);
+            }
+        }
+
+        if (hasChanges) {
+            this.saveToStorage();
+        }
+    }
+
+    resetToDefaults(defaults: UserPreferences): void {
+        this.preferences = { ...defaults };
+        this.saveToStorage();
+        Object.keys(defaults).forEach(key => {
+            this.notifyChange(key as keyof UserPreferences, this.preferences[key as keyof UserPreferences]);
+        });
+    }
+
+    subscribe(callback: PreferenceChangeCallback): () => void {
+        this.changeCallbacks.push(callback);
+        return () => {
+            const index = this.changeCallbacks.indexOf(callback);
+            if (index > -1) {
+                this.changeCallbacks.splice(index, 1);
+            }
+        };
+    }
+
+    private notifyChange(key: keyof UserPreferences, value: any): void {
+        this.changeCallbacks.forEach(callback => {
+            try {
+                callback(key, value);
+            } catch (error) {
+                console.error('Error in preference change callback:', error);
+            }
+        });
+    }
+
+    private saveToStorage(): void {
+        try {
+            localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(this.preferences));
+        } catch (error) {
+            console.error('Failed to save preferences to localStorage:', error);
+        }
+    }
+
+    exportPreferences(): string {
+        return JSON.stringify(this.preferences, null, 2);
+    }
+
+    importPreferences(jsonString: string): boolean {
+        try {
+            const imported = JSON.parse(jsonString);
+            this.setMultiple(imported);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+}
+
+const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notificationsEnabled: true,
+    fontSize: 14
+};
+
+export const userPrefs = new UserPreferencesManager(defaultPreferences);
+```
