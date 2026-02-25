@@ -148,3 +148,96 @@ class UserPreferencesValidator {
 }
 
 export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  itemsPerPage: 20
+};
+
+class PreferencesValidator {
+  private static readonly THEMES: Set<UserPreferences['theme']> = new Set(['light', 'dark', 'auto']);
+  private static readonly SUPPORTED_LANGUAGES: Set<string> = new Set(['en', 'es', 'fr', 'de']);
+  private static readonly MIN_ITEMS_PER_PAGE = 5;
+  private static readonly MAX_ITEMS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): { valid: boolean; errors: string[]; normalized: UserPreferences } {
+    const errors: string[] = [];
+    const normalized: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+    if (preferences.theme !== undefined) {
+      if (this.THEMES.has(preferences.theme)) {
+        normalized.theme = preferences.theme;
+      } else {
+        errors.push(`Invalid theme: ${preferences.theme}. Must be one of: ${Array.from(this.THEMES).join(', ')}`);
+      }
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications === 'boolean') {
+        normalized.notifications = preferences.notifications;
+      } else {
+        errors.push('Notifications must be a boolean value');
+      }
+    }
+
+    if (preferences.language !== undefined) {
+      if (typeof preferences.language === 'string' && this.SUPPORTED_LANGUAGES.has(preferences.language)) {
+        normalized.language = preferences.language;
+      } else {
+        errors.push(`Unsupported language: ${preferences.language}. Supported: ${Array.from(this.SUPPORTED_LANGUAGES).join(', ')}`);
+      }
+    }
+
+    if (preferences.itemsPerPage !== undefined) {
+      if (typeof preferences.itemsPerPage === 'number' && 
+          preferences.itemsPerPage >= this.MIN_ITEMS_PER_PAGE && 
+          preferences.itemsPerPage <= this.MAX_ITEMS_PER_PAGE) {
+        normalized.itemsPerPage = preferences.itemsPerPage;
+      } else {
+        errors.push(`Items per page must be between ${this.MIN_ITEMS_PER_PAGE} and ${this.MAX_ITEMS_PER_PAGE}`);
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      normalized
+    };
+  }
+
+  static sanitizeInput(rawInput: unknown): Partial<UserPreferences> {
+    const sanitized: Partial<UserPreferences> = {};
+
+    if (rawInput && typeof rawInput === 'object') {
+      const input = rawInput as Record<string, unknown>;
+
+      if ('theme' in input && typeof input.theme === 'string') {
+        sanitized.theme = input.theme as UserPreferences['theme'];
+      }
+
+      if ('notifications' in input && typeof input.notifications === 'boolean') {
+        sanitized.notifications = input.notifications;
+      }
+
+      if ('language' in input && typeof input.language === 'string') {
+        sanitized.language = input.language;
+      }
+
+      if ('itemsPerPage' in input && typeof input.itemsPerPage === 'number') {
+        sanitized.itemsPerPage = input.itemsPerPage;
+      }
+    }
+
+    return sanitized;
+  }
+}
+
+export { UserPreferences, PreferencesValidator };
