@@ -612,4 +612,49 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferences, UserPreferencesValidator };
+export { UserPreferences, UserPreferencesValidator };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: unknown): UserPreferences => {
+  if (!prefs || typeof prefs !== 'object') {
+    throw new PreferenceValidationError('Preferences must be an object');
+  }
+
+  const preferences = prefs as Record<string, unknown>;
+
+  if (!['light', 'dark', 'auto'].includes(preferences.theme as string)) {
+    throw new PreferenceValidationError('Theme must be light, dark, or auto');
+  }
+
+  if (typeof preferences.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean');
+  }
+
+  if (typeof preferences.language !== 'string' || preferences.language.length < 2) {
+    throw new PreferenceValidationError('Language must be a string with at least 2 characters');
+  }
+
+  if (typeof preferences.fontSize !== 'number' || preferences.fontSize < 8 || preferences.fontSize > 72) {
+    throw new PreferenceValidationError('Font size must be between 8 and 72');
+  }
+
+  return {
+    theme: preferences.theme as 'light' | 'dark' | 'auto',
+    notifications: preferences.notifications as boolean,
+    language: preferences.language as string,
+    fontSize: preferences.fontSize as number
+  };
+};
+
+export { validateUserPreferences, PreferenceValidationError, UserPreferences };
