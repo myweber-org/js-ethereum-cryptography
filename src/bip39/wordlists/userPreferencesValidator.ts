@@ -207,4 +207,70 @@ class PreferenceValidator {
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export { UserPreferences, PreferenceValidator };import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  fontSize: z.number().int().min(12).max(24)
+});
+
+export class PreferencesValidator {
+  static validate(preferences: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(preferences);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Invalid preferences: ${errorMessages.join(', ')}`);
+      }
+      throw error;
+    }
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16
+    };
+  }
+
+  static mergeWithDefaults(partial: Partial<UserPreferences>): UserPreferences {
+    const defaults = this.getDefaultPreferences();
+    return { ...defaults, ...partial };
+  }
+}
+
+export function sanitizePreferences(input: Record<string, unknown>): Partial<UserPreferences> {
+  const sanitized: Partial<UserPreferences> = {};
+  
+  if (typeof input.theme === 'string' && ['light', 'dark', 'auto'].includes(input.theme)) {
+    sanitized.theme = input.theme as UserPreferences['theme'];
+  }
+  
+  if (typeof input.notifications === 'boolean') {
+    sanitized.notifications = input.notifications;
+  }
+  
+  if (typeof input.language === 'string') {
+    sanitized.language = input.language;
+  }
+  
+  if (typeof input.fontSize === 'number') {
+    sanitized.fontSize = Math.round(input.fontSize);
+  }
+  
+  return sanitized;
+}
