@@ -241,3 +241,80 @@ class PreferencesValidator {
 }
 
 export { UserPreferences, PreferencesValidator };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  twoFactorEnabled: boolean;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en-US',
+  fontSize: 14,
+  twoFactorEnabled: false
+};
+
+const VALID_LANGUAGES = new Set(['en-US', 'es-ES', 'fr-FR', 'de-DE', 'ja-JP']);
+
+class PreferencesValidator {
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = { ...DEFAULT_PREFERENCES };
+
+    if (preferences.theme && ['light', 'dark', 'auto'].includes(preferences.theme)) {
+      validated.theme = preferences.theme;
+    }
+
+    if (typeof preferences.notifications === 'boolean') {
+      validated.notifications = preferences.notifications;
+    }
+
+    if (preferences.language && VALID_LANGUAGES.has(preferences.language)) {
+      validated.language = preferences.language;
+    }
+
+    if (preferences.fontSize && Number.isInteger(preferences.fontSize) && preferences.fontSize >= 10 && preferences.fontSize <= 24) {
+      validated.fontSize = preferences.fontSize;
+    }
+
+    if (typeof preferences.twoFactorEnabled === 'boolean') {
+      validated.twoFactorEnabled = preferences.twoFactorEnabled;
+    }
+
+    return validated;
+  }
+
+  static sanitizeInput(input: unknown): Partial<UserPreferences> {
+    const sanitized: Partial<UserPreferences> = {};
+
+    if (input && typeof input === 'object') {
+      const obj = input as Record<string, unknown>;
+
+      if (obj.theme && typeof obj.theme === 'string') {
+        sanitized.theme = obj.theme as UserPreferences['theme'];
+      }
+
+      if (typeof obj.notifications === 'boolean') {
+        sanitized.notifications = obj.notifications;
+      }
+
+      if (obj.language && typeof obj.language === 'string') {
+        sanitized.language = obj.language;
+      }
+
+      if (obj.fontSize && typeof obj.fontSize === 'number') {
+        sanitized.fontSize = obj.fontSize;
+      }
+
+      if (typeof obj.twoFactorEnabled === 'boolean') {
+        sanitized.twoFactorEnabled = obj.twoFactorEnabled;
+      }
+    }
+
+    return sanitized;
+  }
+}
+
+export { UserPreferences, PreferencesValidator };
