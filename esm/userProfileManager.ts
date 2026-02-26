@@ -295,3 +295,103 @@ class UserProfileManager {
 }
 
 export { UserProfileManager, UserProfile };
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  preferences: {
+    theme: 'light' | 'dark';
+    notifications: boolean;
+  };
+}
+
+class UserProfileManager {
+  private profiles: Map<string, UserProfile> = new Map();
+
+  validateProfile(profile: Partial<UserProfile>): boolean {
+    if (profile.username && profile.username.length < 3) {
+      return false;
+    }
+    
+    if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+      return false;
+    }
+    
+    if (profile.age !== undefined && (profile.age < 0 || profile.age > 150)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  addProfile(profile: UserProfile): void {
+    if (!this.validateProfile(profile)) {
+      throw new Error('Invalid profile data');
+    }
+    
+    if (this.profiles.has(profile.id)) {
+      throw new Error(`Profile with id ${profile.id} already exists`);
+    }
+    
+    this.profiles.set(profile.id, profile);
+  }
+
+  updateProfile(id: string, updates: Partial<UserProfile>): UserProfile | null {
+    const existingProfile = this.profiles.get(id);
+    
+    if (!existingProfile) {
+      return null;
+    }
+    
+    const updatedProfile = { ...existingProfile, ...updates };
+    
+    if (!this.validateProfile(updatedProfile)) {
+      throw new Error('Invalid update data');
+    }
+    
+    this.profiles.set(id, updatedProfile);
+    return updatedProfile;
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
+  }
+
+  getAllProfiles(): UserProfile[] {
+    return Array.from(this.profiles.values());
+  }
+
+  filterByAge(minAge: number, maxAge: number): UserProfile[] {
+    return this.getAllProfiles().filter(profile => 
+      profile.age !== undefined && 
+      profile.age >= minAge && 
+      profile.age <= maxAge
+    );
+  }
+}
+
+const profileManager = new UserProfileManager();
+
+const sampleProfile: UserProfile = {
+  id: 'user-123',
+  username: 'john_doe',
+  email: 'john@example.com',
+  age: 30,
+  preferences: {
+    theme: 'dark',
+    notifications: true
+  }
+};
+
+profileManager.addProfile(sampleProfile);
+
+const updatedProfile = profileManager.updateProfile('user-123', {
+  age: 31,
+  preferences: {
+    theme: 'light',
+    notifications: false
+  }
+});
+
+const filteredProfiles = profileManager.filterByAge(25, 35);
