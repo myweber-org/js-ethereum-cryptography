@@ -271,4 +271,70 @@ export function createDefaultProfile(): UserProfile {
     },
     tags: []
   };
+}interface UserProfile {
+  name: string;
+  email: string;
+  age: number;
 }
+
+class ProfileValidator {
+  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly MIN_AGE = 13;
+  private static readonly MAX_AGE = 120;
+
+  static validate(profile: UserProfile): string[] {
+    const errors: string[] = [];
+
+    if (!profile.name || profile.name.trim().length < 2) {
+      errors.push('Name must be at least 2 characters long');
+    }
+
+    if (!ProfileValidator.EMAIL_REGEX.test(profile.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (profile.age < ProfileValidator.MIN_AGE || profile.age > ProfileValidator.MAX_AGE) {
+      errors.push(`Age must be between ${ProfileValidator.MIN_AGE} and ${ProfileValidator.MAX_AGE}`);
+    }
+
+    return errors;
+  }
+
+  static createValidProfile(name: string, email: string, age: number): UserProfile | null {
+    const profile: UserProfile = { name, email, age };
+    const errors = this.validate(profile);
+    
+    if (errors.length > 0) {
+      console.error('Profile validation failed:', errors);
+      return null;
+    }
+    
+    return profile;
+  }
+}
+
+function demonstrateValidation() {
+  const testCases = [
+    { name: 'John Doe', email: 'john@example.com', age: 25 },
+    { name: 'A', email: 'invalid-email', age: 5 },
+    { name: 'Jane Smith', email: 'jane@company.org', age: 150 }
+  ];
+
+  testCases.forEach((testCase, index) => {
+    console.log(`Test case ${index + 1}:`);
+    const profile = ProfileValidator.createValidProfile(
+      testCase.name,
+      testCase.email,
+      testCase.age
+    );
+    
+    if (profile) {
+      console.log('Valid profile created:', profile);
+    } else {
+      console.log('Profile creation failed');
+    }
+    console.log('---');
+  });
+}
+
+export { UserProfile, ProfileValidator, demonstrateValidation };
