@@ -1,62 +1,41 @@
-
 import { z } from 'zod';
 
-export interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  timezone: string;
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }).default({})
+}).strict();
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    return PreferenceSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formattedErrors = error.errors.map(err => ({
+        path: err.path.join('.'),
+        message: err.message
+      }));
+      throw new Error(`Invalid preferences: ${JSON.stringify(formattedErrors)}`);
+    }
+    throw error;
+  }
 }
 
-export const userPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto'], {
-    errorMap: () => ({ message: 'Theme must be light, dark, or auto' }),
-  }),
-  notifications: z.boolean({
-    errorMap: () => ({ message: 'Notifications must be true or false' }),
-  }),
-  language: z.string().min(2, 'Language code must be at least 2 characters'),
-  timezone: z.string().regex(
-    /^[A-Za-z_]+\/[A-Za-z_]+$/,
-    'Timezone must be in Area/Location format'
-  ),
-});
+export function getDefaultPreferences(): UserPreferences {
+  return PreferenceSchema.parse({});
+}
 
-export class UserPreferencesValidator {
-  static validate(data: unknown): UserPreferences {
-    try {
-      return userPreferencesSchema.parse(data) as UserPreferences;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessages = error.errors.map(err => 
-          `${err.path.join('.')}: ${err.message}`
-        );
-        throw new Error(`Validation failed:\n${errorMessages.join('\n')}`);
-      }
-      throw error;
-    }
-  }
-
-  static validatePartial(data: Partial<unknown>): Partial<UserPreferences> {
-    try {
-      return userPreferencesSchema.partial().parse(data) as Partial<UserPreferences>;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessages = error.errors.map(err => 
-          `${err.path.join('.')}: ${err.message}`
-        );
-        throw new Error(`Partial validation failed:\n${errorMessages.join('\n')}`);
-      }
-      throw error;
-    }
-  }
-
-  static getDefaultPreferences(): UserPreferences {
-    return {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      timezone: 'UTC',
-    };
-  }
+export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
+  const current = PreferenceSchema.partial().parse(existing);
+  const merged = { ...current, ...updates };
+  return validatePreferences(merged);
 }
