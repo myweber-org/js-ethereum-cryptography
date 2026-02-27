@@ -1174,4 +1174,97 @@ const defaultPreferences: UserPreferences = {
   fontSize: 16
 };
 
-export const userPrefsManager = new UserPreferencesManager(defaultPreferences);
+export const userPrefsManager = new UserPreferencesManager(defaultPreferences);typescript
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+type PreferenceChangeCallback = (key: keyof UserPreferences, value: any) => void;
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+  private changeListeners: PreferenceChangeCallback[] = [];
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+    return this.preferences[key];
+  }
+
+  setPreference<K extends keyof UserPreferences>(
+    key: K,
+    value: UserPreferences[K]
+  ): void {
+    const oldValue = this.preferences[key];
+    if (oldValue !== value) {
+      this.preferences[key] = value;
+      this.savePreferences();
+      this.notifyListeners(key, value);
+    }
+  }
+
+  getAllPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = { ...defaults };
+    this.savePreferences();
+    Object.keys(defaults).forEach((key) => {
+      this.notifyListeners(key as keyof UserPreferences, this.preferences[key as keyof UserPreferences]);
+    });
+  }
+
+  addChangeListener(callback: PreferenceChangeCallback): void {
+    this.changeListeners.push(callback);
+  }
+
+  removeChangeListener(callback: PreferenceChangeCallback): void {
+    const index = this.changeListeners.indexOf(callback);
+    if (index > -1) {
+      this.changeListeners.splice(index, 1);
+    }
+  }
+
+  private notifyListeners(key: keyof UserPreferences, value: any): void {
+    this.changeListeners.forEach((callback) => {
+      try {
+        callback(key, value);
+      } catch (error) {
+        console.error('Error in preference change listener:', error);
+      }
+    });
+  }
+}
+
+const defaultPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en',
+  notificationsEnabled: true,
+  fontSize: 14,
+};
+
+export const userPrefs = new UserPreferencesManager(defaultPreferences);
+```
