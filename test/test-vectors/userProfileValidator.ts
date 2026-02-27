@@ -362,4 +362,24 @@ export function createDefaultProfile(): UserProfile {
       notifications: true
     }
   };
+}import { z } from 'zod';
+
+const userProfileSchema = z.object({
+  username: z.string().min(3).max(20),
+  email: z.string().email(),
+  age: z.number().int().positive().optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'system']).default('system'),
+    notifications: z.boolean().default(true)
+  }).default({}),
+  tags: z.array(z.string()).max(5)
+});
+
+type UserProfile = z.infer<typeof userProfileSchema>;
+
+function validateUserProfile(data: unknown): UserProfile | null {
+  const result = userProfileSchema.safeParse(data);
+  return result.success ? result.data : null;
 }
+
+export { userProfileSchema, validateUserProfile, type UserProfile };
