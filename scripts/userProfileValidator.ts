@@ -338,3 +338,71 @@ function demonstrateValidation() {
 }
 
 export { UserProfile, ProfileValidator, demonstrateValidation };
+interface UserProfile {
+  name: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+}
+
+class UserProfileValidator {
+  private static readonly MIN_AGE: number = 18;
+  private static readonly MAX_AGE: number = 120;
+  private static readonly EMAIL_REGEX: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  static validate(profile: UserProfile): ValidationResult {
+    const errors: string[] = [];
+
+    if (!profile.name || profile.name.trim().length < 2) {
+      errors.push('Name must be at least 2 characters long');
+    }
+
+    if (!this.EMAIL_REGEX.test(profile.email)) {
+      errors.push('Invalid email format');
+    }
+
+    if (profile.age < this.MIN_AGE || profile.age > this.MAX_AGE) {
+      errors.push(`Age must be between ${this.MIN_AGE} and ${this.MAX_AGE}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    };
+  }
+
+  static createDefaultProfile(): UserProfile {
+    return {
+      name: '',
+      email: '',
+      age: this.MIN_AGE,
+      isActive: true
+    };
+  }
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+function demonstrateValidation(): void {
+  const testProfile: UserProfile = {
+    name: 'John Doe',
+    email: 'john@example.com',
+    age: 25,
+    isActive: true
+  };
+
+  const result = UserProfileValidator.validate(testProfile);
+  
+  console.log('Validation result:', result.isValid);
+  if (!result.isValid) {
+    console.log('Errors:', result.errors);
+  }
+
+  const defaultProfile = UserProfileValidator.createDefaultProfile();
+  console.log('Default profile:', defaultProfile);
+}
+
+export { UserProfile, UserProfileValidator, ValidationResult };
