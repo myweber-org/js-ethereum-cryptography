@@ -1,58 +1,37 @@
+import { z } from 'zod';
 
-interface UserPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  notifications: boolean;
-  language: string;
-  itemsPerPage: number;
-}
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).strict();
 
-class PreferenceValidator {
-  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
-  private static readonly MIN_ITEMS_PER_PAGE = 5;
-  private static readonly MAX_ITEMS_PER_PAGE = 100;
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
 
-  static validate(prefs: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (prefs.theme !== undefined && !['light', 'dark', 'auto'].includes(prefs.theme)) {
-      errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
     }
-
-    if (prefs.language !== undefined && !PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
-      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
-    }
-
-    if (prefs.itemsPerPage !== undefined) {
-      if (!Number.isInteger(prefs.itemsPerPage)) {
-        errors.push('Items per page must be an integer.');
-      } else if (prefs.itemsPerPage < PreferenceValidator.MIN_ITEMS_PER_PAGE || prefs.itemsPerPage > PreferenceValidator.MAX_ITEMS_PER_PAGE) {
-        errors.push(`Items per page must be between ${PreferenceValidator.MIN_ITEMS_PER_PAGE} and ${PreferenceValidator.MAX_ITEMS_PER_PAGE}.`);
-      }
-    }
-
-    if (prefs.notifications !== undefined && typeof prefs.notifications !== 'boolean') {
-      errors.push('Notifications must be a boolean value.');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  static getDefaultPreferences(): UserPreferences {
-    return {
-      theme: 'auto',
-      notifications: true,
-      language: 'en',
-      itemsPerPage: 20
-    };
-  }
-
-  static mergeWithDefaults(partialPrefs: Partial<UserPreferences>): UserPreferences {
-    const defaults = PreferenceValidator.getDefaultPreferences();
-    return { ...defaults, ...partialPrefs };
+    throw error;
   }
 }
 
-export { UserPreferences, PreferenceValidator };
+export function createDefaultPreferences(): UserPreferences {
+  return UserPreferencesSchema.parse({});
+}
+
+export function mergePreferences(existing: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  const validatedUpdates = UserPreferencesSchema.partial().parse(updates);
+  return { ...existing, ...validatedUpdates };
+}
