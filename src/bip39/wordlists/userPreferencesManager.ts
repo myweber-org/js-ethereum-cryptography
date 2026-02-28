@@ -1198,4 +1198,75 @@ class UserPreferencesManager {
 }
 
 export const preferencesManager = new UserPreferencesManager();
-```
+```import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2),
+  fontSize: z.number().min(8).max(32),
+});
+
+export class PreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 14,
+  };
+
+  validatePreferences(data: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(data);
+    } catch (error) {
+      console.warn('Invalid preferences detected, using defaults', error);
+      return this.defaultPreferences;
+    }
+  }
+
+  loadPreferences(): UserPreferences {
+    const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
+    if (!stored) return this.defaultPreferences;
+
+    try {
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch (error) {
+      console.error('Failed to parse stored preferences', error);
+      return this.defaultPreferences;
+    }
+  }
+
+  savePreferences(prefs: UserPreferences): boolean {
+    try {
+      const validated = this.validatePreferences(prefs);
+      const serialized = JSON.stringify(validated);
+      localStorage.setItem(PreferencesManager.STORAGE_KEY, serialized);
+      return true;
+    } catch (error) {
+      console.error('Failed to save preferences', error);
+      return false;
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.loadPreferences();
+    const merged = { ...current, ...updates };
+    const validated = this.validatePreferences(merged);
+    this.savePreferences(validated);
+    return validated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.savePreferences(this.defaultPreferences);
+    return this.defaultPreferences;
+  }
+}
