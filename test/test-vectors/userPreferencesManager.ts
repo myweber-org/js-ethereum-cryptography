@@ -247,4 +247,100 @@ const defaultPrefs: UserPreferences = {
   fontSize: 16
 };
 
-export const userPrefsManager = new UserPreferencesManager(defaultPrefs);
+export const userPrefsManager = new UserPreferencesManager(defaultPrefs);typescript
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 14
+};
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return this.validateAndMerge(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private validateAndMerge(partial: Partial<UserPreferences>): UserPreferences {
+    const merged = { ...DEFAULT_PREFERENCES, ...partial };
+    
+    if (!['light', 'dark', 'auto'].includes(merged.theme)) {
+      merged.theme = DEFAULT_PREFERENCES.theme;
+    }
+    
+    if (typeof merged.language !== 'string' || merged.language.trim() === '') {
+      merged.language = DEFAULT_PREFERENCES.language;
+    }
+    
+    if (typeof merged.notificationsEnabled !== 'boolean') {
+      merged.notificationsEnabled = DEFAULT_PREFERENCES.notificationsEnabled;
+    }
+    
+    if (typeof merged.fontSize !== 'number' || merged.fontSize < 8 || merged.fontSize > 32) {
+      merged.fontSize = DEFAULT_PREFERENCES.fontSize;
+    }
+    
+    return merged;
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): boolean {
+    try {
+      const newPreferences = this.validateAndMerge(updates);
+      this.preferences = newPreferences;
+      localStorage.setItem(UserPreferencesManager.STORAGE_KEY, JSON.stringify(newPreferences));
+      return true;
+    } catch (error) {
+      console.error('Failed to update preferences:', error);
+      return false;
+    }
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): boolean {
+    return this.updatePreferences(DEFAULT_PREFERENCES);
+  }
+
+  getTheme(): UserPreferences['theme'] {
+    return this.preferences.theme;
+  }
+
+  isNotificationsEnabled(): boolean {
+    return this.preferences.notificationsEnabled;
+  }
+
+  getFontSize(): number {
+    return this.preferences.fontSize;
+  }
+
+  getLanguage(): string {
+    return this.preferences.language;
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
+```
