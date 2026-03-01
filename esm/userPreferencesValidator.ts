@@ -38,4 +38,53 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   
   const merged = { ...current, ...changes };
   return validatePreferences(merged);
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  fontSize: z.number().int().min(12).max(24)
+});
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input) as UserPreferences;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Validation failed: ${errorMessages.join('; ')}`);
+      }
+      throw new Error('Invalid preferences format');
+    }
+  }
+
+  static sanitize(prefs: Partial<UserPreferences>): UserPreferences {
+    const defaults: UserPreferences = {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16
+    };
+    
+    return {
+      ...defaults,
+      ...prefs,
+      fontSize: Math.min(Math.max(prefs.fontSize || defaults.fontSize, 12), 24)
+    };
+  }
+
+  static isValidTheme(theme: string): theme is UserPreferences['theme'] {
+    return ['light', 'dark', 'auto'].includes(theme);
+  }
 }
