@@ -190,4 +190,68 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, UserPreferences, PreferenceError };
+export { UserPreferencesValidator, UserPreferences, PreferenceError };import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
+}
+
+const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  timezone: z.string().regex(/^[A-Za-z_]+\/[A-Za-z_]+$/),
+});
+
+export class PreferencesValidationError extends Error {
+  constructor(
+    public readonly errors: z.ZodError,
+    message: string = 'Invalid user preferences'
+  ) {
+    super(message);
+    this.name = 'PreferencesValidationError';
+  }
+}
+
+export function validateUserPreferences(
+  data: unknown
+): { success: true; preferences: UserPreferences } | { success: false; error: PreferencesValidationError } {
+  const result = userPreferencesSchema.safeParse(data);
+  
+  if (!result.success) {
+    return {
+      success: false,
+      error: new PreferencesValidationError(result.error),
+    };
+  }
+  
+  return {
+    success: true,
+    preferences: result.data,
+  };
+}
+
+export function sanitizePreferencesInput(input: Record<string, unknown>): Partial<UserPreferences> {
+  const sanitized: Partial<UserPreferences> = {};
+  
+  if (typeof input.theme === 'string' && ['light', 'dark', 'auto'].includes(input.theme)) {
+    sanitized.theme = input.theme as UserPreferences['theme'];
+  }
+  
+  if (typeof input.notifications === 'boolean') {
+    sanitized.notifications = input.notifications;
+  }
+  
+  if (typeof input.language === 'string' && input.language.length >= 2 && input.language.length <= 5) {
+    sanitized.language = input.language;
+  }
+  
+  if (typeof input.timezone === 'string' && /^[A-Za-z_]+\/[A-Za-z_]+$/.test(input.timezone)) {
+    sanitized.timezone = input.timezone;
+  }
+  
+  return sanitized;
+}
