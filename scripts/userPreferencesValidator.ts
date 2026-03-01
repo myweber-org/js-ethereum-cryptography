@@ -357,4 +357,37 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };import { z } from 'zod';
+
+const ThemeSchema = z.enum(['light', 'dark', 'system']);
+const NotificationFrequencySchema = z.enum(['instant', 'hourly', 'daily', 'weekly']);
+
+export const UserPreferencesSchema = z.object({
+  userId: z.string().uuid(),
+  theme: ThemeSchema.default('system'),
+  emailNotifications: z.boolean().default(true),
+  notificationFrequency: NotificationFrequencySchema.default('daily'),
+  language: z.string().min(2).max(5).default('en'),
+  twoFactorEnabled: z.boolean().default(false),
+  dataSharingConsent: z.boolean().default(false),
+  lastUpdated: z.date().default(() => new Date())
+}).strict();
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  return UserPreferencesSchema.parse(input);
+}
+
+export function getDefaultPreferences(userId: string): UserPreferences {
+  return {
+    userId,
+    theme: 'system',
+    emailNotifications: true,
+    notificationFrequency: 'daily',
+    language: 'en',
+    twoFactorEnabled: false,
+    dataSharingConsent: false,
+    lastUpdated: new Date()
+  };
+}
