@@ -1,46 +1,6 @@
 import { z } from 'zod';
 
-const PreferenceSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }).default({})
-}).strict();
-
-type UserPreferences = z.infer<typeof PreferenceSchema>;
-
-export function validatePreferences(input: unknown): UserPreferences {
-  try {
-    return PreferenceSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
-        path: err.path.join('.'),
-        message: err.message
-      }));
-      throw new Error(`Invalid preferences: ${JSON.stringify(formattedErrors)}`);
-    }
-    throw error;
-  }
-}
-
-export function getDefaultPreferences(): UserPreferences {
-  return PreferenceSchema.parse({});
-}
-
-export function mergePreferences(existing: Partial<UserPreferences>, updates: Partial<UserPreferences>): UserPreferences {
-  const current = PreferenceSchema.partial().parse(existing);
-  const merged = { ...current, ...updates };
-  return validatePreferences(merged);
-}import { z } from 'zod';
-
-export const UserPreferencesSchema = z.object({
+export const userPreferencesSchema = z.object({
   theme: z.enum(['light', 'dark', 'auto']).default('auto'),
   notifications: z.object({
     email: z.boolean().default(true),
@@ -48,32 +8,60 @@ export const UserPreferencesSchema = z.object({
     frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
   }),
   privacy: z.object({
-    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
-    dataSharing: z.boolean().default(false)
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
   }),
   language: z.string().min(2).max(5).default('en')
-});
+}).strict();
 
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
 
 export class PreferencesValidator {
   static validate(input: unknown): UserPreferences {
     try {
-      return UserPreferencesSchema.parse(input);
+      return userPreferencesSchema.parse(input);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+        const fieldErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: this.getUserFriendlyMessage(err)
+        }));
+        throw new PreferencesValidationError('Invalid preferences configuration', fieldErrors);
       }
       throw error;
     }
   }
 
-  static getDefaults(): UserPreferences {
-    return UserPreferencesSchema.parse({});
+  private static getUserFriendlyMessage(error: z.ZodIssue): string {
+    switch (error.code) {
+      case 'invalid_type':
+        return `Expected ${error.expected}, received ${error.received}`;
+      case 'invalid_enum_value':
+        return `Invalid option. Allowed values: ${error.options.join(', ')}`;
+      case 'too_small':
+        return `Value must be at least ${error.minimum} characters`;
+      case 'too_big':
+        return `Value must be at most ${error.maximum} characters`;
+      default:
+        return 'Invalid value provided';
+    }
+  }
+}
+
+export class PreferencesValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: Array<{ field: string; message: string }>
+  ) {
+    super(message);
+    this.name = 'PreferencesValidationError';
   }
 
-  static mergeWithDefaults(partial: Partial<UserPreferences>): UserPreferences {
-    const defaults = this.getDefaults();
-    return this.validate({ ...defaults, ...partial });
+  toJSON() {
+    return {
+      error: this.name,
+      message: this.message,
+      details: this.details
+    };
   }
 }
