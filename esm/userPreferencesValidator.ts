@@ -87,4 +87,69 @@ export class PreferencesValidator {
   static isValidTheme(theme: string): theme is UserPreferences['theme'] {
     return ['light', 'dark', 'auto'].includes(theme);
   }
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_RESULTS_PER_PAGE = 10;
+  private static readonly MAX_RESULTS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (preferences.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        errors.push(`Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'.`);
+      }
+    }
+
+    if (preferences.language !== undefined) {
+      if (!PreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        errors.push(`Unsupported language: ${preferences.language}. Supported: ${PreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+      }
+    }
+
+    if (preferences.resultsPerPage !== undefined) {
+      if (!Number.isInteger(preferences.resultsPerPage)) {
+        errors.push(`Results per page must be an integer. Received: ${preferences.resultsPerPage}`);
+      } else if (preferences.resultsPerPage < PreferencesValidator.MIN_RESULTS_PER_PAGE || 
+                 preferences.resultsPerPage > PreferencesValidator.MAX_RESULTS_PER_PAGE) {
+        errors.push(`Results per page must be between ${PreferencesValidator.MIN_RESULTS_PER_PAGE} and ${PreferencesValidator.MAX_RESULTS_PER_PAGE}.`);
+      }
+    }
+
+    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
+      errors.push(`Notifications must be a boolean value. Received: ${typeof preferences.notifications}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      resultsPerPage: 20
+    };
+  }
+}
+
+function mergePreferences(current: UserPreferences, updates: Partial<UserPreferences>): UserPreferences {
+  const validation = PreferencesValidator.validate(updates);
+  if (!validation.isValid) {
+    throw new Error(`Invalid preferences: ${validation.errors.join(' ')}`);
+  }
+  
+  return { ...current, ...updates };
+}
+
+export { UserPreferences, PreferencesValidator, mergePreferences };
