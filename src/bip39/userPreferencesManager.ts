@@ -69,4 +69,58 @@ const defaultPrefs: UserPreferences = {
   fontSize: 16
 };
 
-export const userPrefsManager = new UserPreferencesManager(defaultPrefs);
+export const userPrefsManager = new UserPreferencesManager(defaultPrefs);interface UserPreferences {
+  theme: 'light' | 'dark';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'light',
+  fontSize: 16,
+  notificationsEnabled: true,
+  language: 'en-US'
+};
+
+class UserPreferencesManager {
+  private readonly STORAGE_KEY = 'user_preferences';
+
+  getPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_PREFERENCES, ...parsed };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from localStorage:', error);
+    }
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const current = this.getPreferences();
+    const updated = { ...current, ...updates };
+    
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to save preferences to localStorage:', error);
+    }
+  }
+
+  resetToDefaults(): void {
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to reset preferences:', error);
+    }
+  }
+
+  getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+    return this.getPreferences()[key];
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
