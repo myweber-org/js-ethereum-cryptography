@@ -296,4 +296,120 @@ class UserPreferencesManager {
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    language: string;
+    notifications: {
+        email: boolean;
+        push: boolean;
+        frequency: 'instant' | 'daily' | 'weekly';
+    };
+    privacy: {
+        profileVisibility: 'public' | 'private' | 'friends';
+        dataSharing: boolean;
+    };
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    language: 'en-US',
+    notifications: {
+        email: true,
+        push: false,
+        frequency: 'daily'
+    },
+    privacy: {
+        profileVisibility: 'friends',
+        dataSharing: false
+    }
+};
+
+class UserPreferencesManager {
+    private storageKey: string;
+    private preferences: UserPreferences;
+
+    constructor(userId: string) {
+        this.storageKey = `user_prefs_${userId}`;
+        this.preferences = this.loadPreferences();
+    }
+
+    private loadPreferences(): UserPreferences {
+        try {
+            const stored = localStorage.getItem(this.storageKey);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                return this.validateAndMerge(parsed);
+            }
+        } catch (error) {
+            console.warn('Failed to load preferences, using defaults:', error);
+        }
+        return { ...DEFAULT_PREFERENCES };
+    }
+
+    private validateAndMerge(partial: Partial<UserPreferences>): UserPreferences {
+        const merged = { ...DEFAULT_PREFERENCES, ...partial };
+        
+        // Validate theme
+        if (!['light', 'dark', 'auto'].includes(merged.theme)) {
+            merged.theme = DEFAULT_PREFERENCES.theme;
+        }
+
+        // Validate notification frequency
+        if (!['instant', 'daily', 'weekly'].includes(merged.notifications.frequency)) {
+            merged.notifications.frequency = DEFAULT_PREFERENCES.notifications.frequency;
+        }
+
+        // Validate privacy settings
+        if (!['public', 'private', 'friends'].includes(merged.privacy.profileVisibility)) {
+            merged.privacy.profileVisibility = DEFAULT_PREFERENCES.privacy.profileVisibility;
+        }
+
+        return merged;
+    }
+
+    updatePreferences(updates: Partial<UserPreferences>): boolean {
+        try {
+            const newPreferences = this.validateAndMerge({
+                ...this.preferences,
+                ...updates
+            });
+            
+            this.preferences = newPreferences;
+            localStorage.setItem(this.storageKey, JSON.stringify(newPreferences));
+            return true;
+        } catch (error) {
+            console.error('Failed to update preferences:', error);
+            return false;
+        }
+    }
+
+    getPreferences(): UserPreferences {
+        return { ...this.preferences };
+    }
+
+    resetToDefaults(): boolean {
+        return this.updatePreferences(DEFAULT_PREFERENCES);
+    }
+
+    exportPreferences(): string {
+        return JSON.stringify(this.preferences, null, 2);
+    }
+
+    static importPreferences(userId: string, jsonString: string): boolean {
+        try {
+            const parsed = JSON.parse(jsonString);
+            const manager = new UserPreferencesManager(userId);
+            return manager.updatePreferences(parsed);
+        } catch (error) {
+            console.error('Failed to import preferences:', error);
+            return false;
+        }
+    }
+}
+
+// Usage example
+const prefsManager = new UserPreferencesManager('user123');
+prefsManager.updatePreferences({ theme: 'dark' });
+console.log(prefsManager.getPreferences());
+```
