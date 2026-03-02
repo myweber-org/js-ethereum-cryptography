@@ -70,3 +70,74 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager, type UserPreferences };
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  fontSize: number;
+  notificationsEnabled: boolean;
+  language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  fontSize: 16,
+  notificationsEnabled: true,
+  language: 'en-US'
+};
+
+class UserPreferencesManager {
+  private readonly storageKey = 'app_user_preferences';
+
+  getPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (!stored) return { ...DEFAULT_PREFERENCES };
+
+      const parsed = JSON.parse(stored);
+      return this.validateAndMerge(parsed);
+    } catch {
+      return { ...DEFAULT_PREFERENCES };
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const merged = { ...current, ...updates };
+    const validated = this.validateAndMerge(merged);
+
+    localStorage.setItem(this.storageKey, JSON.stringify(validated));
+    return validated;
+  }
+
+  resetToDefaults(): UserPreferences {
+    localStorage.removeItem(this.storageKey);
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private validateAndMerge(data: unknown): UserPreferences {
+    const result = { ...DEFAULT_PREFERENCES };
+
+    if (data && typeof data === 'object') {
+      const obj = data as Record<string, unknown>;
+
+      if (obj.theme && ['light', 'dark', 'auto'].includes(obj.theme as string)) {
+        result.theme = obj.theme as UserPreferences['theme'];
+      }
+
+      if (typeof obj.fontSize === 'number' && obj.fontSize >= 12 && obj.fontSize <= 24) {
+        result.fontSize = obj.fontSize;
+      }
+
+      if (typeof obj.notificationsEnabled === 'boolean') {
+        result.notificationsEnabled = obj.notificationsEnabled;
+      }
+
+      if (typeof obj.language === 'string' && obj.language.length >= 2) {
+        result.language = obj.language;
+      }
+    }
+
+    return result;
+  }
+}
+
+export const preferencesManager = new UserPreferencesManager();
