@@ -1,67 +1,50 @@
-import { z } from 'zod';
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
 
-export const userPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
+class PreferenceValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
 
-export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+  static validate(prefs: UserPreferences): string[] {
+    const errors: string[] = [];
 
-export class PreferencesValidator {
-  static validate(input: unknown): UserPreferences {
-    try {
-      return userPreferencesSchema.parse(input);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const fieldErrors = error.errors.map(err => ({
-          field: err.path.join('.'),
-          message: this.getUserFriendlyMessage(err)
-        }));
-        throw new PreferencesValidationError('Invalid preferences configuration', fieldErrors);
-      }
-      throw error;
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme: ${prefs.theme}. Must be 'light', 'dark', or 'auto'.`);
     }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be a boolean value.');
+    }
+
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}. Supported: ${PreferenceValidator.SUPPORTED_LANGUAGES.join(', ')}`);
+    }
+
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size ${prefs.fontSize} out of range. Must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}.`);
+    }
+
+    return errors;
   }
 
-  private static getUserFriendlyMessage(error: z.ZodIssue): string {
-    switch (error.code) {
-      case 'invalid_type':
-        return `Expected ${error.expected}, received ${error.received}`;
-      case 'invalid_enum_value':
-        return `Invalid option. Allowed values: ${error.options.join(', ')}`;
-      case 'too_small':
-        return `Value must be at least ${error.minimum} characters`;
-      case 'too_big':
-        return `Value must be at most ${error.maximum} characters`;
-      default:
-        return 'Invalid value provided';
+  static validateAndThrow(prefs: UserPreferences): void {
+    const errors = this.validate(prefs);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed:\n${errors.join('\n')}`);
     }
   }
 }
 
-export class PreferencesValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly details: Array<{ field: string; message: string }>
-  ) {
-    super(message);
-    this.name = 'PreferencesValidationError';
-  }
-
-  toJSON() {
-    return {
-      error: this.name,
-      message: this.message,
-      details: this.details
-    };
+function processUserPreferences(prefs: UserPreferences): void {
+  try {
+    PreferenceValidator.validateAndThrow(prefs);
+    console.log('Preferences validated successfully:', prefs);
+  } catch (error) {
+    console.error('Failed to process preferences:', error.message);
   }
 }
