@@ -82,4 +82,46 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }).default({})
+}).strict();
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    return PreferenceSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const customMessages = error.errors.map(err => {
+        switch (err.code) {
+          case 'invalid_type':
+            return `Field '${err.path.join('.')}' expects ${err.expected}, received ${err.received}`;
+          case 'invalid_enum_value':
+            return `Field '${err.path.join('.')}' must be one of: ${err.options?.join(', ')}`;
+          case 'unrecognized_keys':
+            return `Unrecognized field(s): ${err.keys.join(', ')}`;
+          default:
+            return err.message;
+        }
+      });
+      throw new Error(`Validation failed:\n${customMessages.join('\n')}`);
+    }
+    throw error;
+  }
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return PreferenceSchema.parse({});
+}
