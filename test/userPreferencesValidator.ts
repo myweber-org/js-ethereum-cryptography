@@ -92,4 +92,41 @@ export function mergeWithDefaults(partialPrefs: Partial<UserPreferences>): UserP
 
 export function arePreferencesValid(prefs: UserPreferences): boolean {
   return UserPreferencesSchema.safeParse(prefs).success;
+}import { z } from 'zod';
+
+export const userPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+}).refine((data) => {
+  return !(data.notifications.push && data.privacy.profileVisibility === 'private');
+}, {
+  message: 'Push notifications require public or friends profile visibility',
+  path: ['notifications.push']
+});
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  return userPreferencesSchema.parse(input);
+}
+
+export function getValidationErrors(input: unknown): string[] {
+  try {
+    userPreferencesSchema.parse(input);
+    return [];
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+    }
+    return ['Invalid input format'];
+  }
 }
