@@ -51,4 +51,39 @@ export function createPartialValidator<T extends z.ZodType>(schema: T) {
   return (data: unknown) => schema.partial().safeParse(data);
 }
 
-const partialProfileValidator = createPartialValidator(UserProfileSchema);
+const partialProfileValidator = createPartialValidator(UserProfileSchema);import { z } from 'zod';
+
+export const userProfileSchema = z.object({
+  username: z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username cannot exceed 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  
+  email: z.string()
+    .email('Please enter a valid email address'),
+  
+  age: z.number()
+    .int('Age must be an integer')
+    .min(18, 'You must be at least 18 years old')
+    .max(120, 'Please enter a valid age'),
+  
+  subscriptionTier: z.enum(['free', 'basic', 'premium'], {
+    errorMap: () => ({ message: 'Please select a valid subscription tier' })
+  }),
+  
+  preferences: z.object({
+    newsletter: z.boolean(),
+    notifications: z.boolean(),
+    theme: z.enum(['light', 'dark', 'auto'])
+  }).optional()
+});
+
+export type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  return userProfileSchema.parse(data);
+}
+
+export function safeValidateUserProfile(data: unknown) {
+  return userProfileSchema.safeParse(data);
+}
