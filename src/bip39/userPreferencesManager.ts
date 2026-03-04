@@ -65,4 +65,62 @@ class UserPreferencesManager {
   }
 }
 
-export const userPreferences = new UserPreferencesManager();
+export const userPreferences = new UserPreferencesManager();interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private static defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    language: 'en',
+    notificationsEnabled: true,
+    fontSize: 14
+  };
+
+  static getPreferences(): UserPreferences {
+    const stored = localStorage.getItem(this.STORAGE_KEY);
+    if (!stored) return { ...this.defaultPreferences };
+
+    try {
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch {
+      return { ...this.defaultPreferences };
+    }
+  }
+
+  static updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferences();
+    const merged = { ...current, ...updates };
+    const validated = this.validatePreferences(merged);
+    
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(validated));
+    return validated;
+  }
+
+  static resetToDefaults(): UserPreferences {
+    localStorage.removeItem(this.STORAGE_KEY);
+    return { ...this.defaultPreferences };
+  }
+
+  private static validatePreferences(prefs: any): UserPreferences {
+    const validThemes = ['light', 'dark', 'auto'];
+    const theme = validThemes.includes(prefs.theme) ? prefs.theme : this.defaultPreferences.theme;
+    
+    const language = typeof prefs.language === 'string' ? prefs.language : this.defaultPreferences.language;
+    const notificationsEnabled = typeof prefs.notificationsEnabled === 'boolean' 
+      ? prefs.notificationsEnabled 
+      : this.defaultPreferences.notificationsEnabled;
+    const fontSize = typeof prefs.fontSize === 'number' 
+      ? Math.max(8, Math.min(72, prefs.fontSize)) 
+      : this.defaultPreferences.fontSize;
+
+    return { theme, language, notificationsEnabled, fontSize };
+  }
+}
+
+export { UserPreferencesManager, type UserPreferences };
