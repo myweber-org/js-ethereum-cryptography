@@ -459,3 +459,93 @@ class UserProfileManager {
 }
 
 export { UserProfileManager, UserProfile };
+interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  age?: number;
+  lastUpdated: Date;
+}
+
+class UserProfileManager {
+  private readonly MAX_DISPLAY_NAME_LENGTH = 50;
+  private readonly MIN_AGE = 13;
+  private readonly MAX_AGE = 120;
+
+  constructor(private auditLogger: (userId: string, action: string, details: object) => void) {}
+
+  validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  validateDisplayName(displayName: string): boolean {
+    return displayName.trim().length > 0 && 
+           displayName.trim().length <= this.MAX_DISPLAY_NAME_LENGTH;
+  }
+
+  validateAge(age?: number): boolean {
+    if (age === undefined) return true;
+    return Number.isInteger(age) && age >= this.MIN_AGE && age <= this.MAX_AGE;
+  }
+
+  updateProfile(userId: string, updates: Partial<UserProfile>): UserProfile | null {
+    const currentProfile = this.getProfileFromStorage(userId);
+    if (!currentProfile) {
+      return null;
+    }
+
+    const validationErrors: string[] = [];
+
+    if (updates.email && !this.validateEmail(updates.email)) {
+      validationErrors.push('Invalid email format');
+    }
+
+    if (updates.displayName && !this.validateDisplayName(updates.displayName)) {
+      validationErrors.push('Display name must be between 1 and 50 characters');
+    }
+
+    if (updates.age !== undefined && !this.validateAge(updates.age)) {
+      validationErrors.push(`Age must be between ${this.MIN_AGE} and ${this.MAX_AGE}`);
+    }
+
+    if (validationErrors.length > 0) {
+      this.auditLogger(userId, 'PROFILE_UPDATE_FAILED', {
+        errors: validationErrors,
+        attemptedUpdates: updates
+      });
+      throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+    }
+
+    const updatedProfile: UserProfile = {
+      ...currentProfile,
+      ...updates,
+      lastUpdated: new Date()
+    };
+
+    this.saveProfileToStorage(updatedProfile);
+    
+    this.auditLogger(userId, 'PROFILE_UPDATED', {
+      changedFields: Object.keys(updates),
+      previousValues: currentProfile,
+      newValues: updatedProfile
+    });
+
+    return updatedProfile;
+  }
+
+  private getProfileFromStorage(userId: string): UserProfile | null {
+    const stored = localStorage.getItem(`user_profile_${userId}`);
+    return stored ? JSON.parse(stored) : null;
+  }
+
+  private saveProfileToStorage(profile: UserProfile): void {
+    localStorage.setItem(`user_profile_${profile.id}`, JSON.stringify(profile));
+  }
+}
+
+const mockAuditLogger = (userId: string, action: string, details: object) => {
+  console.log(`[AUDIT] ${new Date().toISOString()} - User ${userId}: ${action}`, details);
+};
+
+const profileManager = new UserProfileManager(mockAuditLogger);
