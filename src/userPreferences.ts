@@ -150,4 +150,88 @@ function loadPreferences(): UserPreferences {
   }
 }
 
-export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  resultsPerPage: 20
+};
+
+const VALID_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+
+class UserPreferencesService {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    this.validateUpdates(updates);
+    
+    this.preferences = {
+      ...this.preferences,
+      ...updates
+    };
+    
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = { ...DEFAULT_PREFERENCES };
+    this.savePreferences();
+    return this.getPreferences();
+  }
+
+  private validateUpdates(updates: Partial<UserPreferences>): void {
+    if (updates.theme && !['light', 'dark', 'auto'].includes(updates.theme)) {
+      throw new Error(`Invalid theme: ${updates.theme}`);
+    }
+
+    if (updates.language && !VALID_LANGUAGES.includes(updates.language)) {
+      throw new Error(`Unsupported language: ${updates.language}`);
+    }
+
+    if (updates.resultsPerPage !== undefined) {
+      if (!Number.isInteger(updates.resultsPerPage) || updates.resultsPerPage < 5 || updates.resultsPerPage > 100) {
+        throw new Error(`Results per page must be between 5 and 100`);
+      }
+    }
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem('userPreferences');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { ...DEFAULT_PREFERENCES, ...parsed };
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences from storage', error);
+    }
+    
+    return { ...DEFAULT_PREFERENCES };
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem('userPreferences', JSON.stringify(this.preferences));
+    } catch (error) {
+      console.error('Failed to save preferences to storage', error);
+    }
+  }
+}
+
+export const userPreferencesService = new UserPreferencesService();
