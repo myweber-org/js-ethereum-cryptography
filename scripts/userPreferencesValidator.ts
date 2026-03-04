@@ -127,4 +127,64 @@ export function mergePreferences(existing: UserPreferences, updates: Partial<Use
 
 export function getDefaultPreferences(): UserPreferences {
   return PreferenceSchema.parse({});
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  twoFactorAuth: boolean;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'] as const;
+const MIN_FONT_SIZE = 12;
+const MAX_FONT_SIZE = 24;
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: string[] = [];
+
+  if (!prefs.theme || !['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be light, dark, or auto');
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    errors.push('Notifications must be a boolean value');
+  }
+
+  if (!prefs.language || !SUPPORTED_LANGUAGES.includes(prefs.language as any)) {
+    errors.push(`Language must be one of: ${SUPPORTED_LANGUAGES.join(', ')}`);
+  }
+
+  if (typeof prefs.fontSize !== 'number' || prefs.fontSize < MIN_FONT_SIZE || prefs.fontSize > MAX_FONT_SIZE) {
+    errors.push(`Font size must be between ${MIN_FONT_SIZE} and ${MAX_FONT_SIZE}`);
+  }
+
+  if (typeof prefs.twoFactorAuth !== 'boolean') {
+    errors.push('Two-factor authentication must be a boolean value');
+  }
+
+  if (errors.length > 0) {
+    throw new PreferenceValidationError(
+      `Invalid preferences: ${errors.join('; ')}`,
+      errors.length === 1 ? errors[0].split(' ')[0].toLowerCase() : 'multiple'
+    );
+  }
+
+  return prefs as UserPreferences;
+}
+
+function validatePreferenceUpdate(
+  current: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...current, ...updates };
+  return validateUserPreferences(merged);
+}
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences, validatePreferenceUpdate };
