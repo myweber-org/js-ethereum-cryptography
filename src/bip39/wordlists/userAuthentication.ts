@@ -2,10 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface AuthenticatedRequest extends Request {
-  user?: any;
+  user?: string | object;
 }
 
-export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+export const authenticateToken = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -14,7 +20,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
     return;
   }
 
-  jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       res.status(403).json({ error: 'Invalid or expired token' });
       return;
@@ -26,5 +32,5 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
 };
 
 export const generateAccessToken = (userId: string): string => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '1h' });
 };
