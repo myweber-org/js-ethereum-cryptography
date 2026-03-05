@@ -341,4 +341,58 @@ function mergePreferences(existing: UserPreferences, updates: Partial<UserPrefer
   return validatePreferences({ ...existing, ...updates });
 }
 
-export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };
+export { UserPreferences, DEFAULT_PREFERENCES, validatePreferences, mergePreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  fontSize: 14
+};
+
+const VALID_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+
+function validatePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const validated = { ...DEFAULT_PREFERENCES, ...prefs };
+  
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    validated.theme = DEFAULT_PREFERENCES.theme;
+  }
+  
+  if (!VALID_LANGUAGES.includes(validated.language)) {
+    validated.language = DEFAULT_PREFERENCES.language;
+  }
+  
+  if (typeof validated.notifications !== 'boolean') {
+    validated.notifications = DEFAULT_PREFERENCES.notifications;
+  }
+  
+  if (typeof validated.fontSize !== 'number' || validated.fontSize < 8 || validated.fontSize > 32) {
+    validated.fontSize = DEFAULT_PREFERENCES.fontSize;
+  }
+  
+  return validated;
+}
+
+function savePreferences(prefs: UserPreferences): void {
+  localStorage.setItem('userPreferences', JSON.stringify(prefs));
+}
+
+function loadPreferences(): UserPreferences {
+  const stored = localStorage.getItem('userPreferences');
+  if (!stored) return DEFAULT_PREFERENCES;
+  
+  try {
+    const parsed = JSON.parse(stored);
+    return validatePreferences(parsed);
+  } catch {
+    return DEFAULT_PREFERENCES;
+  }
+}
+
+export { UserPreferences, validatePreferences, savePreferences, loadPreferences };
