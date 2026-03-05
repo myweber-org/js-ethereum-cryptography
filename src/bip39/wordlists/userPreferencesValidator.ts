@@ -154,3 +154,61 @@ export function validateUserPreferences(input: unknown): UserPreferences {
 export function getDefaultPreferences(): UserPreferences {
   return UserPreferencesSchema.parse({});
 }
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaults: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 14
+  };
+
+  const validated: UserPreferences = { ...defaults, ...prefs };
+
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    throw new PreferenceValidationError(`Invalid theme: ${validated.theme}`);
+  }
+
+  if (typeof validated.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be boolean');
+  }
+
+  if (!validated.language || validated.language.trim().length === 0) {
+    throw new PreferenceValidationError('Language cannot be empty');
+  }
+
+  if (validated.fontSize < 8 || validated.fontSize > 72) {
+    throw new PreferenceValidationError(`Font size ${validated.fontSize} is out of range (8-72)`);
+  }
+
+  if (!Number.isInteger(validated.fontSize)) {
+    throw new PreferenceValidationError('Font size must be an integer');
+  }
+
+  return validated;
+}
+
+export function createUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  try {
+    return validateUserPreferences(prefs);
+  } catch (error) {
+    if (error instanceof PreferenceValidationError) {
+      console.error('Failed to create user preferences:', error.message);
+      throw error;
+    }
+    throw new PreferenceValidationError('Unknown validation error occurred');
+  }
+}
