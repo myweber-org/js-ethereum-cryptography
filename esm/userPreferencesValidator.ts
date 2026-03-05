@@ -152,4 +152,111 @@ function mergePreferences(current: UserPreferences, updates: Partial<UserPrefere
   return { ...current, ...updates };
 }
 
-export { UserPreferences, PreferencesValidator, mergePreferences };
+export { UserPreferences, PreferencesValidator, mergePreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16,
+      ...preferences
+    };
+
+    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+      throw new PreferenceValidationError(
+        `Invalid theme: ${validated.theme}. Must be 'light', 'dark', or 'auto'`
+      );
+    }
+
+    if (typeof validated.notifications !== 'boolean') {
+      throw new PreferenceValidationError(
+        `Notifications must be a boolean value, received: ${typeof validated.notifications}`
+      );
+    }
+
+    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(validated.language)) {
+      throw new PreferenceValidationError(
+        `Unsupported language: ${validated.language}. Supported languages: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`
+      );
+    }
+
+    if (validated.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
+        validated.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
+      throw new PreferenceValidationError(
+        `Font size ${validated.fontSize} is out of range. Must be between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`
+      );
+    }
+
+    if (!Number.isInteger(validated.fontSize)) {
+      throw new PreferenceValidationError('Font size must be an integer');
+    }
+
+    return validated;
+  }
+
+  static validatePartial(preferences: Partial<UserPreferences>): Partial<UserPreferences> {
+    const result: Partial<UserPreferences> = {};
+    
+    if (preferences.theme !== undefined) {
+      if (!['light', 'dark', 'auto'].includes(preferences.theme)) {
+        throw new PreferenceValidationError(
+          `Invalid theme: ${preferences.theme}. Must be 'light', 'dark', or 'auto'`
+        );
+      }
+      result.theme = preferences.theme;
+    }
+
+    if (preferences.notifications !== undefined) {
+      if (typeof preferences.notifications !== 'boolean') {
+        throw new PreferenceValidationError(
+          `Notifications must be a boolean value, received: ${typeof preferences.notifications}`
+        );
+      }
+      result.notifications = preferences.notifications;
+    }
+
+    if (preferences.language !== undefined) {
+      if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+        throw new PreferenceValidationError(
+          `Unsupported language: ${preferences.language}. Supported languages: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`
+        );
+      }
+      result.language = preferences.language;
+    }
+
+    if (preferences.fontSize !== undefined) {
+      if (preferences.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
+          preferences.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
+        throw new PreferenceValidationError(
+          `Font size ${preferences.fontSize} is out of range. Must be between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`
+        );
+      }
+      if (!Number.isInteger(preferences.fontSize)) {
+        throw new PreferenceValidationError('Font size must be an integer');
+      }
+      result.fontSize = preferences.fontSize;
+    }
+
+    return result;
+  }
+}
+
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
