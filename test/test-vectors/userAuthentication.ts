@@ -1,9 +1,11 @@
+
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface UserPayload {
-  userId: string;
+  id: string;
   email: string;
+  role: string;
 }
 
 declare global {
@@ -14,7 +16,11 @@ declare global {
   }
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticateToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -23,76 +29,38 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const secretKey = process.env.JWT_SECRET_KEY;
-  if (!secretKey) {
-    res.status(500).json({ error: 'Server configuration error' });
-    return;
-  }
+  try {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT secret not configured');
+    }
 
-  jwt.verify(token, secretKey, (err, decoded) => {
-    if (err) {
-      res.status(403).json({ error: 'Invalid or expired token' });
+    const decoded = jwt.verify(token, secret) as UserPayload;
+    req.user = decoded;
+    next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Token expired' });
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      res.status(403).json({ error: 'Invalid token' });
+    } else {
+      res.status(500).json({ error: 'Authentication failed' });
+    }
+  }
+};
+
+export const authorizeRole = (allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
-    const userPayload = decoded as UserPayload;
-    req.user = {
-      userId: userPayload.userId,
-      email: userPayload.email
-    };
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({ error: 'Insufficient permissions' });
+      return;
+    }
+
     next();
-  });
+  };
 };
-
-export const generateAccessToken = (userId: string, email: string): string => {
-  const secretKey = process.env.JWT_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error('JWT secret key not configured');
-  }
-
-  return jwt.sign(
-    { userId, email },
-    secretKey,
-    { expiresIn: '1h' }
-  );
-};import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_EXPIRY = '24h';
-
-interface UserPayload {
-  userId: string;
-  email: string;
-  role: string;
-}
-
-export class AuthService {
-  static async hashPassword(password: string): Promise<string> {
-    const saltRounds = 10;
-    return bcrypt.hash(password, saltRounds);
-  }
-
-  static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(password, hashedPassword);
-  }
-
-  static generateToken(payload: UserPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
-  }
-
-  static verifyToken(token: string): UserPayload | null {
-    try {
-      return jwt.verify(token, JWT_SECRET) as UserPayload;
-    } catch {
-      return null;
-    }
-  }
-
-  static extractTokenFromHeader(authHeader: string | undefined): string | null {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null;
-    }
-    return authHeader.substring(7);
-  }
-}
