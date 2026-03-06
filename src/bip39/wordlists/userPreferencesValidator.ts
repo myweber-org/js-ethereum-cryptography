@@ -211,4 +211,47 @@ export function createUserPreferences(prefs: Partial<UserPreferences>): UserPref
     }
     throw new PreferenceValidationError('Unknown validation error occurred');
   }
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  timezone: string;
 }
+
+class PreferenceValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly VALID_TIMEZONES = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+
+  static validate(prefs: Partial<UserPreferences>): string[] {
+    const errors: string[] = [];
+
+    if (prefs.theme !== undefined && !['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme: ${prefs.theme}`);
+    }
+
+    if (prefs.language !== undefined && !this.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}`);
+    }
+
+    if (prefs.timezone !== undefined && !this.VALID_TIMEZONES.test(prefs.timezone)) {
+      errors.push(`Invalid timezone format: ${prefs.timezone}`);
+    }
+
+    if (prefs.notifications !== undefined && typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be boolean');
+    }
+
+    return errors;
+  }
+
+  static normalize(prefs: UserPreferences): UserPreferences {
+    return {
+      theme: prefs.theme,
+      notifications: prefs.notifications,
+      language: prefs.language.toLowerCase(),
+      timezone: prefs.timezone.replace(/\s+/g, '_')
+    };
+  }
+}
+
+export { UserPreferences, PreferenceValidator };
