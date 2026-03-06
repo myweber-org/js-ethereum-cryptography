@@ -51,4 +51,25 @@ export function createDefaultProfile(): Partial<UserProfile> {
     },
     tags: ['new-user']
   };
+}import { z } from 'zod';
+
+const emailSchema = z.string().email();
+const ageSchema = z.number().int().min(18).max(120);
+
+export const userProfileSchema = z.object({
+  username: z.string().min(3).max(50),
+  email: emailSchema,
+  age: ageSchema,
+  isActive: z.boolean().optional(),
+  preferences: z.array(z.string()).default([]),
+});
+
+export type UserProfile = z.infer<typeof userProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  return userProfileSchema.parse(data);
+}
+
+export function safeValidateUserProfile(data: unknown) {
+  return userProfileSchema.safeParse(data);
 }
