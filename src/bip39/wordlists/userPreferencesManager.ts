@@ -202,4 +202,82 @@ class UserPreferencesManager {
 }
 
 export { UserPreferencesManager, type UserPreferences };
-```
+```interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notificationsEnabled: boolean;
+  fontSize: number;
+}
+
+class UserPreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(UserPreferencesManager.STORAGE_KEY);
+      if (!stored) return null;
+      
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private validatePreferences(data: unknown): data is UserPreferences {
+    if (!data || typeof data !== 'object') return false;
+    
+    const preferences = data as Record<string, unknown>;
+    const validThemes = ['light', 'dark', 'auto'];
+    
+    return (
+      validThemes.includes(preferences.theme as string) &&
+      typeof preferences.language === 'string' &&
+      typeof preferences.notificationsEnabled === 'boolean' &&
+      typeof preferences.fontSize === 'number' &&
+      preferences.fontSize >= 12 &&
+      preferences.fontSize <= 24
+    );
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    if (this.validatePreferences(newPreferences)) {
+      this.preferences = newPreferences;
+      this.savePreferences();
+    } else {
+      throw new Error('Invalid preferences update');
+    }
+  }
+
+  private savePreferences(): void {
+    localStorage.setItem(
+      UserPreferencesManager.STORAGE_KEY,
+      JSON.stringify(this.preferences)
+    );
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = defaults;
+    this.savePreferences();
+  }
+}
+
+const defaultUserPreferences: UserPreferences = {
+  theme: 'auto',
+  language: 'en-US',
+  notificationsEnabled: true,
+  fontSize: 16
+};
+
+export const userPrefsManager = new UserPreferencesManager(defaultUserPreferences);
