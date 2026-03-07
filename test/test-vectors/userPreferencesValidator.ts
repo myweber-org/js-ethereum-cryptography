@@ -415,4 +415,89 @@ export function mergePreferences(
   const current = PreferenceSchema.partial().parse(existing);
   const merged = { ...current, ...updates };
   return validatePreferences(merged);
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_RESULTS_PER_PAGE = 10;
+  private static readonly MAX_RESULTS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: this.validateTheme(preferences.theme),
+      notifications: this.validateNotifications(preferences.notifications),
+      language: this.validateLanguage(preferences.language),
+      resultsPerPage: this.validateResultsPerPage(preferences.resultsPerPage)
+    };
+
+    return validated;
+  }
+
+  private static validateTheme(theme?: string): 'light' | 'dark' | 'auto' {
+    if (!theme) {
+      throw new PreferenceValidationError('Theme is required');
+    }
+
+    if (theme !== 'light' && theme !== 'dark' && theme !== 'auto') {
+      throw new PreferenceValidationError(
+        `Invalid theme '${theme}'. Must be 'light', 'dark', or 'auto'`
+      );
+    }
+
+    return theme;
+  }
+
+  private static validateNotifications(notifications?: boolean): boolean {
+    if (notifications === undefined || notifications === null) {
+      throw new PreferenceValidationError('Notifications preference is required');
+    }
+
+    return notifications;
+  }
+
+  private static validateLanguage(language?: string): string {
+    if (!language) {
+      throw new PreferenceValidationError('Language is required');
+    }
+
+    if (!this.SUPPORTED_LANGUAGES.includes(language)) {
+      throw new PreferenceValidationError(
+        `Language '${language}' is not supported. Supported languages: ${this.SUPPORTED_LANGUAGES.join(', ')}`
+      );
+    }
+
+    return language;
+  }
+
+  private static validateResultsPerPage(results?: number): number {
+    if (results === undefined || results === null) {
+      throw new PreferenceValidationError('Results per page is required');
+    }
+
+    if (!Number.isInteger(results)) {
+      throw new PreferenceValidationError('Results per page must be an integer');
+    }
+
+    if (results < this.MIN_RESULTS_PER_PAGE || results > this.MAX_RESULTS_PER_PAGE) {
+      throw new PreferenceValidationError(
+        `Results per page must be between ${this.MIN_RESULTS_PER_PAGE} and ${this.MAX_RESULTS_PER_PAGE}`
+      );
+    }
+
+    return results;
+  }
+}
+
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
