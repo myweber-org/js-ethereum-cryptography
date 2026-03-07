@@ -149,4 +149,50 @@ export function validateUserPreferences(input: unknown): UserPreferences {
 
 export function getDefaultPreferences(): UserPreferences {
   return userPreferencesSchema.parse({});
+}import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.object({
+    email: z.boolean(),
+    push: z.boolean(),
+    frequency: z.enum(['instant', 'daily', 'weekly']),
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'private', 'friends']),
+    searchIndexing: z.boolean(),
+  }),
+  language: z.string().min(2).max(5),
+  timezone: z.string(),
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    return PreferenceSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
+    }
+    throw new Error('Unexpected validation error');
+  }
+}
+
+export function getDefaultPreferences(): UserPreferences {
+  return {
+    theme: 'auto',
+    notifications: {
+      email: true,
+      push: false,
+      frequency: 'daily',
+    },
+    privacy: {
+      profileVisibility: 'friends',
+      searchIndexing: true,
+    },
+    language: 'en',
+    timezone: 'UTC',
+  };
 }
