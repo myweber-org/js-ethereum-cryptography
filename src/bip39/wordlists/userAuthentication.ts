@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface AuthenticatedRequest extends Request {
-  user?: string | object;
-}
-
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+interface AuthenticatedRequest extends Request {
+  user?: any;
+}
 
 export const authenticateToken = (
   req: AuthenticatedRequest,
@@ -25,12 +25,11 @@ export const authenticateToken = (
       res.status(403).json({ error: 'Invalid or expired token' });
       return;
     }
-    
     req.user = user;
     next();
   });
 };
 
-export const generateAccessToken = (userId: string): string => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '1h' });
+export const generateAccessToken = (userData: object): string => {
+  return jwt.sign(userData, JWT_SECRET, { expiresIn: '1h' });
 };
