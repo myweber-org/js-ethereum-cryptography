@@ -500,4 +500,57 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };import { z } from 'zod';
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).default('system'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    searchIndexing: z.boolean().default(true)
+  }),
+  language: z.string().min(2).max(5).default('en')
+});
+
+type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export function validateUserPreferences(input: unknown): UserPreferences {
+  try {
+    return UserPreferencesSchema.parse(input);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const defaultPreferences = UserPreferencesSchema.parse({});
+      console.warn('Invalid preferences, using defaults:', error.errors);
+      return defaultPreferences;
+    }
+    throw error;
+  }
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validateUserPreferences(merged);
+}
+
+export function getPreferencesDiff(
+  oldPrefs: UserPreferences,
+  newPrefs: UserPreferences
+): Partial<UserPreferences> {
+  const diff: Partial<UserPreferences> = {};
+  
+  Object.keys(newPrefs).forEach(key => {
+    const typedKey = key as keyof UserPreferences;
+    if (JSON.stringify(oldPrefs[typedKey]) !== JSON.stringify(newPrefs[typedKey])) {
+      diff[typedKey] = newPrefs[typedKey];
+    }
+  });
+  
+  return diff;
+}
