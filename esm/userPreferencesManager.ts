@@ -394,4 +394,97 @@ const defaultUserPreferences: UserPreferences = {
 };
 
 export { UserPreferencesManager, defaultUserPreferences };
-export type { UserPreferences };
+export type { UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  fontSize: 14
+};
+
+class PreferencesManager {
+  private readonly storageKey = 'user_preferences';
+  
+  constructor() {
+    this.ensureDefaults();
+  }
+
+  private ensureDefaults(): void {
+    const current = this.load();
+    const merged = { ...DEFAULT_PREFERENCES, ...current };
+    this.save(merged);
+  }
+
+  load(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(this.storageKey);
+      if (!stored) return DEFAULT_PREFERENCES;
+      
+      const parsed = JSON.parse(stored);
+      return this.validatePreferences(parsed);
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
+  }
+
+  save(prefs: Partial<UserPreferences>): void {
+    const current = this.load();
+    const updated = { ...current, ...prefs };
+    
+    if (this.validatePreferences(updated)) {
+      localStorage.setItem(this.storageKey, JSON.stringify(updated));
+    }
+  }
+
+  reset(): void {
+    localStorage.removeItem(this.storageKey);
+    this.ensureDefaults();
+  }
+
+  private validatePreferences(data: unknown): UserPreferences {
+    if (!data || typeof data !== 'object') {
+      return DEFAULT_PREFERENCES;
+    }
+
+    const prefs = data as Record<string, unknown>;
+    
+    return {
+      theme: this.validateTheme(prefs.theme),
+      notifications: this.validateBoolean(prefs.notifications),
+      language: this.validateString(prefs.language),
+      fontSize: this.validateFontSize(prefs.fontSize)
+    };
+  }
+
+  private validateTheme(value: unknown): UserPreferences['theme'] {
+    if (value === 'light' || value === 'dark' || value === 'auto') {
+      return value;
+    }
+    return DEFAULT_PREFERENCES.theme;
+  }
+
+  private validateBoolean(value: unknown): boolean {
+    return typeof value === 'boolean' ? value : DEFAULT_PREFERENCES.notifications;
+  }
+
+  private validateString(value: unknown): string {
+    return typeof value === 'string' && value.trim().length > 0 
+      ? value.trim() 
+      : DEFAULT_PREFERENCES.language;
+  }
+
+  private validateFontSize(value: unknown): number {
+    const num = Number(value);
+    return !isNaN(num) && num >= 8 && num <= 32 
+      ? Math.round(num) 
+      : DEFAULT_PREFERENCES.fontSize;
+  }
+}
+
+export const preferencesManager = new PreferencesManager();
