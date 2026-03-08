@@ -530,4 +530,50 @@ export function validateUserPreferences(input: unknown): UserPreferences {
 
 export function validateUserPreferencesPartial(input: unknown): Partial<UserPreferences> {
   return UserPreferencesSchema.partial().parse(input);
+}import { z } from 'zod';
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.object({
+    email: z.boolean().default(true),
+    push: z.boolean().default(false),
+    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
+  }),
+  privacy: z.object({
+    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
+    dataSharing: z.boolean().default(false)
+  }),
+  language: z.string().min(2).max(5).default('en')
+});
+
+export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
+
+export class PreferencesValidator {
+  static validate(input: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(input);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Invalid preferences: ${error.errors.map(e => `${e.path}: ${e.message}`).join(', ')}`);
+      }
+      throw error;
+    }
+  }
+
+  static validatePartial(updates: Partial<UserPreferences>): Partial<UserPreferences> {
+    const schema = UserPreferencesSchema.partial();
+    return schema.parse(updates);
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return UserPreferencesSchema.parse({});
+  }
+}
+
+export function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = PreferencesValidator.validatePartial(updates);
+  return { ...existing, ...validatedUpdates };
 }
