@@ -637,4 +637,75 @@ export function createPreferencesStore() {
       return PreferencesValidator.validate(data);
     }
   };
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  resultsPerPage: number;
 }
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_RESULTS_PER_PAGE = 5;
+  private static readonly MAX_RESULTS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      resultsPerPage: 20,
+      ...preferences
+    };
+
+    if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+      throw new PreferenceValidationError(
+        `Invalid theme '${validated.theme}'. Must be one of: light, dark, auto`
+      );
+    }
+
+    if (typeof validated.notifications !== 'boolean') {
+      throw new PreferenceValidationError(
+        `Notifications must be a boolean value, received: ${typeof validated.notifications}`
+      );
+    }
+
+    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(validated.language)) {
+      throw new PreferenceValidationError(
+        `Unsupported language '${validated.language}'. Supported: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`
+      );
+    }
+
+    if (!Number.isInteger(validated.resultsPerPage) || 
+        validated.resultsPerPage < UserPreferencesValidator.MIN_RESULTS_PER_PAGE ||
+        validated.resultsPerPage > UserPreferencesValidator.MAX_RESULTS_PER_PAGE) {
+      throw new PreferenceValidationError(
+        `Results per page must be an integer between ${UserPreferencesValidator.MIN_RESULTS_PER_PAGE} and ${UserPreferencesValidator.MAX_RESULTS_PER_PAGE}`
+      );
+    }
+
+    return validated;
+  }
+
+  static validateAndLog(preferences: Partial<UserPreferences>): UserPreferences {
+    try {
+      const result = this.validate(preferences);
+      console.log('Preferences validated successfully:', result);
+      return result;
+    } catch (error) {
+      if (error instanceof PreferenceValidationError) {
+        console.error('Validation failed:', error.message);
+      }
+      throw error;
+    }
+  }
+}
+
+export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
