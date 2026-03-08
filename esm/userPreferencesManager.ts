@@ -172,4 +172,91 @@ class UserPreferencesManager {
   }
 }
 
-export default UserPreferencesManager;
+export default UserPreferencesManager;import { z } from 'zod';
+
+const PreferenceSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  fontSize: z.number().min(8).max(32).default(14),
+  autoSave: z.boolean().default(true),
+  lastUpdated: z.date().optional()
+});
+
+type UserPreferences = z.infer<typeof PreferenceSchema>;
+
+class PreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const validated = PreferenceSchema.parse({
+          ...parsed,
+          lastUpdated: parsed.lastUpdated ? new Date(parsed.lastUpdated) : undefined
+        });
+        return validated;
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences:', error);
+    }
+    return PreferenceSchema.parse({});
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): UserPreferences {
+    const newPreferences = PreferenceSchema.parse({
+      ...this.preferences,
+      ...updates,
+      lastUpdated: new Date()
+    });
+    
+    this.preferences = newPreferences;
+    this.savePreferences();
+    return newPreferences;
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(
+        PreferencesManager.STORAGE_KEY,
+        JSON.stringify(this.preferences)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(): UserPreferences {
+    this.preferences = PreferenceSchema.parse({});
+    this.savePreferences();
+    return this.preferences;
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(json: string): boolean {
+    try {
+      const parsed = JSON.parse(json);
+      this.updatePreferences(parsed);
+      return true;
+    } catch (error) {
+      console.error('Invalid preferences format:', error);
+      return false;
+    }
+  }
+}
+
+export { PreferencesManager, type UserPreferences };
