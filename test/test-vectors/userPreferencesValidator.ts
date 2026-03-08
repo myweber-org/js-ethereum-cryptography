@@ -553,4 +553,88 @@ export function getPreferencesDiff(
   });
   
   return diff;
+}import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+export const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2).max(5),
+  fontSize: z.number().int().min(8).max(72),
+  autoSave: z.boolean()
+});
+
+export class PreferencesValidator {
+  static validate(preferences: unknown): UserPreferences {
+    try {
+      return UserPreferencesSchema.parse(preferences) as UserPreferences;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        );
+        throw new Error(`Invalid preferences: ${errorMessages.join(', ')}`);
+      }
+      throw new Error('Unknown validation error');
+    }
+  }
+
+  static validatePartial(updates: Partial<unknown>): Partial<UserPreferences> {
+    const partialSchema = UserPreferencesSchema.partial();
+    return partialSchema.parse(updates) as Partial<UserPreferences>;
+  }
+
+  static getDefaultPreferences(): UserPreferences {
+    return {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 14,
+      autoSave: true
+    };
+  }
+
+  static isThemeValid(theme: string): theme is UserPreferences['theme'] {
+    return ['light', 'dark', 'auto'].includes(theme);
+  }
+}
+
+export function mergePreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const validatedUpdates = PreferencesValidator.validatePartial(updates);
+  return { ...existing, ...validatedUpdates };
+}
+
+export function createPreferencesStore() {
+  let preferences = PreferencesValidator.getDefaultPreferences();
+
+  return {
+    getPreferences(): UserPreferences {
+      return { ...preferences };
+    },
+
+    updatePreferences(updates: Partial<unknown>): UserPreferences {
+      const validated = PreferencesValidator.validatePartial(updates);
+      preferences = mergePreferences(preferences, validated);
+      return this.getPreferences();
+    },
+
+    resetToDefaults(): UserPreferences {
+      preferences = PreferencesValidator.getDefaultPreferences();
+      return this.getPreferences();
+    },
+
+    validateExternalData(data: unknown): UserPreferences {
+      return PreferencesValidator.validate(data);
+    }
+  };
 }
