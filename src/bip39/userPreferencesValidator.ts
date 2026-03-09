@@ -1,31 +1,44 @@
 import { z } from 'zod';
 
-const ThemeSchema = z.enum(['light', 'dark', 'system']);
-const NotificationPreferenceSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  sms: z.boolean(),
-});
-
-export const UserPreferencesSchema = z.object({
-  userId: z.string().uuid(),
-  theme: ThemeSchema.default('system'),
-  language: z.string().min(2).max(5).default('en'),
-  notifications: NotificationPreferenceSchema.default({
-    email: true,
-    push: false,
-    sms: false,
-  }),
-  twoFactorEnabled: z.boolean().default(false),
-  createdAt: z.date().default(() => new Date()),
-});
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  return UserPreferencesSchema.parse(input);
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
 }
 
-export function validatePartialPreferences(input: unknown): Partial<UserPreferences> {
-  return UserPreferencesSchema.partial().parse(input);
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2),
+  itemsPerPage: z.number().int().min(5).max(100),
+});
+
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  theme: 'auto',
+  notifications: true,
+  language: 'en',
+  itemsPerPage: 20,
+};
+
+export function validatePreferences(input: unknown): UserPreferences {
+  try {
+    const parsed = UserPreferencesSchema.parse(input);
+    return { ...DEFAULT_PREFERENCES, ...parsed };
+  } catch (error) {
+    console.warn('Invalid preferences provided, using defaults:', error);
+    return DEFAULT_PREFERENCES;
+  }
+}
+
+export function mergePreferences(
+  existing: Partial<UserPreferences>,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validatePreferences(merged);
+}
+
+export function isPreferencesValid(prefs: UserPreferences): boolean {
+  return UserPreferencesSchema.safeParse(prefs).success;
 }
