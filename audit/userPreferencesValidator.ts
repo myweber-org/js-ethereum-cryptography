@@ -1,43 +1,73 @@
-import { z } from 'zod';
 
-const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['immediate', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+  timezone?: string;
+}
 
-type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export function validateUserPreferences(input: unknown): UserPreferences {
-  try {
-    return UserPreferencesSchema.parse(input);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors.map(err => 
-        `${err.path.join('.')}: ${err.message}`
-      );
-      throw new Error(`Invalid preferences: ${errorMessages.join('; ')}`);
-    }
-    throw error;
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
   }
 }
 
-export function createDefaultPreferences(): UserPreferences {
-  return UserPreferencesSchema.parse({});
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MAX_ITEMS_PER_PAGE = 100;
+  private static readonly MIN_ITEMS_PER_PAGE = 5;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: this.validateTheme(preferences.theme),
+      notifications: this.validateNotifications(preferences.notifications),
+      language: this.validateLanguage(preferences.language),
+      itemsPerPage: this.validateItemsPerPage(preferences.itemsPerPage),
+      timezone: preferences.timezone
+    };
+
+    return validated;
+  }
+
+  private static validateTheme(theme?: string): 'light' | 'dark' | 'auto' {
+    if (!theme || !['light', 'dark', 'auto'].includes(theme)) {
+      return 'auto';
+    }
+    return theme as 'light' | 'dark' | 'auto';
+  }
+
+  private static validateNotifications(notifications?: boolean): boolean {
+    return notifications !== undefined ? notifications : true;
+  }
+
+  private static validateLanguage(language?: string): string {
+    if (!language || !this.SUPPORTED_LANGUAGES.includes(language)) {
+      return 'en';
+    }
+    return language;
+  }
+
+  private static validateItemsPerPage(items?: number): number {
+    if (items === undefined) {
+      return 20;
+    }
+
+    if (!Number.isInteger(items) || items < this.MIN_ITEMS_PER_PAGE) {
+      throw new PreferenceValidationError(
+        `Items per page must be an integer greater than or equal to ${this.MIN_ITEMS_PER_PAGE}`
+      );
+    }
+
+    if (items > this.MAX_ITEMS_PER_PAGE) {
+      throw new PreferenceValidationError(
+        `Items per page cannot exceed ${this.MAX_ITEMS_PER_PAGE}`
+      );
+    }
+
+    return items;
+  }
 }
 
-export function mergePreferences(
-  existing: Partial<UserPreferences>,
-  updates: Partial<UserPreferences>
-): UserPreferences {
-  const merged = { ...existing, ...updates };
-  return validateUserPreferences(merged);
-}
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
