@@ -11,7 +11,6 @@ class UserPreferencesManager {
 
   constructor(defaultPreferences?: Partial<UserPreferences>) {
     this.preferences = this.loadPreferences();
-    
     if (defaultPreferences) {
       this.preferences = { ...this.preferences, ...defaultPreferences };
     }
@@ -26,7 +25,7 @@ class UserPreferencesManager {
     } catch (error) {
       console.warn('Failed to load preferences from storage:', error);
     }
-
+    
     return this.getDefaultPreferences();
   }
 
@@ -40,11 +39,11 @@ class UserPreferencesManager {
   }
 
   updatePreferences(updates: Partial<UserPreferences>): void {
-    const previous = { ...this.preferences };
+    const oldPreferences = { ...this.preferences };
     this.preferences = { ...this.preferences, ...updates };
     
     if (!this.validatePreferences(this.preferences)) {
-      this.preferences = previous;
+      this.preferences = oldPreferences;
       throw new Error('Invalid preferences provided');
     }
 
@@ -53,17 +52,23 @@ class UserPreferencesManager {
 
   private validatePreferences(prefs: UserPreferences): boolean {
     const validThemes = ['light', 'dark', 'auto'];
-    const minFontSize = 8;
-    const maxFontSize = 32;
+    if (!validThemes.includes(prefs.theme)) {
+      return false;
+    }
 
-    return (
-      validThemes.includes(prefs.theme) &&
-      typeof prefs.language === 'string' &&
-      prefs.language.length >= 2 &&
-      typeof prefs.notificationsEnabled === 'boolean' &&
-      prefs.fontSize >= minFontSize &&
-      prefs.fontSize <= maxFontSize
-    );
+    if (typeof prefs.language !== 'string' || prefs.language.length < 2) {
+      return false;
+    }
+
+    if (typeof prefs.notificationsEnabled !== 'boolean') {
+      return false;
+    }
+
+    if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+      return false;
+    }
+
+    return true;
   }
 
   private savePreferences(): void {
@@ -74,6 +79,7 @@ class UserPreferencesManager {
       );
     } catch (error) {
       console.error('Failed to save preferences:', error);
+      throw new Error('Unable to persist preferences');
     }
   }
 
@@ -86,13 +92,18 @@ class UserPreferencesManager {
     this.savePreferences();
   }
 
-  isDarkMode(): boolean {
-    if (this.preferences.theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  importPreferences(jsonString: string): void {
+    try {
+      const imported = JSON.parse(jsonString);
+      this.updatePreferences(imported);
+    } catch (error) {
+      throw new Error('Invalid preferences format');
     }
-    return this.preferences.theme === 'dark';
   }
 }
 
-export { UserPreferencesManager };
-export type { UserPreferences };
+export { UserPreferencesManager, UserPreferences };
