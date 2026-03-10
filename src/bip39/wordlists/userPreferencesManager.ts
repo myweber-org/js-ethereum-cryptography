@@ -1397,4 +1397,65 @@ class UserPreferencesManager {
   }
 }
 
+export const preferencesManager = new UserPreferencesManager();import { z } from 'zod';
+
+const PreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
+  notifications: z.boolean().default(true),
+  language: z.string().min(2).default('en'),
+  resultsPerPage: z.number().min(5).max(100).default(20),
+});
+
+type UserPreferences = z.infer<typeof PreferencesSchema>;
+
+const STORAGE_KEY = 'app_preferences';
+
+class UserPreferencesManager {
+  private preferences: UserPreferences;
+
+  constructor() {
+    this.preferences = this.loadPreferences();
+  }
+
+  private loadPreferences(): UserPreferences {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return PreferencesSchema.parse(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load preferences:', error);
+    }
+    return PreferencesSchema.parse({});
+  }
+
+  private savePreferences(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  getPreferences(): UserPreferences {
+    return { ...this.preferences };
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const validated = PreferencesSchema.partial().parse(updates);
+    this.preferences = { ...this.preferences, ...validated };
+    this.savePreferences();
+  }
+
+  resetToDefaults(): void {
+    this.preferences = PreferencesSchema.parse({});
+    this.savePreferences();
+  }
+
+  validateExternalData(data: unknown): UserPreferences {
+    return PreferencesSchema.parse(data);
+  }
+}
+
 export const preferencesManager = new UserPreferencesManager();
