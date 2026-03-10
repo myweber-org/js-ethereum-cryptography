@@ -297,4 +297,107 @@ class UserPreferencesValidator {
 }
 
 export { UserPreferences, UserPreferencesValidator };
-```
+```interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  itemsPerPage: number;
+  timezone?: string;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(
+    public field: string,
+    message: string
+  ) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'ja'];
+  private static readonly MIN_ITEMS_PER_PAGE = 5;
+  private static readonly MAX_ITEMS_PER_PAGE = 100;
+
+  static validate(preferences: Partial<UserPreferences>): UserPreferences {
+    const validated: UserPreferences = {
+      theme: this.validateTheme(preferences.theme),
+      notifications: this.validateNotifications(preferences.notifications),
+      language: this.validateLanguage(preferences.language),
+      itemsPerPage: this.validateItemsPerPage(preferences.itemsPerPage),
+      timezone: preferences.timezone
+    };
+
+    return validated;
+  }
+
+  private static validateTheme(theme?: string): 'light' | 'dark' | 'auto' {
+    if (!theme) {
+      return 'auto';
+    }
+
+    if (theme === 'light' || theme === 'dark' || theme === 'auto') {
+      return theme;
+    }
+
+    throw new PreferenceValidationError(
+      'theme',
+      `Theme must be 'light', 'dark', or 'auto', received: ${theme}`
+    );
+  }
+
+  private static validateNotifications(notifications?: boolean): boolean {
+    if (notifications === undefined || notifications === null) {
+      return true;
+    }
+
+    if (typeof notifications !== 'boolean') {
+      throw new PreferenceValidationError(
+        'notifications',
+        `Notifications must be a boolean, received: ${typeof notifications}`
+      );
+    }
+
+    return notifications;
+  }
+
+  private static validateLanguage(language?: string): string {
+    if (!language) {
+      return 'en';
+    }
+
+    if (!this.SUPPORTED_LANGUAGES.includes(language)) {
+      throw new PreferenceValidationError(
+        'language',
+        `Language '${language}' is not supported. Supported languages: ${this.SUPPORTED_LANGUAGES.join(', ')}`
+      );
+    }
+
+    return language;
+  }
+
+  private static validateItemsPerPage(items?: number): number {
+    if (!items) {
+      return 20;
+    }
+
+    if (typeof items !== 'number' || !Number.isInteger(items)) {
+      throw new PreferenceValidationError(
+        'itemsPerPage',
+        `Items per page must be an integer, received: ${items}`
+      );
+    }
+
+    if (items < this.MIN_ITEMS_PER_PAGE || items > this.MAX_ITEMS_PER_PAGE) {
+      throw new PreferenceValidationError(
+        'itemsPerPage',
+        `Items per page must be between ${this.MIN_ITEMS_PER_PAGE} and ${this.MAX_ITEMS_PER_PAGE}, received: ${items}`
+      );
+    }
+
+    return items;
+  }
+}
+
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
