@@ -257,4 +257,88 @@ class UserPreferencesManager {
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();import { z } from 'zod';
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  autoSave: boolean;
+}
+
+const UserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'auto']),
+  notifications: z.boolean(),
+  language: z.string().min(2),
+  fontSize: z.number().min(8).max(72),
+  autoSave: z.boolean()
+});
+
+export class PreferencesManager {
+  private static readonly STORAGE_KEY = 'user_preferences';
+  private preferences: UserPreferences;
+
+  constructor(defaultPreferences: UserPreferences) {
+    this.preferences = this.loadPreferences() || defaultPreferences;
+  }
+
+  private loadPreferences(): UserPreferences | null {
+    try {
+      const stored = localStorage.getItem(PreferencesManager.STORAGE_KEY);
+      if (!stored) return null;
+
+      const parsed = JSON.parse(stored);
+      const validated = UserPreferencesSchema.parse(parsed);
+      return validated;
+    } catch (error) {
+      console.warn('Failed to load preferences:', error);
+      return null;
+    }
+  }
+
+  private savePreferences(): void {
+    try {
+      const validated = UserPreferencesSchema.parse(this.preferences);
+      localStorage.setItem(
+        PreferencesManager.STORAGE_KEY,
+        JSON.stringify(validated)
+      );
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
+  }
+
+  updatePreferences(updates: Partial<UserPreferences>): void {
+    const newPreferences = { ...this.preferences, ...updates };
+    
+    try {
+      UserPreferencesSchema.parse(newPreferences);
+      this.preferences = newPreferences;
+      this.savePreferences();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error(`Invalid preferences: ${error.errors.map(e => e.message).join(', ')}`);
+      }
+      throw error;
+    }
+  }
+
+  getPreferences(): Readonly<UserPreferences> {
+    return { ...this.preferences };
+  }
+
+  resetToDefaults(defaults: UserPreferences): void {
+    this.preferences = { ...defaults };
+    this.savePreferences();
+  }
+
+  exportPreferences(): string {
+    return JSON.stringify(this.preferences, null, 2);
+  }
+
+  static importPreferences(json: string): UserPreferences {
+    const parsed = JSON.parse(json);
+    return UserPreferencesSchema.parse(parsed);
+  }
+}
