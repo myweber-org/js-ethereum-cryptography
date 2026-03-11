@@ -168,4 +168,80 @@ const updated = profileManager.updateProfile('user-123', { age: 31 });
 console.log('Updated profile:', updated);
 
 const activeProfiles = profileManager.getActiveProfiles();
-console.log('Active profiles:', activeProfiles.length);
+console.log('Active profiles:', activeProfiles.length);interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  age?: number;
+  isActive: boolean;
+}
+
+class UserProfileManager {
+  private profiles: Map<string, UserProfile>;
+
+  constructor() {
+    this.profiles = new Map();
+  }
+
+  addProfile(profile: UserProfile): void {
+    if (this.profiles.has(profile.id)) {
+      throw new Error(`Profile with id ${profile.id} already exists`);
+    }
+
+    if (!this.isValidEmail(profile.email)) {
+      throw new Error(`Invalid email format: ${profile.email}`);
+    }
+
+    if (profile.age !== undefined && profile.age < 0) {
+      throw new Error(`Age cannot be negative: ${profile.age}`);
+    }
+
+    this.profiles.set(profile.id, profile);
+  }
+
+  updateProfile(id: string, updates: Partial<UserProfile>): void {
+    const existingProfile = this.profiles.get(id);
+    
+    if (!existingProfile) {
+      throw new Error(`Profile with id ${id} not found`);
+    }
+
+    if (updates.email && !this.isValidEmail(updates.email)) {
+      throw new Error(`Invalid email format: ${updates.email}`);
+    }
+
+    if (updates.age !== undefined && updates.age < 0) {
+      throw new Error(`Age cannot be negative: ${updates.age}`);
+    }
+
+    const updatedProfile = { ...existingProfile, ...updates };
+    this.profiles.set(id, updatedProfile);
+  }
+
+  getProfile(id: string): UserProfile | undefined {
+    return this.profiles.get(id);
+  }
+
+  deactivateProfile(id: string): void {
+    const profile = this.profiles.get(id);
+    
+    if (!profile) {
+      throw new Error(`Profile with id ${id} not found`);
+    }
+
+    this.profiles.set(id, { ...profile, isActive: false });
+  }
+
+  getActiveProfiles(): UserProfile[] {
+    return Array.from(this.profiles.values())
+      .filter(profile => profile.isActive)
+      .sort((a, b) => a.username.localeCompare(b.username));
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+}
+
+export { UserProfileManager, UserProfile };
