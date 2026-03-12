@@ -23,89 +23,42 @@ class UserPreferencesValidator {
       errors.push('Theme must be one of: light, dark, auto');
     }
 
-    if (preferences.notifications !== undefined && typeof preferences.notifications !== 'boolean') {
+    if (typeof preferences.notifications !== 'boolean') {
       errors.push('Notifications must be a boolean value');
     }
 
-    if (preferences.language && !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
+    if (!preferences.language || !this.SUPPORTED_LANGUAGES.includes(preferences.language)) {
       errors.push(`Language must be one of: ${this.SUPPORTED_LANGUAGES.join(', ')}`);
     }
 
-    if (preferences.timezone && !this.VALID_TIMEZONES.test(preferences.timezone)) {
+    if (!preferences.timezone || !this.VALID_TIMEZONES.test(preferences.timezone)) {
       errors.push('Timezone must be in format: Area/Location (e.g., America/New_York)');
     }
 
     if (errors.length > 0) {
-      throw new PreferenceValidationError(`Validation failed:\n${errors.join('\n')}`);
+      throw new PreferenceValidationError(`Validation failed: ${errors.join('; ')}`);
     }
 
-    return {
-      theme: preferences.theme as 'light' | 'dark' | 'auto',
-      notifications: preferences.notifications ?? true,
-      language: preferences.language ?? 'en',
-      timezone: preferences.timezone ?? 'UTC'
-    };
+    return preferences as UserPreferences;
   }
-}
 
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };import { z } from 'zod';
+  static sanitize(preferences: Partial<UserPreferences>): UserPreferences {
+    const sanitized: Partial<UserPreferences> = { ...preferences };
 
-export const UserPreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-  notifications: z.object({
-    email: z.boolean().default(true),
-    push: z.boolean().default(false),
-    frequency: z.enum(['instant', 'daily', 'weekly']).default('daily')
-  }),
-  privacy: z.object({
-    profileVisibility: z.enum(['public', 'friends', 'private']).default('friends'),
-    searchIndexing: z.boolean().default(true)
-  }),
-  language: z.string().min(2).max(5).default('en')
-}).strict();
-
-export type UserPreferences = z.infer<typeof UserPreferencesSchema>;
-
-export class PreferencesValidator {
-  static validate(input: unknown): UserPreferences {
-    try {
-      return UserPreferencesSchema.parse(input);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const issues = error.issues.map(issue => ({
-          path: issue.path.join('.'),
-          message: issue.message
-        }));
-        throw new ValidationError('Invalid user preferences', issues);
-      }
-      throw error;
+    if (sanitized.theme) {
+      sanitized.theme = sanitized.theme.toLowerCase() as 'light' | 'dark' | 'auto';
     }
-  }
 
-  static validatePartial(updates: Partial<UserPreferences>): Partial<UserPreferences> {
-    const partialSchema = UserPreferencesSchema.partial();
-    return partialSchema.parse(updates);
-  }
+    if (sanitized.language) {
+      sanitized.language = sanitized.language.toLowerCase();
+    }
 
-  static getDefaults(): UserPreferences {
-    return UserPreferencesSchema.parse({});
+    if (sanitized.timezone) {
+      sanitized.timezone = sanitized.timezone.replace(/\s+/g, '_');
+    }
+
+    return this.validate(sanitized);
   }
 }
 
-export class ValidationError extends Error {
-  constructor(
-    message: string,
-    public readonly issues: Array<{ path: string; message: string }>
-  ) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-
-  toJSON() {
-    return {
-      error: this.name,
-      message: this.message,
-      issues: this.issues
-    };
-  }
-}
+export { UserPreferencesValidator, PreferenceValidationError, UserPreferences };
