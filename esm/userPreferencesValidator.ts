@@ -223,4 +223,57 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };
+export { UserPreferences, UserPreferencesValidator, PreferenceValidationError };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+  twoFactorAuth: boolean;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+const validateUserPreferences = (prefs: UserPreferences): void => {
+  const errors: string[] = [];
+
+  if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be light, dark, or auto');
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    errors.push('Notifications must be a boolean value');
+  }
+
+  if (!prefs.language || prefs.language.trim().length === 0) {
+    errors.push('Language must be specified');
+  }
+
+  if (prefs.fontSize < 12 || prefs.fontSize > 24) {
+    errors.push('Font size must be between 12 and 24');
+  }
+
+  if (typeof prefs.twoFactorAuth !== 'boolean') {
+    errors.push('Two-factor authentication must be a boolean value');
+  }
+
+  if (errors.length > 0) {
+    throw new PreferenceValidationError(`Validation failed: ${errors.join('; ')}`);
+  }
+};
+
+const sanitizePreferences = (prefs: Partial<UserPreferences>): UserPreferences => {
+  return {
+    theme: prefs.theme || 'auto',
+    notifications: prefs.notifications ?? true,
+    language: prefs.language || 'en',
+    fontSize: Math.min(Math.max(prefs.fontSize || 16, 12), 24),
+    twoFactorAuth: prefs.twoFactorAuth ?? false,
+  };
+};
+
+export { UserPreferences, PreferenceValidationError, validateUserPreferences, sanitizePreferences };
