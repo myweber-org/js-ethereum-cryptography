@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 interface UserPayload {
-  userId: string;
+  id: string;
   email: string;
   role: string;
 }
@@ -24,24 +24,26 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT secret not configured');
+  const secretKey = process.env.JWT_SECRET_KEY;
+  if (!secretKey) {
+    res.status(500).json({ error: 'Server configuration error' });
+    return;
+  }
+
+  jwt.verify(token, secretKey, (err, decoded) => {
+    if (err) {
+      res.status(403).json({ error: 'Invalid or expired token' });
+      return;
     }
 
-    const decoded = jwt.verify(token, secret) as UserPayload;
-    req.user = decoded;
+    const userPayload = decoded as UserPayload;
+    req.user = {
+      id: userPayload.id,
+      email: userPayload.email,
+      role: userPayload.role
+    };
     next();
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ error: 'Token expired' });
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      res.status(403).json({ error: 'Invalid token' });
-    } else {
-      res.status(500).json({ error: 'Authentication failed' });
-    }
-  }
+  });
 };
 
 export const authorizeRole = (allowedRoles: string[]) => {
