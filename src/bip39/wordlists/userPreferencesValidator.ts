@@ -283,4 +283,53 @@ class UserPreferencesValidator {
   }
 }
 
-export { UserPreferencesValidator, PreferenceError, type UserPreferences };
+export { UserPreferencesValidator, PreferenceError, type UserPreferences };interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const errors: string[] = [];
+
+  if (!prefs.theme || !['light', 'dark', 'auto'].includes(prefs.theme)) {
+    errors.push('Theme must be one of: light, dark, auto');
+  }
+
+  if (typeof prefs.notifications !== 'boolean') {
+    errors.push('Notifications must be a boolean value');
+  }
+
+  if (!prefs.language || typeof prefs.language !== 'string' || prefs.language.length < 2) {
+    errors.push('Language must be a string with at least 2 characters');
+  }
+
+  if (typeof prefs.fontSize !== 'number' || prefs.fontSize < 8 || prefs.fontSize > 72) {
+    errors.push('Font size must be a number between 8 and 72');
+  }
+
+  if (errors.length > 0) {
+    throw new PreferenceValidationError(`Invalid preferences: ${errors.join('; ')}`, 'preferences');
+  }
+
+  return prefs as UserPreferences;
+}
+
+function applyUserPreferences(prefs: UserPreferences): void {
+  console.log('Applying user preferences:', {
+    theme: prefs.theme,
+    notifications: prefs.notifications ? 'enabled' : 'disabled',
+    language: prefs.language,
+    fontSize: `${prefs.fontSize}px`
+  });
+}
+
+export { validateUserPreferences, applyUserPreferences, PreferenceValidationError };
