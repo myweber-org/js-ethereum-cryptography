@@ -578,4 +578,68 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   const current = UserPreferencesSchema.partial().parse(existing);
   const merged = { ...current, ...updates };
   return UserPreferencesSchema.parse(merged);
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
 }
+
+class PreferenceValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_FONT_SIZE = 8;
+  private static readonly MAX_FONT_SIZE = 72;
+
+  static validate(prefs: UserPreferences): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      errors.push(`Invalid theme: ${prefs.theme}`);
+    }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      errors.push('Notifications must be boolean');
+    }
+
+    if (!PreferenceValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      errors.push(`Unsupported language: ${prefs.language}`);
+    }
+
+    if (prefs.fontSize < PreferenceValidator.MIN_FONT_SIZE || 
+        prefs.fontSize > PreferenceValidator.MAX_FONT_SIZE) {
+      errors.push(`Font size must be between ${PreferenceValidator.MIN_FONT_SIZE} and ${PreferenceValidator.MAX_FONT_SIZE}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  static normalizePreferences(prefs: Partial<UserPreferences>): UserPreferences {
+    return {
+      theme: prefs.theme || 'auto',
+      notifications: prefs.notifications ?? true,
+      language: prefs.language || 'en',
+      fontSize: prefs.fontSize || 14
+    };
+  }
+}
+
+function validateUserPreferences(input: unknown): UserPreferences | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+
+  const normalized = PreferenceValidator.normalizePreferences(input as Partial<UserPreferences>);
+  const validation = PreferenceValidator.validate(normalized);
+
+  if (!validation.isValid) {
+    console.warn('Invalid preferences:', validation.errors);
+    return null;
+  }
+
+  return normalized;
+}
+
+export { UserPreferences, PreferenceValidator, validateUserPreferences };
