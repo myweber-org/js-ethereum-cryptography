@@ -417,4 +417,74 @@ export function mergePreferences(
 ): UserPreferences {
   const merged = { ...existing, ...updates };
   return validateUserPreferences(merged);
+}interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'PreferenceError';
+  }
+}
+
+class UserPreferencesValidator {
+  private static readonly SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de'];
+  private static readonly MIN_FONT_SIZE = 12;
+  private static readonly MAX_FONT_SIZE = 24;
+
+  static validate(prefs: UserPreferences): void {
+    if (!['light', 'dark', 'auto'].includes(prefs.theme)) {
+      throw new PreferenceError('Theme must be light, dark, or auto', 'theme');
+    }
+
+    if (typeof prefs.notifications !== 'boolean') {
+      throw new PreferenceError('Notifications must be a boolean value', 'notifications');
+    }
+
+    if (!UserPreferencesValidator.SUPPORTED_LANGUAGES.includes(prefs.language)) {
+      throw new PreferenceError(
+        `Language must be one of: ${UserPreferencesValidator.SUPPORTED_LANGUAGES.join(', ')}`,
+        'language'
+      );
+    }
+
+    if (prefs.fontSize < UserPreferencesValidator.MIN_FONT_SIZE || 
+        prefs.fontSize > UserPreferencesValidator.MAX_FONT_SIZE) {
+      throw new PreferenceError(
+        `Font size must be between ${UserPreferencesValidator.MIN_FONT_SIZE} and ${UserPreferencesValidator.MAX_FONT_SIZE}`,
+        'fontSize'
+      );
+    }
+  }
+
+  static validatePartial(prefs: Partial<UserPreferences>): void {
+    const defaultPreferences: UserPreferences = {
+      theme: 'auto',
+      notifications: true,
+      language: 'en',
+      fontSize: 16
+    };
+
+    const mergedPrefs = { ...defaultPreferences, ...prefs };
+    this.validate(mergedPrefs);
+  }
+}
+
+function saveUserPreferences(prefs: UserPreferences): boolean {
+  try {
+    UserPreferencesValidator.validate(prefs);
+    console.log('Preferences validated successfully');
+    return true;
+  } catch (error) {
+    if (error instanceof PreferenceError) {
+      console.error(`Validation failed for field "${error.field}": ${error.message}`);
+    } else {
+      console.error('Unexpected validation error:', error);
+    }
+    return false;
+  }
 }
