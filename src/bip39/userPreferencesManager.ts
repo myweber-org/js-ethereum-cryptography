@@ -603,4 +603,84 @@ class UserPreferencesManager {
   }
 }
 
-export const preferencesManager = new UserPreferencesManager();
+export const preferencesManager = new UserPreferencesManager();typescript
+interface UserPreferences {
+    theme: 'light' | 'dark' | 'auto';
+    fontSize: number;
+    notificationsEnabled: boolean;
+    language: string;
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+    theme: 'auto',
+    fontSize: 16,
+    notificationsEnabled: true,
+    language: 'en-US'
+};
+
+const STORAGE_KEY = 'app_user_preferences';
+
+class PreferencesManager {
+    private preferences: UserPreferences;
+
+    constructor() {
+        this.preferences = this.loadPreferences();
+    }
+
+    private loadPreferences(): UserPreferences {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                return { ...DEFAULT_PREFERENCES, ...parsed };
+            }
+        } catch (error) {
+            console.warn('Failed to load preferences from storage:', error);
+        }
+        return { ...DEFAULT_PREFERENCES };
+    }
+
+    getPreference<K extends keyof UserPreferences>(key: K): UserPreferences[K] {
+        return this.preferences[key];
+    }
+
+    setPreference<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): void {
+        this.preferences[key] = value;
+        this.savePreferences();
+    }
+
+    updatePreferences(updates: Partial<UserPreferences>): void {
+        this.preferences = { ...this.preferences, ...updates };
+        this.savePreferences();
+    }
+
+    resetToDefaults(): void {
+        this.preferences = { ...DEFAULT_PREFERENCES };
+        this.savePreferences();
+    }
+
+    private savePreferences(): void {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.preferences));
+        } catch (error) {
+            console.error('Failed to save preferences:', error);
+        }
+    }
+
+    exportPreferences(): string {
+        return JSON.stringify(this.preferences, null, 2);
+    }
+
+    importPreferences(jsonString: string): boolean {
+        try {
+            const imported = JSON.parse(jsonString);
+            this.updatePreferences(imported);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+}
+
+export const preferencesManager = new PreferencesManager();
+```
