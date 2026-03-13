@@ -33,4 +33,34 @@ function createDefaultProfile(username: string, email: string): UserProfile {
   return UserProfileSchema.parse(profileData);
 }
 
+export { UserProfileSchema, validateUserProfile, createDefaultProfile, type UserProfile };import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().min(18).max(120).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'auto']),
+    notifications: z.boolean().default(true),
+  }).default({ theme: 'auto', notifications: true }),
+  lastLogin: z.date().optional(),
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+function validateUserProfile(data: unknown): UserProfile | null {
+  const result = UserProfileSchema.safeParse(data);
+  return result.success ? result.data : null;
+}
+
+function createDefaultProfile(username: string, email: string): UserProfile {
+  return {
+    id: crypto.randomUUID(),
+    username,
+    email,
+    preferences: { theme: 'auto', notifications: true },
+  };
+}
+
 export { UserProfileSchema, validateUserProfile, createDefaultProfile, type UserProfile };
