@@ -458,3 +458,55 @@ export function mergePreferences(existing: Partial<UserPreferences>, updates: Pa
   const merged = { ...current, ...updates };
   return validatePreferences(merged);
 }
+interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  notifications: boolean;
+  language: string;
+  fontSize: number;
+}
+
+class PreferenceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PreferenceValidationError';
+  }
+}
+
+export function validateUserPreferences(prefs: Partial<UserPreferences>): UserPreferences {
+  const defaultPreferences: UserPreferences = {
+    theme: 'auto',
+    notifications: true,
+    language: 'en',
+    fontSize: 14
+  };
+
+  const validated: UserPreferences = { ...defaultPreferences, ...prefs };
+
+  if (!['light', 'dark', 'auto'].includes(validated.theme)) {
+    throw new PreferenceValidationError(
+      `Invalid theme: ${validated.theme}. Must be 'light', 'dark', or 'auto'`
+    );
+  }
+
+  if (typeof validated.notifications !== 'boolean') {
+    throw new PreferenceValidationError('Notifications must be a boolean value');
+  }
+
+  if (!validated.language || validated.language.trim().length === 0) {
+    throw new PreferenceValidationError('Language must be a non-empty string');
+  }
+
+  if (!Number.isInteger(validated.fontSize) || validated.fontSize < 8 || validated.fontSize > 72) {
+    throw new PreferenceValidationError('Font size must be an integer between 8 and 72');
+  }
+
+  return validated;
+}
+
+export function mergeUserPreferences(
+  existing: UserPreferences,
+  updates: Partial<UserPreferences>
+): UserPreferences {
+  const merged = { ...existing, ...updates };
+  return validateUserPreferences(merged);
+}
