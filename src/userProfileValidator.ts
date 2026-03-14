@@ -169,4 +169,52 @@ function validateUserProfile(input: unknown): UserProfile {
   }
 }
 
-export { userProfileSchema, validateUserProfile, type UserProfile };
+export { userProfileSchema, validateUserProfile, type UserProfile };import { z } from 'zod';
+
+const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  username: z.string().min(3).max(30),
+  email: z.string().email(),
+  age: z.number().int().min(18).optional(),
+  preferences: z.object({
+    theme: z.enum(['light', 'dark', 'auto']),
+    notifications: z.boolean().default(true),
+  }),
+});
+
+type UserProfile = z.infer<typeof UserProfileSchema>;
+
+class ValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly details: z.ZodError
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export function validateUserProfile(input: unknown): UserProfile {
+  const result = UserProfileSchema.safeParse(input);
+  
+  if (!result.success) {
+    throw new ValidationError(
+      'Invalid user profile data',
+      result.error
+    );
+  }
+  
+  return result.data;
+}
+
+export function createDefaultProfile(username: string, email: string): UserProfile {
+  return {
+    id: crypto.randomUUID(),
+    username,
+    email,
+    preferences: {
+      theme: 'auto',
+      notifications: true,
+    },
+  };
+}
