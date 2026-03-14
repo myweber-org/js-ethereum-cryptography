@@ -439,4 +439,46 @@ export function createDefaultProfile(username: string, email: string): UserProfi
       notifications: true
     }
   });
+}import { z } from 'zod';
+
+export const UserProfileSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  username: z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(20, 'Username cannot exceed 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  age: z.number()
+    .int('Age must be an integer')
+    .min(18, 'User must be at least 18 years old')
+    .max(120, 'Age must be realistic'),
+  preferences: z.object({
+    newsletter: z.boolean().default(false),
+    theme: z.enum(['light', 'dark', 'auto']).default('auto')
+  }).optional()
+});
+
+export type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export function validateUserProfile(data: unknown): UserProfile {
+  try {
+    return UserProfileSchema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      throw new Error(`Validation failed: ${errorMessages.join('; ')}`);
+    }
+    throw error;
+  }
+}
+
+export function createDefaultProfile(): UserProfile {
+  return {
+    email: '',
+    username: '',
+    age: 18,
+    preferences: {
+      newsletter: false,
+      theme: 'auto'
+    }
+  };
 }
